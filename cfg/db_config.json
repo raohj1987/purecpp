@@ -1,0 +1,9 @@
+{
+   "db_ip": "127.0.0.1",
+   "db_port": 6379,
+   "db_name": "purecpp",
+   "db_user_name": "root",
+   "db_pwd": "12345",
+   "db_conn_num": 50,
+   "db_conn_timeout": 3600
+}

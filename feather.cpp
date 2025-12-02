@@ -1,11 +1,16 @@
 #include <cinatra.hpp>
-#include <dbng.hpp>
+
+#include <filesystem>
 #include <iguana/json_reader.hpp>
 #include <iguana/json_writer.hpp>
+#include <iguana/prettify.hpp>
 #include <iostream>
-#include <mysql.hpp>
+
+#include "entity.hpp"
+
 using namespace cinatra;
 using namespace ormpp;
+using namespace purecpp;
 
 struct test_optional {
   int id;
@@ -57,7 +62,41 @@ struct rest_response {
   int code;
 };
 
+// database
+void init_db() {
+  std::ifstream file("cfg/db_config.json", std::ios::in);
+  if (!file.is_open()) {
+    std::cout << "no config file\n";
+    return;
+  }
+
+  std::string json;
+  json.resize(1024);
+  file.read(json.data(), json.size());
+  db_config conf;
+  iguana::from_json(conf, json);
+
+  auto &pool = connection_pool<dbng<mysql>>::instance();
+  try {
+    pool.init(conf.db_conn_num, conf.db_ip, conf.db_user_name, conf.db_pwd,
+              conf.db_name.data(), conf.db_conn_timeout, conf.db_port);
+  } catch (const std::exception &e) {
+    std::cout << e.what() << std::endl;
+    return;
+  }
+
+  auto conn = pool.get();
+  bool r = conn->create_datatable<users_t>(
+      ormpp_unique{{"user_name", "email", "pwd_hash"}},
+      ormpp_not_null{{"user_name", "email", "pwd_hash"}});
+
+  auto vec = conn->query_s<users_t>();
+  std::cout << vec.size() << "\n";
+}
+
 int main() {
+  init_db();
+
   coro_http_server server(std::thread::hardware_concurrency(), 3389);
   server.set_file_resp_format_type(file_resp_format_type::chunked);
   server.set_static_res_dir("", "html");

@@ -4,7 +4,7 @@ project(purecpp VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 include_directories(../cinatra/include)
-include_directories(../ormpp/ormpp)
+include_directories(../ormpp)
 include_directories(../iguana)
 
 set(ENABLE_MYSQL ON)
