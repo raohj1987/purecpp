@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "entity.hpp"
+#include "user_register.hpp"
 
 using namespace cinatra;
 using namespace ormpp;
@@ -50,29 +51,12 @@ struct test_optional {
 }
 */
 
-struct rest_data {
-  uint64_t user_id;
-  std::string username;
-  std::string email;
-  bool verification_required;
-};
-
-template<typename T>
-struct rest_response {
-  bool success = true;
-  std::string message;
-  std::optional<std::vector<std::string>> errors;
-  std::optional<T> data;
-  std::string timestamp;
-  int code = 200;
-};
-
 // database
-void init_db() {
+bool init_db() {
   std::ifstream file("cfg/db_config.json", std::ios::in);
   if (!file.is_open()) {
     std::cout << "no config file\n";
-    return;
+    return false;
   }
 
   std::string json;
@@ -87,30 +71,17 @@ void init_db() {
               conf.db_name.data(), conf.db_conn_timeout, conf.db_port);
   } catch (const std::exception &e) {
     std::cout << e.what() << std::endl;
-    return;
+    return false;
   }
 
   auto conn = pool.get();
-  bool r = conn->create_datatable<users_t>(
-      ormpp_unique{{"user_name", "email", "pwd_hash"}},
+  conn->execute("drop table if exists users");
+  conn->create_datatable<users_t>(
+      ormpp_auto_key{"id"}, ormpp_unique{{"user_name", "email", "pwd_hash"}},
       ormpp_not_null{{"user_name", "email", "pwd_hash"}});
 
-  auto vec = conn->query_s<users_t>();
-  std::cout << vec.size() << "\n";
+  return true;
 }
-
-const std::vector<std::string_view> cpp_questions{
-    "C++中声明指向int的常量指针, 语法是____ int* "
-    "p。(请把空白部分的代码补充完整)",
-    "sizeof(uint64_t)的返回值是?",
-    "请输入C++中共享的智能指针。std::____ (请把空白部分的代码补充完整)",
-    "请输入C++中独占的智能指针。std::____ (请把空白部分的代码补充完整)",
-    "auto foo(){return new int(1);} void "
-    "call_foo(){foo();} 这个call_foo函数有什么问题? ",
-    "std::string str; str.reserve(100); 这个str的长度是多少?"};
-
-const std::vector<std::string_view> cpp_answers{
-    "const", "8", "shared_ptr", "unique_ptr", "内存泄漏", "0"};
 
 size_t get_question_index() {
   static unsigned seed =
@@ -123,22 +94,15 @@ size_t get_question_index() {
   return random_index;
 }
 
-bool valid_question(size_t index, std::string_view answer) {
-  if (index >= cpp_answers.size()) {
-    std::cout << "invalid index\n";
-    return false;
-  }
-
-  return cpp_answers[index] == answer;
-}
-
 struct question_resp {
   size_t index;
   std::string_view question;
 };
 
 int main() {
-  init_db();
+  if (!init_db()) {
+    return -1;
+  }
   auto &db_pool = connection_pool<dbng<mysql>>::instance();
 
   coro_http_server server(std::thread::hardware_concurrency(), 3389);
@@ -148,6 +112,7 @@ int main() {
       "/", [](coro_http_request &req, coro_http_response &resp) {
         resp.set_status_and_content(status_type::ok, "hello purecpp");
       });
+
   server.set_http_handler<GET>(
       "/api/v1/get_questions",
       [](coro_http_request &req, coro_http_response &resp) {
@@ -161,21 +126,11 @@ int main() {
         resp.set_content_type<resp_content_type::json>();
         resp.set_status_and_content(status_type::ok, std::move(json));
       });
+
+  user_register_t usr_reg{};
   server.set_http_handler<POST>(
-      "/api/v1/register", [](coro_http_request &req, coro_http_response &resp) {
-        rest_response<rest_data> data{};
-        // data.success = true;
-        // data.message = "注册成功";
-        // data.data = rest_data{1, "tom", "example@163.com", true};
-        data.success = false;
-        data.message = "email invalid";
-        data.errors = {{"emal invlaid"}};
-
-        std::string json;
-        iguana::to_json(data, json);
-
-        resp.add_header("x-content-type-options", "nosniff");
-        resp.set_status_and_content(status_type::bad_request, std::move(json));
-      });
+      "/api/v1/register", &user_register_t::handle_register, usr_reg,
+      check_register_input{}, check_cpp_answer{}, check_user_name{},
+      check_email{}, check_password{});
   server.sync_start();
 }

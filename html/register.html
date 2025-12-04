@@ -340,8 +340,8 @@
                     <!-- 密码组：添加专属类，缩小间距 -->
                     <div class="form-group password-group">
                         <label for="password">密码</label>
-                        <input type="password" id="password" class="form-control" placeholder="请输入6-20位密码" required
-                            x-model="password">
+                        <input type="password" id="password" class="form-control" placeholder="长度6-20位，且含大小写字母和数字"
+                            required x-model="password">
                     </div>
                     <!-- 确认密码组：添加专属类，缩小间距 -->
                     <div class="form-group password-group">
@@ -359,7 +359,7 @@
                         </div>
                         <!-- 输入框容器：包裹输入框 -->
                         <div class="verify-input-group">
-                            <input type="text" id="verifyCode" class="form-control verify-input" placeholder="请输入"
+                            <input type="text" id="verifyAnswer" class="form-control verify-input" placeholder="请输入"
                                 required x-model="verifyAnswer">
                         </div>
                     </div>
@@ -418,7 +418,7 @@
                 isSubmitting: false,
 
                 // C++ 题库（保留你提供的内容）
-                questionIndex: 0,
+                question_index: 0,
                 currentQuestion: {},
 
                 // 初始化：随机选择C++问题
@@ -429,6 +429,8 @@
                     if (response.ok) {
                         const data = await response.json();
                         this.currentQuestion = data.data;
+                        this.question_index = data.data.index;
+                        console.log("question index: " + this.question_index);
                     } else {
                         this.currentQuestion = "请求服务器失败";
                     }
@@ -441,14 +443,16 @@
 
                     const password = this.password;
                     const confirmPwd = this.confirmPwd;
-                    const verifyCode = this.verifyAnswer.trim();
+                    const verifyAnswer = this.verifyAnswer.trim();
+                    const question_index = this.question_index;
+
 
                     // 保留原始验证逻辑
                     if (password !== confirmPwd) {
                         alert('两次输入的密码不一致，请重新输入');
                         return;
                     }
-                    if (verifyCode.length < 1) {
+                    if (verifyAnswer.length < 1) {
                         alert('请输入答案');
                         return;
                     }
@@ -458,7 +462,8 @@
                         email: this.email,
                         password: this.password,
                         // 注意：通常不需要发送 confirmPwd 和 agreement 到后端
-                        cpp_answer: this.verifyAnswer.trim()
+                        cpp_answer: this.verifyAnswer.trim(),
+                        question_index: this.question_index
                     };
 
                     this.isSubmitting = true;
@@ -476,7 +481,7 @@
 
                         if (response.ok) {
                             // 200 OK: 注册成功
-                            alert('注册成功！请前往邮箱验证账号。');
+                            alert('注册成功！请前往邮箱验证账号。' + data.data.username);
                             window.location.href = '/login.html';
 
                         } else if (response.status === 400) {
