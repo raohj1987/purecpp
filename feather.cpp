@@ -77,7 +77,8 @@ bool init_db() {
   auto conn = pool.get();
   conn->execute("drop table if exists users");
   conn->create_datatable<users_t>(
-      ormpp_auto_key{"id"}, ormpp_unique{{"user_name", "email", "pwd_hash"}},
+      ormpp_auto_key{"id"}, ormpp_unique{{"user_name"}},
+      ormpp_unique{{"email"}},
       ormpp_not_null{{"user_name", "email", "pwd_hash"}});
 
   return true;

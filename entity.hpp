@@ -22,14 +22,13 @@ struct db_config {
 
 struct users_t {
   uint64_t id;
-  std::string_view user_name; // unique, not null
-  std::string_view email;     // unique, not null
-  std::string_view pwd_hash;  // not null
-  int is_verifyed;            // 邮箱是否已验证
+  std::array<char, 21> user_name; // unique, not null
+  std::array<char, 254> email;    // unique, not null
+  std::string_view pwd_hash;      // not null
+  int is_verifyed;                // 邮箱是否已验证
   uint64_t created_at;
   uint64_t last_active_at; // 最后活跃时间
 };
-REGISTER_AUTO_KEY(users_t, id); // 定义主键
 
 inline constexpr std::string_view get_alias_struct_name(users_t *) {
   return "users"; // 表名默认结构体名字(users_t), 这里可以修改表名

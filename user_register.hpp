@@ -23,13 +23,20 @@ public:
     auto &db_pool = connection_pool<dbng<mysql>>::instance();
     auto conn = db_pool.get();
     users_t user{.id = 0,
-                 .user_name = info.username,
-                 .email = info.email,
                  .pwd_hash = info.password,
                  .is_verifyed = false,
                  .created_at = get_timestamp_milliseconds(),
                  .last_active_at = 0};
+    std::copy(info.username.begin(), info.username.end(),
+              user.user_name.begin());
+    std::copy(info.email.begin(), info.email.end(), user.email.begin());
     uint64_t id = conn->get_insert_id_after_insert(user);
+    if (id == 0) {
+      auto err = conn->get_last_error();
+      std::cout << err << "\n";
+      resp.set_status_and_content(status_type::bad_request, make_error(err));
+      return;
+    }
 
     rest_response<user_resp_data> data{};
     data.success = true;
@@ -40,7 +47,7 @@ public:
     std::string json;
     iguana::to_json(data, json);
 
-    resp.set_status_and_content(status_type::bad_request, std::move(json));
+    resp.set_status_and_content(status_type::ok, std::move(json));
   }
 };
 } // namespace purecpp
