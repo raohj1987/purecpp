@@ -2,6 +2,7 @@
 
 #include "entity.hpp"
 #include "user_aspects.hpp"
+#include <openssl/sha.h>
 
 using namespace cinatra;
 
@@ -14,6 +15,28 @@ inline uint64_t get_timestamp_milliseconds() {
   return static_cast<uint64_t>(milliseconds.count());
 }
 
+inline std::string sha256_simple(std::string_view input) {
+  unsigned char hash[SHA256_DIGEST_LENGTH];
+  SHA256(reinterpret_cast<const unsigned char *>(input.data()), input.size(),
+         hash);
+
+  std::string hex(SHA256_DIGEST_LENGTH * 2, '\0');
+
+  for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+    char buf[2];
+
+    // 高4位
+    std::to_chars(buf, buf + 1, hash[i] >> 4, 16);
+    hex[i * 2] = buf[0];
+
+    // 低4位
+    std::to_chars(buf, buf + 1, hash[i] & 0x0F, 16);
+    hex[i * 2 + 1] = buf[0];
+  }
+
+  return hex;
+}
+
 class user_register_t {
 public:
   void handle_register(coro_http_request &req, coro_http_response &resp) {
@@ -23,10 +46,11 @@ public:
     auto &db_pool = connection_pool<dbng<mysql>>::instance();
     auto conn = db_pool.get();
     users_t user{.id = 0,
-                 .pwd_hash = info.password,
                  .is_verifyed = false,
                  .created_at = get_timestamp_milliseconds(),
                  .last_active_at = 0};
+    std::string pwd_sha = sha256_simple(info.password);
+    user.pwd_hash = pwd_sha;
     std::copy(info.username.begin(), info.username.end(),
               user.user_name.begin());
     std::copy(info.email.begin(), info.email.end(), user.email.begin());
