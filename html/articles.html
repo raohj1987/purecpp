@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>技术文章 - Purecpp.cn 现代C++社区</title>
+    <meta name="description" content="Purecpp社区技术文章，涵盖现代C++、协程、模板元编程等前沿技术">
+    
+    <!-- 本地资源 -->
+    <link rel="stylesheet" href="css/pico.min.css">
+    <link rel="stylesheet" href="font-awesome/css/all.min.css">
+    <script defer src="script/alpine.js"></script>
+
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --border-color: #e2e8f0;
+            --muted-color: #6b7280;
+            --bg-page: #ffffff;
+            --bg-card: #ffffff;
+            --text-main: #333;
+            --text-highlight: var(--primary);
+        }
+
+        /* 深色模式 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-page: #121212;
+                --bg-card: #1e1e1e;
+                --text-main: #f3f4f6;
+                --text-highlight: #818cf8;
+                --border-color: #374151;
+            }
+        }
+
+        /* 全局样式 */
+        body {
+            background-color: var(--bg-page) !important;
+            color: var(--text-main) !important;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* 头部导航 */
+        .page-header {
+            max-width: 1200px;
+            width: 100%;
+            padding: 1rem 2rem;
+            margin: 0 auto;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none !important;
+        }
+
+        .logo img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .logo strong {
+            font-size: 18px !important;
+            color: var(--primary) !important;
+        }
+
+        /* 主要内容容器 */
+        .articles-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        /* 页面标题区域 */
+        .page-header-area {
+            margin-bottom: 1rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-highlight);
+        }
+
+        .page-description {
+            color: var(--muted-color);
+            font-size: 0.9rem;
+        }
+
+        /* 文章列表 */
+        .articles-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        /* 文章卡片 */
+        .article-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.6rem;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .article-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .article-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            line-height: 1.4;
+            color: var(--text-main);
+            margin-bottom: 0.8rem;
+        }
+
+        .article-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .article-title a:hover {
+            color: var(--primary);
+        }
+
+        .article-excerpt {
+            color: var(--muted-color);
+            line-height: 1.6;
+            margin-bottom: 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        /* 标签 */
+        .article-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            background: var(--primary);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            text-decoration: none;
+        }
+
+        .tag:hover {
+            opacity: 0.9;
+            color: white;
+        }
+
+        /* 文章元信息 */
+        .article-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: var(--muted-color);
+            align-items: center;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .meta-item i {
+            width: 16px;
+        }
+
+        .read-more {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .read-more:hover {
+            text-decoration: underline;
+        }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.6rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .page-link {
+            padding: 0.5rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .page-link:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .page-link.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .articles-container {
+                padding: 1rem;
+            }
+
+            .page-title {
+                font-size: 1.6rem;
+            }
+
+            .article-card {
+                padding: 1rem;
+            }
+
+            .article-title {
+                font-size: 1.1rem;
+            }
+
+            .article-meta {
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 头部导航 -->
+    <header class="page-header" id="header-container">
+        <!-- 默认导航，如果加载失败就显示这个 -->
+        <nav class="container-fluid">
+            <ul>
+                <li>
+                    <a href="/" class="secondary">
+                        <img src="logo.png" alt="PureCpp Logo">
+                        <strong>PureCpp</strong>
+                    </a>
+                </li>
+            </ul>
+            <ul>
+                <li><a href="login.html">登录</a></li>
+                <li><a href="register.html">注册</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- 文章列表主体 -->
+    <main class="articles-container">
+        <!-- 页面标题 -->
+        <div class="page-header-area">
+            <h2 class="page-title">技术文章</h2>
+            <p class="page-description">分享现代C++、系统编程、性能优化等前沿技术</p>
+        </div>
+
+        <!-- 文章列表 -->
+        <div class="articles-list">
+            <!-- 文章1 -->
+            <article class="article-card">
+                <h2 class="article-title">
+                    <a href="/article/cpp20-coroutine">C++20协程原理与实践</a>
+                </h2>
+                <p class="article-excerpt">
+                    深入解析C++20协程的实现原理与最佳实践。协程是C++20引入的最重要特性之一，它为异步编程提供了全新的解决方案...
+                </p>
+                <div class="article-tags">
+                    <a href="/tag/c++20" class="tag">C++20</a>
+                    <a href="/tag/coroutine" class="tag">协程</a>
+                    <a href="/tag/async" class="tag">异步编程</a>
+                </div>
+                <div class="article-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-user"></i>
+                        <span>张三</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-calendar"></i>
+                        <span>2024-01-15</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-eye"></i>
+                        <span>2,845 阅读</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-comment"></i>
+                        <span>42 评论</span>
+                    </div>
+                    <a href="/article/cpp20-coroutine" class="read-more">阅读全文 →</a>
+                </div>
+            </article>
+
+            <!-- 文章2 -->
+            <article class="article-card">
+                <h2 class="article-title">
+                    <a href="/article/cpp20-ranges">C++20 Ranges库完全指南</a>
+                </h2>
+                <p class="article-excerpt">
+                    Ranges库是C++20中最实用的特性之一，它提供了更安全、更易用的容器操作方式。本文详细介绍ranges的概念、使用方法和最佳实践...
+                </p>
+                <div class="article-tags">
+                    <a href="/tag/c++20" class="tag">C++20</a>
+                    <a href="/tag/ranges" class="tag">Ranges</a>
+                    <a href="/tag/stl" class="tag">STL</a>
+                </div>
+                <div class="article-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-user"></i>
+                        <span>李四</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-calendar"></i>
+                        <span>2024-01-10</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-eye"></i>
+                        <span>1,892 阅读</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-comment"></i>
+                        <span>28 评论</span>
+                    </div>
+                    <a href="/article/cpp20-ranges" class="read-more">阅读全文 →</a>
+                </div>
+            </article>
+
+            <!-- 文章3 -->
+            <article class="article-card">
+                <h2 class="article-title">
+                    <a href="/article/memory-model">C++内存模型详解</a>
+                </h2>
+                <p class="article-excerpt">
+                    内存模型是理解C++并发编程的关键。本文深入讲解内存顺序、原子操作、内存屏障等概念，帮助你写出正确的并发代码...
+                </p>
+                <div class="article-tags">
+                    <a href="/tag/concurrency" class="tag">并发编程</a>
+                    <a href="/tag/memory" class="tag">内存模型</a>
+                    <a href="/tag/atomic" class="tag">原子操作</a>
+                </div>
+                <div class="article-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-user"></i>
+                        <span>赵六</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-calendar"></i>
+                        <span>2024-01-05</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-eye"></i>
+                        <span>3,421 阅读</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-comment"></i>
+                        <span>56 评论</span>
+                    </div>
+                    <a href="/article/memory-model" class="read-more">阅读全文 →</a>
+                </div>
+            </article>
+        </div>
+
+        <!-- 分页 -->
+        <div class="pagination">
+            <a href="#" class="page-link disabled">上一页</a>
+            <a href="#" class="page-link active">1</a>
+            <a href="/articles?page=2" class="page-link">2</a>
+            <a href="/articles?page=3" class="page-link">3</a>
+            <a href="/articles?page=2" class="page-link">下一页</a>
+        </div>
+    </main>
+
+    <script>
+// 加载 header
+        document.addEventListener('DOMContentLoaded', async function () {
+            const container = document.getElementById('header-container');
+            if (!container) {
+                console.error('找不到 header-container 元素');
+                return;
+            }
+
+            const response = await fetch('header.html');
+            if (!response.ok) {
+                console.log('Header 加载失败');
+                return;
+            }
+            const html = await response.text();
+            container.innerHTML = html;
+            console.log('Header 加载成功');
+        });
+
+        // 文章点击统计
+        document.querySelectorAll('.article-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                // 如果不是点击链接，则跳转到文章
+                if (!e.target.closest('a')) {
+                    const link = this.querySelector('.article-title a');
+                    if (link) {
+                        // 可以在这里添加点击统计
+                        recordArticleClick(link.href);
+                        window.location.href = link.href;
+                    }
+                }
+            });
+        });
+
+        function recordArticleClick(url) {
+            // 记录文章点击（实际项目中发送到服务器）
+            console.log('点击文章:', url);
+        }
+    </script>
+</body>
+
+</html>
