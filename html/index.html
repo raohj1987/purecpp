@@ -612,8 +612,112 @@
             opacity: 1 !important;
         }
 
-        /* 响应式适配（精简合并） */
+        /* --- 移动端导航栏适配 --- */
+        /* 默认（桌面端）：隐藏汉堡按钮 */
+        .mobile-toggle {
+            display: none;
+        }
+
         @media (max-width: 992px) {
+            /* --- 1. 整体布局调整 --- */
+            .page-wrapper, .footer-content { padding: 0 1rem !important; }
+            
+            /* --- 2. 顶部公告栏修复 (本次修改重点) --- */
+            .announcement-row {
+                display: flex !important;
+                flex-direction: column;         /* 垂直排列 */
+                gap: 0.8rem !important;         /* 上下间距 */
+                padding: 0.5rem 0 !important;
+            }
+
+            .announcement-container {
+                width: 100%;
+                height: 24px !important;        /* 锁死高度 */
+                display: flex;
+                justify-content: center;
+            }
+/* --- 修复公告栏左侧被切掉的问题 --- */
+            .announcement-container {
+                width: 100%;
+                height: 24px !important;
+                display: block !important;    /* 1. 既然是滚动条，就不需要 flex 居中了 */
+                /* justify-content: center;      <-- 罪魁祸首是这句，删掉它！ */
+            }
+
+            .announcement-scroll {
+                width: 100% !important;       /* 2. 强制滚动容器也是满宽 */
+            }
+
+            .announcement-item {
+                /* 3. 使用 Flex 布局来排列图标和文字 */
+                display: flex !important;
+                align-items: center !important; 
+                width: 100%;
+                height: 24px !important;
+                padding: 0 0.5rem !important;  /* 两侧留点空隙 */
+                
+                /* 字体设置 */
+                font-size: 0.8rem !important;
+                line-height: 1 !important;
+                text-align: left !important;   /* 强制靠左 */
+            }
+
+            /* 左侧标题（加固） */
+            .announcement-item strong {
+                flex-shrink: 0;           /* 就算屏幕再小，标题也不许被挤扁 */
+                margin-right: 6px;
+                color: var(--primary);
+                white-space: nowrap;      /* 标题本身也不许换行 */
+            }
+
+            /* 右侧文字（截断逻辑） */
+            .announcement-item span {
+                flex-grow: 1;             /* 占满剩余空间 */
+                white-space: nowrap;      /* 不许换行 */
+                overflow: hidden;         /* 超出截断 */
+                text-overflow: ellipsis;  /* 显示省略号... */
+                min-width: 0;             /* Flex子项截断必须加这个 */
+                display: block;           /* 确保表现为块级以支持截断 */
+            }
+
+            /* --- 3. 搜索框调整 --- */
+            .search-box {
+                min-width: 100% !important;
+                width: 100% !important;
+                height: 38px;
+            }
+            .search-box input { font-size: 16px !important; }
+
+            /* --- 4. 汉堡菜单 --- */
+            .mobile-toggle {
+                display: block !important;
+                margin-left: auto;
+                font-size: 1.5rem;
+            }
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 60px;
+                left: 0;
+                width: 100%;
+                background-color: var(--bg-card);
+                flex-direction: column;
+                padding: 1rem !important;
+                border-bottom: 1px solid var(--border-color);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 1000;
+            }
+            .nav-links.active {
+                display: flex !important;
+                animation: slideDown 0.3s ease-out;
+            }
+            .nav-links li {
+                width: 100%;
+                text-align: center;
+                padding: 0.5rem 0;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .btn-register { width: 100%; display: block; text-align: center; }
             .footer-grid {
                 grid-template-columns: 1fr !important;
                 gap: 1.5rem !important;
@@ -625,18 +729,39 @@
                 justify-content: center !important;
             }
 
-            .announcement-row {
-                grid-template-columns: 1fr !important;
-                gap: 0.5rem !important;
+            /* --- 底部 Footer 手机端适配 --- */
+            /* 1. 整体布局：单列显示，增加大模块之间的间距 */
+            .footer-grid {
+                grid-template-columns: 1fr !important; /* 强制单列 */
+                gap: 2rem !important;                  /* 版权、链接、图标三组之间拉开距离 */
+                text-align: center !important;
             }
 
-            .search-box {
-                min-width: 100% !important;
+            /* 2. 导航链接列表：从“横排”改为“竖排” */
+            .footer-content ul {
+                flex-direction: column !important;     /* 核心：垂直排列 */
+                gap: 1.2rem !important;                /* 每个链接之间的间距 */
             }
 
-            .page-wrapper,
-            .footer-content {
-                padding: 0 1rem !important;
+            /* 3. 单个链接项：放大点击区域，防止误触 */
+            .footer-content a {
+                font-size: 1rem !important;            /* 手机上字号稍微大一点 */
+                display: block;                        /* 变为块级元素，方便点击 */
+                padding: 0.2rem 0;                     /* 增加手指点击范围 */
+            }
+
+            /* 4. 社交图标栏 ：强制水平居中 */
+            /* 选中 footer-grid 里的最后一个 div */
+            .footer-grid > div:last-child {
+                justify-content: center !important;    /* Flex 居中 */
+                width: 100% !important;
+            }
+            
+            /* 5. 主题切换按钮微调 */
+            .theme-toggle {
+                margin-left: 0 !important;
+                justify-content: center !important;
+                transform: scale(1.1);                 /* 稍微放大一点开关，方便手指拨动 */
             }
         }
 
@@ -659,6 +784,27 @@
             background-color: var(--bg-page) !important;
             color: var(--text-main) !important;
         }
+
+        /* 注册按钮微调 */
+        .btn-register {
+            padding: 0.3rem 0.5rem !important;
+            font-size: 0.85rem !important;
+            height: auto !important;
+            white-space: nowrap;
+        }
+
+        /* 下拉动画 */
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 
@@ -675,16 +821,21 @@
                     </a>
                 </li>
             </ul>
-            <ul>
+            <ul class="mobile-toggle">
+                <li>
+                    <a href="javascript:void(0);" class="secondary" onclick="toggleMenu()">
+                        <i class="fas fa-bars"></i>
+                    </a>
+                </li>
+            </ul>
+            <ul id="nav-menu" class="nav-links">
                 <li><a href="#articles">技术文章</a></li>
                 <li><a href="#qa">问答</a></li>
                 <li><a href="#chat">聊天室</a></li>
                 <li><a href="#review">Code Review</a></li>
                 <li><a href="#conference">Purecpp大会</a></li>
                 <li><a href="login.html">登录</a></li>
-                <li><a href="register.html" role="button" class="contrast"
-                        style="padding: 0.3rem 0.5rem !important; font-size: 0.85rem !important; height: auto !important;">注册</a>
-                </li>
+                <li><a href="register.html" role="button" class="contrast btn-register">注册</a></li>
             </ul>
         </nav>
 
@@ -695,15 +846,15 @@
                     <div class="announcement-scroll">
                         <div class="announcement-item">
                             <strong><i class="fas fa-bullhorn"></i> 最新公告：</strong>
-                            PureCpp 2025 大会即将开始，敬请期待！
+                            <span>PureCpp 2025 大会即将开始，敬请期待！</span>
                         </div>
                         <div class="announcement-item">
                             <strong><i class="fas fa-code"></i> 技术动态：</strong>
-                            C++26 新特性专栏连载中：Modules / Coroutines / Reflection
+                            <span>C++26 新特性专栏连载中：Modules / Coroutines / Reflection</span>
                         </div>
                         <div class="announcement-item">
                             <strong><i class="fas fa-users"></i> 社区招募：</strong>
-                            招募版主 3 名 • 熟悉现代 C++ 且每周能上线 10h+
+                            <span>招募版主 3 名 • 熟悉现代 C++ 且每周能上线 10h+</span>
                         </div>
                     </div>
                 </div>
@@ -912,6 +1063,22 @@
         // 初始化 + 绑定事件
         initTheme();
         themeToggleBtn.addEventListener('change', toggleTheme);
+
+        // 移动端菜单切换逻辑
+        function toggleMenu() {
+            const navMenu = document.getElementById('nav-menu');
+            navMenu.classList.toggle('active');
+
+            // 切换图标（可选：变成关闭图标 X）
+            const icon = document.querySelector('.mobile-toggle i');
+            if (navMenu.classList.contains('active')) {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+            } else {
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+            }
+        }
     </script>
 </body>
 
