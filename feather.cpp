@@ -12,6 +12,9 @@
 #include "articles.hpp"
 #include "entity.hpp"
 #include "tags.hpp"
+#include "user_login.hpp"
+#include "user_password.hpp"
+#include "user_profile.hpp"
 #include "user_register.hpp"
 
 using namespace cinatra;
@@ -67,11 +70,11 @@ bool init_db() {
   db_config conf;
   iguana::from_json(conf, json);
 
-  auto &pool = connection_pool<dbng<mysql>>::instance();
+  auto& pool = connection_pool<dbng<mysql>>::instance();
   try {
     pool.init(conf.db_conn_num, conf.db_ip, conf.db_user_name, conf.db_pwd,
               conf.db_name.data(), conf.db_conn_timeout, conf.db_port);
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cout << e.what() << std::endl;
     return false;
   }
@@ -92,7 +95,30 @@ bool init_db() {
   conn->create_datatable<article_comments>(ormpp_auto_key{"comment_id"});
   conn->create_datatable<articles_t>(ormpp_auto_key{"article_id"},
                                      ormpp_unique{{"slug"}});
-
+  // 创建密码重置token表
+  try {
+    bool created = conn->create_datatable<password_reset_tokens_t>(
+        ormpp_auto_key{"id"}, ormpp_unique{{"token"}},
+        ormpp_not_null{{"user_id", "token", "created_at", "expires_at"}});
+    if (created) {
+      std::cout << "Table 'password_reset_tokens' created successfully."
+                << std::endl;
+    }
+    else {
+      std::cout << "Table 'password_reset_tokens' create error." << std::endl;
+    }
+  } catch (const std::exception& e) {
+    // 检查异常是否是因为表已经存在
+    std::string error_msg = e.what();
+    if (error_msg.find("already exists") != std::string::npos ||
+        error_msg.find("Duplicate entry") != std::string::npos) {
+      std::cout << "Table 'password_reset_tokens' already exists." << std::endl;
+    }
+    else {
+      std::cout << "Error creating table: " << e.what() << std::endl;
+      return false;
+    }
+  }
   return true;
 }
 
@@ -116,19 +142,19 @@ int main() {
   if (!init_db()) {
     return -1;
   }
-  auto &db_pool = connection_pool<dbng<mysql>>::instance();
+  auto& db_pool = connection_pool<dbng<mysql>>::instance();
 
   coro_http_server server(std::thread::hardware_concurrency(), 3389);
   server.set_file_resp_format_type(file_resp_format_type::chunked);
   server.set_static_res_dir("", "html");
   server.set_http_handler<GET, POST>(
-      "/", [](coro_http_request &req, coro_http_response &resp) {
+      "/", [](coro_http_request& req, coro_http_response& resp) {
         resp.set_status_and_content(status_type::ok, "hello purecpp");
       });
 
   server.set_http_handler<GET>(
       "/api/v1/get_questions",
-      [](coro_http_request &req, coro_http_response &resp) {
+      [](coro_http_request& req, coro_http_response& resp) {
         size_t random_index = get_question_index();
         question_resp question{random_index, cpp_questions[random_index]};
         rest_response<question_resp> data{};
@@ -146,6 +172,38 @@ int main() {
       check_register_input{}, check_cpp_answer{}, check_user_name{},
       check_email{}, check_password{});
 
+  user_login_t usr_login{};
+  server.set_http_handler<POST>("/api/v1/login", &user_login_t::handle_login,
+                                usr_login, log_request_response{},
+                                check_login_input{});
+
+  // 添加退出登录路由
+  server.set_http_handler<POST, GET>("/api/v1/logout",
+                                     &user_login_t::handle_logout, usr_login,
+                                     log_request_response{});
+
+  user_password_t usr_password{};
+  server.set_http_handler<POST>(
+      "/api/v1/change_password", &user_password_t::handle_change_password,
+      usr_password, log_request_response{}, check_change_password_input{},
+      check_new_password{});
+
+  // 添加忘记密码和重置密码的路由
+  server.set_http_handler<POST>(
+      "/api/v1/forgot_password", &user_password_t::handle_forgot_password,
+      usr_password, log_request_response{}, check_forgot_password_input{});
+
+  server.set_http_handler<POST>(
+      "/api/v1/reset_password", &user_password_t::handle_reset_password,
+      usr_password, log_request_response{}, check_reset_password_input{},
+      check_reset_password{});
+
+  // 添加个人资料查看路由
+  user_profile_t usr_profile{};
+  server.set_http_handler<GET>("/api/v1/profile",
+                               &user_profile_t::handle_get_profile, usr_profile,
+                               log_request_response{});
+							   
   tags tag{};
   server.set_http_handler<GET>("/api/v1/get_tags", &tags::get_tags, tag);
 

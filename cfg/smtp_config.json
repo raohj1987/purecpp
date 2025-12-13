@@ -1,0 +1,9 @@
+{
+  "smtp_host": "smtp.qq.com",
+  "smtp_port": 465,
+  "smtp_user": "xxxxxx@qq.com",
+  "smtp_password": "xxxxxxxxxxxxxxxx",
+  "smtp_from_email": "xxxxxx@qq.com",
+  "smtp_from_name": "PureCpp管理员",
+  "reset_password_url": "http://localhost:3389/reset_password.html"
+}

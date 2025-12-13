@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 include_directories(../cinatra/include)
 include_directories(../ormpp)
 include_directories(../iguana)
+include_directories(thirdparty)
 
 set(ENABLE_MYSQL ON)
 add_definitions(-DORMPP_ENABLE_MYSQL)
@@ -17,7 +18,9 @@ find_package(OpenSSL REQUIRED)
 target_link_libraries(ormpp INTERFACE ${MYSQL_LIBRARY})
 target_include_directories(ormpp INTERFACE ormpp ormpp/ormpp ${MYSQL_INCLUDE_DIR})
 
+find_package(OpenSSL REQUIRED)
 add_executable(purecpp feather.cpp)
+target_compile_options(purecpp PRIVATE -DCINATRA_ENABLE_SSL)
 target_link_libraries(purecpp ormpp OpenSSL::SSL OpenSSL::Crypto)
 
 # 复制 HTML 资源的函数
@@ -62,6 +65,12 @@ endfunction()
 
 # 为 purecpp 目标调用复制函数
 copy_html_resources(purecpp)
+
+# 包含测试目录
+option(BUILD_UNIT_TESTS "Build unit tests" false)
+if (BUILD_UNIT_TESTS)
+    add_subdirectory(tests)
+endif()
 
 # 在配置阶段显示详细信息
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")

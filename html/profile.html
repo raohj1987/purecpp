@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人资料 - purecpp.cn</title>
+    <meta name="description" content="查看和管理您的个人资料">
+
+    <!-- 本地 Pico CSS -->
+    <link rel="stylesheet" href="css/pico.min.css">
+
+    <!-- 本地 Font Awesome -->
+    <link rel="stylesheet" href="font-awesome/css/all.min.css">
+    <script defer src="script/alpine.js"></script>
+
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --border-color: #e2e8f0;
+            --muted-color: #6b7280;
+            /* 白天模式变量（默认） */
+            --bg-page: #ffffff;
+            --bg-hero: #d6def9;
+            --bg-announcement: #e6ebff;
+            --bg-card: #ffffff;
+            --bg-search: #ffffff;
+            --text-typing: #000000;
+            --text-main: #333;
+            --text-highlight: var(--primary);
+        }
+
+        /* 深色模式变量（统一合并，覆盖系统+手动切换） */
+        :root.dark {
+            --bg-page: #121212;
+            --bg-hero: #1e2238;
+            --bg-announcement: #2a2f4c;
+            --bg-card: #1e1e1e;
+            --bg-search: #2d2d2d;
+            --text-typing: #f3f4f6;
+            --text-main: #f3f4f6;
+            --text-highlight: #818cf8;
+            --logo-filter: invert(1) hue-rotate(180deg) brightness(1.8);
+        }
+
+        /* 浅色模式变量（手动切换时覆盖） */
+        :root.light {
+            --logo-filter: none;
+        }
+
+        /* 核心布局：外层容器统一留白，内部模块满宽 */
+        .page-wrapper, .footer-content {
+            max-width: 1200px !important;
+            width: 100% !important;
+            padding: 0 1.5rem !important;
+            margin: 0 auto !important;
+        }
+
+        /* 个人资料页面样式 */
+        .profile-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 0;
+        }
+
+        .profile-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background-color: var(--border-color);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: var(--primary);
+        }
+
+        .user-info {
+            text-align: center;
+        }
+
+        .username {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        .user-title {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .user-level {
+            color: var(--muted-color);
+            margin-bottom: 1rem;
+        }
+
+        .profile-stats {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--muted-color);
+        }
+
+        .profile-details {
+            background-color: var(--bg-card);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .detail-section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: var(--text-main);
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .detail-label {
+            color: var(--muted-color);
+        }
+
+        .detail-value {
+            color: var(--text-main);
+        }
+
+        .error-message {
+            color: #dc2626;
+            margin-bottom: 1rem;
+        }
+
+        .success-message {
+            color: #059669;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body x-data="profileApp">
+    <!-- 引入头部 -->
+    <div id="header-container"></div>
+
+    <main class="profile-container">
+        <h1>个人资料</h1>
+
+        <!-- 错误和成功消息 -->
+        <div x-show="errorMessage" class="error-message">
+            <i class="fas fa-exclamation-circle"></i> <span x-text="errorMessage"></span>
+        </div>
+        <div x-show="successMessage" class="success-message">
+            <i class="fas fa-check-circle"></i> <span x-text="successMessage"></span>
+        </div>
+
+        <!-- 个人资料头部 -->
+        <div class="profile-header">
+            <div class="avatar">
+                <i class="fas fa-user" x-show="!user.avatar"></i>
+                <img :src="user.avatar" alt="用户头像" x-show="user.avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+            </div>
+            <div class="user-info">
+                <h2 class="username" x-text="user.username"></h2>
+                <div class="user-title" x-text="user.title"></div>
+                <div class="user-level">
+                    等级 <span x-text="user.level"></span> - <span x-text="user.experience"></span> 经验值
+                </div>
+            </div>
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <div class="stat-value" x-text="user.experience"></div>
+                    <div class="stat-label">经验值</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" x-text="user.level"></div>
+                    <div class="stat-label">等级</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">0</div>
+                    <div class="stat-label">帖子</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">0</div>
+                    <div class="stat-label">关注</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 个人资料详情 -->
+        <div class="profile-details">
+            <div class="detail-section">
+                <h3 class="section-title">基本信息</h3>
+                <div class="detail-item">
+                    <span class="detail-label">用户名</span>
+                    <span class="detail-value" x-text="user.username"></span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">邮箱</span>
+                    <span class="detail-value" x-text="user.email"></span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">角色</span>
+                    <span class="detail-value" x-text="user.role"></span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">注册时间</span>
+                    <span class="detail-value" x-text="user.created_at"></span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">邮箱验证状态</span>
+                    <span class="detail-value" x-text="user.is_verifyed ? '已验证' : '未验证'"></span>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <h3 class="section-title">个人简介</h3>
+                <div class="detail-item">
+                    <span class="detail-value" x-text="user.bio || '暂无简介'"></span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 引入页脚 -->
+    <div id="footer-container"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载头部和页脚
+            fetch('header.html')
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('header-container').innerHTML = html;
+                    // 重新初始化用户菜单，因为header.html是动态加载的
+                    initUserMenu();
+                });
+        });
+
+        // 个人资料应用
+        const profileApp = {
+            user: {
+                user_id: '',
+                username: '',
+                email: '',
+                is_verifyed: false,
+                title: '',
+                role: '',
+                experience: 0,
+                level: 0,
+                bio: '',
+                avatar: '',
+                created_at: ''
+            },
+            errorMessage: '',
+            successMessage: '',
+
+            async init() {
+                await this.loadUserProfile();
+            },
+
+            async loadUserProfile() {
+                try {
+                    // 从本地存储或sessionStorage获取用户信息
+                    const userInfo = localStorage.getItem('purecpp_user') || sessionStorage.getItem('purecpp_user');
+                    
+                    if (!userInfo) {
+                        this.errorMessage = '您尚未登录，请先登录';
+                        return;
+                    }
+
+                    // 解析用户信息
+                    const user = JSON.parse(userInfo);
+                    const userId = user.user_id;
+
+                    const response = await fetch('/api/v1/profile', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-User-ID': userId
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.user = data.data;
+                        this.successMessage = '个人资料加载成功';
+                        // 隐藏成功消息
+                        setTimeout(() => {
+                            this.successMessage = '';
+                        }, 3000);
+                    } else {
+                        this.errorMessage = data.message || '加载个人资料失败';
+                    }
+                } catch (error) {
+                    console.error('加载个人资料时出错:', error);
+                    this.errorMessage = '网络错误，请稍后重试';
+                }
+            }
+        };
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            profileApp.init();
+            // 初始化用户信息显示
+            initUserInfo();
+        });
+    </script>
+</body>
+
+</html>

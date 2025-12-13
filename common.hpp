@@ -5,6 +5,7 @@
 #include "entity.hpp"
 #include <iguana/json_reader.hpp>
 #include <iguana/json_writer.hpp>
+#include <cinatra.hpp>
 
 using namespace cinatra;
 

@@ -304,15 +304,53 @@
         <nav class="container-fluid">
             <ul>
                 <li>
-                    <a href="/" class="secondary">
+                    <a href="/index.html" class="secondary">
                         <img src="logo.png" alt="PureCpp Logo">
                         <strong>PureCpp</strong>
                     </a>
                 </li>
             </ul>
             <ul>
-                <li><a href="login.html">登录</a></li>
-                <li><a href="register.html">注册</a></li>
+                <!-- 登录/注册链接（未登录时显示） -->
+                <li id="login-link"><a href="login.html">登录</a></li>
+                <li id="register-link"><a href="register.html">注册</a></li>
+                
+                <!-- 用户信息图标（登录后显示） -->
+                <li id="user-info" style="display: none;">
+                    <div class="user-menu-container" style="position: relative; display: inline-block;">
+                        <button id="user-menu-button" class="user-menu-button"
+                            style="background: none; border: none; cursor: pointer; padding: 0.3rem; border-radius: 50%; transition: background-color 0.2s;">
+                            <i class="fas fa-user-circle" style="font-size: 1.5rem; color: var(--primary);"></i>
+                        </button>
+                        
+                        <!-- 用户菜单（点击图标后显示） -->
+                        <div id="user-menu" class="user-menu"
+                            style="position: absolute; top: 100%; right: 0; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); min-width: 200px; z-index: 1000; display: none;">
+                            <div class="user-menu-header" style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color);">
+                                <div id="user-menu-username" style="font-weight: 500; color: var(--text-main);"></div>
+                                <div id="user-menu-email" style="font-size: 0.8rem; color: var(--muted-color); margin-top: 0.25rem;"></div>
+                            </div>
+                            <div class="user-menu-content" style="padding: 0.5rem 0;">
+                                <a href="#profile" class="user-menu-item"
+                                    style="display: block; padding: 0.5rem 1rem; color: var(--text-main); text-decoration: none; transition: background-color 0.2s;">
+                                    <i class="fas fa-user" style="margin-right: 0.5rem;"></i>
+                                    个人资料
+                                </a>
+                                <a href="#settings" class="user-menu-item"
+                                    style="display: block; padding: 0.5rem 1rem; color: var(--text-main); text-decoration: none; transition: background-color 0.2s;">
+                                    <i class="fas fa-cog" style="margin-right: 0.5rem;"></i>
+                                    设置
+                                </a>
+                                <div class="user-menu-divider" style="height: 1px; background-color: var(--border-color); margin: 0.5rem 0;"></div>
+                                <a href="#logout" id="logout-link" class="user-menu-item"
+                                    style="display: block; padding: 0.5rem 1rem; color: var(--text-main); text-decoration: none; transition: background-color 0.2s;">
+                                    <i class="fas fa-sign-out-alt" style="margin-right: 0.5rem;"></i>
+                                    退出登录
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </li>
             </ul>
         </nav>
     </header>

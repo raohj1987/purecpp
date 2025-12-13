@@ -107,10 +107,22 @@
         .login-card h2 {
             text-align: center;
             color: var(--text-highlight) !important;
-            margin-bottom: 1rem !important;
+            margin-bottom: 0.5rem !important;
             /* 减小标题下边距 */
             font-size: 1.4rem;
             font-weight: 600;
+        }
+
+        /* 错误信息样式 */
+        .error-message {
+            text-align: center;
+            color: #ef4444 !important;
+            font-size: 0.85rem;
+            margin-bottom: 1rem !important;
+            padding: 0.5rem;
+            background-color: rgba(239, 68, 68, 0.1) !important;
+            border-radius: 6px;
+            display: none;
         }
 
         /* 表单样式：进一步紧凑化 */
@@ -245,6 +257,7 @@
     <div class="login-container">
         <div class="login-card">
             <h2>账号登录</h2>
+            <div id="errorMessage" class="error-message"></div>
             <form id="loginForm">
                 <div class="form-group">
                     <label for="username">用户名/邮箱</label>
@@ -259,7 +272,7 @@
                         <input type="checkbox" style="vertical-align: middle; margin-right: 0.3rem; font-size: 0.8rem;">
                         记住我
                     </label>
-                    <a href="/forgot-password.html">忘记密码？</a>
+                    <a href="/forgot_password.html">忘记密码？</a>
                 </div>
                 <button type="submit" class="btn-login">登录</button>
                 <div class="register-link">
@@ -301,14 +314,44 @@
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
+            const rememberMe = document.querySelector('input[type="checkbox"]').checked;
 
-            // 模拟登录验证（实际项目替换为接口请求）
-            if (username && password) {
-                alert(`登录成功！欢迎 ${username}`);
-                window.location.href = '/index.html'; // 登录成功跳转到首页
-            } else {
-                alert('请填写完整的用户名和密码');
-            }
+            // 发送登录请求
+            fetch('/api/v1/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 保存token到localStorage或sessionStorage
+                    if (rememberMe) {
+                        localStorage.setItem('purecpp_token', data.data.token);
+                        localStorage.setItem('purecpp_user', JSON.stringify(data.data));
+                    } else {
+                        sessionStorage.setItem('purecpp_token', data.data.token);
+                        sessionStorage.setItem('purecpp_user', JSON.stringify(data.data));
+                    }
+                    
+                    // 登录成功跳转到首页
+                    window.location.href = '/index.html';
+                } else {
+                    // 显示错误信息
+                    const errorMessage = document.getElementById('errorMessage');
+                    errorMessage.textContent = data.message || '登录失败，请检查用户名和密码';
+                    errorMessage.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('登录请求失败:', error);
+                alert('网络错误，请稍后重试');
+            });
         });
     </script>
 </body>

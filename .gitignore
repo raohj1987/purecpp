@@ -41,4 +41,6 @@
 *.dwo
 
 build
+.idea
+.vscode
 .cache
