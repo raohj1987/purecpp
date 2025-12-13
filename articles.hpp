@@ -177,6 +177,10 @@ public:
     std::string json;
     if (!list.empty()) {
       json = make_data(std::move(list[0]));
+      if (json.empty()) {
+        set_server_internel_error(resp);
+        return;
+      }
     }
 
     resp.set_status_and_content(status_type::ok, std::move(json));
@@ -202,6 +206,10 @@ public:
     auto list = conn->query_s<article_list>(sql, 0);
 
     std::string json = make_data(std::move(list));
+    if (json.empty()) {
+      set_server_internel_error(resp);
+      return;
+    }
 
     resp.set_status_and_content(status_type::ok, std::move(json));
   }

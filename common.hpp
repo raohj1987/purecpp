@@ -23,7 +23,13 @@ template <typename T> inline std::string make_data(T t, std::string msg = "") {
   data.data = std::move(t);
 
   std::string json;
-  iguana::to_json(data, json);
+  try {
+    iguana::to_json(data, json);
+  } catch (std::exception &e) {
+    json = "";
+    std::cout << e.what() << "\n";
+  }
+
   return json;
 }
 
