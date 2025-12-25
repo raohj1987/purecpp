@@ -52,8 +52,7 @@
         }
 
         /* 核心布局：外层容器统一留白，内部模块满宽 */
-        .page-wrapper,
-        .footer-content {
+        .page-wrapper {
             max-width: 1200px !important;
             width: 100% !important;
             padding: 0 1.5rem !important;
@@ -464,163 +463,11 @@
             color: var(--text-highlight) !important;
         }
 
-        /* 页脚 */
-        footer {
-            margin-top: 1.5rem !important;
-            padding: 1.5rem 0 !important;
-            border-top: 1px solid var(--border-color);
-            background: var(--bg-page) !important;
-        }
-
-        .footer-grid {
-            display: grid;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 2rem !important;
-            grid-template-columns: auto auto auto !important;
-            width: 100% !important;
-        }
-
-        .footer-content p {
-            margin: 0 !important;
-            font-size: 0.8rem !important;
-            color: var(--muted-color) !important;
-            line-height: 1 !important;
-        }
-
-        .footer-content ul {
-            display: flex;
-            gap: 1.2rem;
-            list-style: none;
-            padding: 0 !important;
-            margin: 0 !important;
-            align-items: center;
-            line-height: 1 !important;
-        }
-
-        .footer-content a {
-            font-size: 0.8rem !important;
-            color: var(--muted-color) !important;
-            text-decoration: none !important;
-            line-height: 1 !important;
-        }
-
-        .footer-content a:hover {
-            color: var(--primary) !important;
-        }
-
-        /* 社交链接 */
-        .footer-content .fa-weixin,
-        .footer-content .fa-github {
-            font-size: 1.1rem !important;
-            color: var(--text-highlight) !important;
-            line-height: 1 !important;
-        }
-
-        .footer-content .wechat-link {
-            display: flex !important;
-            align-items: center !important;
-            gap: 0.4rem !important;
-        }
-
-        /* 主题切换按钮（精简合并，删除冲突样式） */
-        .theme-toggle {
-            display: flex !important;
-            align-items: center !important;
-            gap: 0.6rem !important;
-            font-size: 0.8rem !important;
-            color: var(--muted-color) !important;
-            margin-left: 1rem !important;
-            line-height: 1 !important;
-        }
-
-        .toggle-switch {
-            position: relative !important;
-            display: inline-block !important;
-            width: 44px !important;
-            height: 24px !important;
-            cursor: pointer !important;
-        }
-
-        .toggle-switch input {
-            opacity: 0 !important;
-            width: 0 !important;
-            height: 0 !important;
-        }
-
-        .toggle-slider {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            background-color: #bbb !important;
-            border-radius: 24px !important;
-            transition: background-color 0.3s ease !important;
-            border: 1px solid #999 !important;
-        }
-
-        .toggle-slider>span {
-            position: absolute !important;
-            left: 2px !important;
-            bottom: 2px !important;
-            width: 18px !important;
-            height: 18px !important;
-            background-color: white !important;
-            border-radius: 50% !important;
-            transition: left 0.3s ease !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
-            z-index: 1 !important;
-        }
-
-        .fa-sun,
-        .fa-moon {
-            position: absolute !important;
-            top: 50% !important;
-            transform: translateY(-50%) !important;
-            font-size: 12px !important;
-            transition: opacity 0.3s ease !important;
-            z-index: 2 !important;
-        }
-
-        .fa-sun {
-            left: 8px !important;
-            color: #4f46e5 !important;
-        }
-
-        .fa-moon {
-            right: 8px !important;
-            color: #fff !important;
-        }
-
-        /* 主题切换状态（合并精简） */
-        #themeToggleBtn:checked+.toggle-slider {
-            background-color: #333 !important;
-        }
-
-        #themeToggleBtn:checked+.toggle-slider>span {
-            left: 24px !important;
-        }
-
-        #themeToggleBtn:checked+.toggle-slider .fa-sun,
-        #themeToggleBtn:not(:checked)+.toggle-slider .fa-moon {
-            opacity: 0 !important;
-        }
-
-        #themeToggleBtn:checked+.toggle-slider .fa-moon,
-        #themeToggleBtn:not(:checked)+.toggle-slider .fa-sun {
-            opacity: 1 !important;
-        }
-
         /* --- 移动端导航栏适配 --- */
         /* 默认（桌面端）：隐藏汉堡按钮 */
-        .mobile-toggle {
-            display: none;
-        }
-
         @media (max-width: 992px) {
             /* --- 1. 整体布局调整 --- */
-            .page-wrapper, .footer-content { padding: 0 1rem !important; }
+            .page-wrapper { padding: 0 1rem !important; }
             
             /* --- 2. 顶部公告栏修复 (本次修改重点) --- */
             .announcement-row {
@@ -687,82 +534,6 @@
                 height: 38px;
             }
             .search-box input { font-size: 16px !important; }
-
-            /* --- 4. 汉堡菜单 --- */
-            .mobile-toggle {
-                display: block !important;
-                margin-left: auto;
-                font-size: 1.5rem;
-            }
-            .nav-links {
-                display: none;
-                position: absolute;
-                top: 60px;
-                left: 0;
-                width: 100%;
-                background-color: var(--bg-card);
-                flex-direction: column;
-                padding: 1rem !important;
-                border-bottom: 1px solid var(--border-color);
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                z-index: 1000;
-            }
-            .nav-links.active {
-                display: flex !important;
-                animation: slideDown 0.3s ease-out;
-            }
-            .nav-links li {
-                width: 100%;
-                text-align: center;
-                padding: 0.5rem 0;
-                border-bottom: 1px solid var(--border-color);
-            }
-            .btn-register { width: 100%; display: block; text-align: center; }
-            .footer-grid {
-                grid-template-columns: 1fr !important;
-                gap: 1.5rem !important;
-                text-align: center !important;
-            }
-
-            .theme-toggle {
-                margin-left: 0 !important;
-                justify-content: center !important;
-            }
-
-            /* --- 底部 Footer 手机端适配 --- */
-            /* 1. 整体布局：单列显示，增加大模块之间的间距 */
-            .footer-grid {
-                grid-template-columns: 1fr !important; /* 强制单列 */
-                gap: 2rem !important;                  /* 版权、链接、图标三组之间拉开距离 */
-                text-align: center !important;
-            }
-
-            /* 2. 导航链接列表：从“横排”改为“竖排” */
-            .footer-content ul {
-                flex-direction: column !important;     /* 核心：垂直排列 */
-                gap: 1.2rem !important;                /* 每个链接之间的间距 */
-            }
-
-            /* 3. 单个链接项：放大点击区域，防止误触 */
-            .footer-content a {
-                font-size: 1rem !important;            /* 手机上字号稍微大一点 */
-                display: block;                        /* 变为块级元素，方便点击 */
-                padding: 0.2rem 0;                     /* 增加手指点击范围 */
-            }
-
-            /* 4. 社交图标栏 ：强制水平居中 */
-            /* 选中 footer-grid 里的最后一个 div */
-            .footer-grid > div:last-child {
-                justify-content: center !important;    /* Flex 居中 */
-                width: 100% !important;
-            }
-            
-            /* 5. 主题切换按钮微调 */
-            .theme-toggle {
-                margin-left: 0 !important;
-                justify-content: center !important;
-                transform: scale(1.1);                 /* 稍微放大一点开关，方便手指拨动 */
-            }
         }
 
         @media (max-width: 768px) {
@@ -972,11 +743,11 @@
                 </div>
             </section>
         </main>
+        <!-- 统一页脚占位符 -->
+        <div id="footer-container"></div>
     </div>
-
-    <!-- 统一页脚占位符 -->
-    <div id="footer-container"></div>
-
+    <!-- 统一布局脚本（包含用户信息管理功能） -->
+    <script src="script/layout.js"></script>
     <!-- 核心脚本 -->
     <script>
         // 搜索功能
@@ -986,7 +757,6 @@
             keyword ? alert(`搜索关键词：${keyword}（实际项目中替换为搜索接口）`) : alert('请输入搜索关键词');
         }
     </script>
-    <script src="script/layout.js"></script>
 </body>
 
 </html>

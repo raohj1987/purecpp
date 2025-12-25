@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>登录 - Purecpp.cn 现代C++社区</title>
     <meta name="description" content="Purecpp社区登录，专注于现代C++技术交流">
-    
+
     <!-- 本地资源 -->
     <link rel="stylesheet" href="css/pico.min.css">
     <link rel="stylesheet" href="font-awesome/css/all.min.css">
@@ -274,6 +274,7 @@
                 opacity: 0;
                 transform: translateY(-10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -284,6 +285,7 @@
             from {
                 transform: rotate(0deg);
             }
+
             to {
                 transform: rotate(360deg);
             }
@@ -300,12 +302,33 @@
             animation: spin 0.8s linear infinite;
         }
 
+        /* 页面布局 - 确保页脚在底部 */
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .page-wrapper {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .login-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         /* 响应式适配 */
         @media (max-width: 768px) {
             .login-container {
                 padding: 1rem;
             }
-            
+
             .login-card {
                 padding: 1.5rem;
             }
@@ -316,58 +339,60 @@
 </head>
 
 <body>
-    <!-- 统一页头占位符 -->
-    <div id="header-container"></div>
+    <div class="page-wrapper">
+        <!-- 统一页头占位符 -->
+        <div id="header-container"></div>
 
-    <!-- 登录主体 -->
-    <div class="login-container">
-        <div class="login-card">
-            <h2>账号登录</h2>
-            <form x-data="loginFormLogic()" @submit.prevent="submitLogin">
-                <div x-show="serverError" x-text="serverError" class="error-message"></div>
-                <div class="form-group">
-                    <label for="username">用户名/邮箱</label>
-                    <input type="text" id="username" x-model="username" @input="handleUsernameInput" class="form-control" placeholder="请输入用户名或邮箱"
-                        required autofocus autocomplete="username">
-                </div>
-                <div class="form-group">
-                    <label for="password">密码</label>
-                    <div class="password-container">
-                        <input :type="showPassword ? 'text' : 'password'" id="password" x-model="password" @input="handlePasswordInput" class="form-control" 
-                            placeholder="请输入密码" required autocomplete="current-password">
-                        <button type="button" class="password-toggle" @click="togglePassword" 
-                            :title="showPassword ? '隐藏密码' : '显示密码'">
-                            <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-                        </button>
+        <!-- 登录主体 -->
+        <div class="login-container">
+            <div class="login-card">
+                <h2>账号登录</h2>
+                <form x-data="loginFormLogic()" x-init="init()" @submit.prevent="submitLogin">
+                    <div x-show="serverError" x-text="serverError" class="error-message"></div>
+                    <div class="form-group">
+                        <label for="username">用户名/邮箱</label>
+                        <input type="text" id="username" x-model="username" @input="handleUsernameInput"
+                            class="form-control" placeholder="请输入用户名或邮箱" required autofocus autocomplete="username">
                     </div>
-                </div>
-                <div class="form-helper">
-                    <label>
-                        <input type="checkbox" x-model="rememberMe">
-                        记住我
-                    </label>
-                    <a href="/forgot_password.html">忘记密码？</a>
-                </div>
-                <button type="submit" class="btn-login" :disabled="loading">
-                    <span x-show="!loading">登录</span>
-                    <span x-show="loading" class="flex items-center gap-2">
-                        <span class="loading-spinner"></span>
-                        <span>登录中...</span>
-                    </span>
-                </button>
-                <div class="register-link">
-                    还没有账号？<a href="/register.html">立即注册</a>
-                </div>
-            </form>
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <div class="password-container">
+                            <input :type="showPassword ? 'text' : 'password'" id="password" x-model="password"
+                                @input="handlePasswordInput" class="form-control" placeholder="请输入密码" required
+                                autocomplete="current-password">
+                            <button type="button" class="password-toggle" @click="togglePassword"
+                                :title="showPassword ? '隐藏密码' : '显示密码'">
+                                <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-helper">
+                        <label>
+                            <input type="checkbox" x-model="rememberMe">
+                            记住我
+                        </label>
+                        <a href="/forgot_password.html">忘记密码？</a>
+                    </div>
+                    <button type="submit" class="btn-login" :disabled="loading">
+                        <span x-show="!loading">登录</span>
+                        <span x-show="loading" class="flex items-center gap-2">
+                            <span class="loading-spinner"></span>
+                            <span>登录中...</span>
+                        </span>
+                    </button>
+                    <div class="register-link">
+                        还没有账号？<a href="/register.html">立即注册</a>
+                    </div>
+                </form>
+            </div>
         </div>
+
+        <!-- 统一页脚占位符 -->
+        <div id="footer-container"></div>
     </div>
-
-    <!-- 统一页脚占位符 -->
-    <div id="footer-container"></div>
-
     <!-- 统一布局脚本 -->
     <script src="script/layout.js"></script>
-    
+
     <!-- 登录表单逻辑 -->
     <script>
         function loginFormLogic() {
@@ -378,6 +403,22 @@
                 serverError: '',
                 showPassword: false,
                 loading: false,
+                
+                // 初始化表单数据
+                init() {
+                    // 检查localStorage中是否有保存的登录信息
+                    const savedRememberMe = localStorage.getItem('purecpp_rememberMe');
+                    if (savedRememberMe === 'true') {
+                        const savedUsername = localStorage.getItem('purecpp_username');
+                        const savedPassword = localStorage.getItem('purecpp_password');
+                        
+                        if (savedUsername && savedPassword) {
+                            this.username = savedUsername;
+                            this.password = savedPassword;
+                            this.rememberMe = true;
+                        }
+                    }
+                },
 
                 // 表单验证
                 validateForm() {
@@ -385,30 +426,30 @@
                         this.serverError = '请输入用户名或邮箱';
                         return false;
                     }
-                    
+
                     if (!this.password.trim()) {
                         this.serverError = '请输入密码';
                         return false;
                     }
-                    
+
                     // 验证用户名不包含汉字
                     if (/[\u4e00-\u9fa5]/.test(this.username)) {
                         this.serverError = '用户名不允许包含汉字';
                         return false;
                     }
-                    
+
                     // 验证密码不包含汉字
                     if (/[\u4e00-\u9fa5]/.test(this.password)) {
                         this.serverError = '密码不允许包含汉字';
                         return false;
                     }
-                    
+
                     // 简单的邮箱格式验证
                     if (this.username.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.username)) {
                         this.serverError = '请输入有效的邮箱地址';
                         return false;
                     }
-                    
+
                     this.serverError = '';
                     return true;
                 },
@@ -418,13 +459,13 @@
                     // 过滤掉所有汉字
                     this.username = this.username.replace(/[\u4e00-\u9fa5]/g, '');
                 },
-                
+
                 // 处理密码输入，过滤汉字
                 handlePasswordInput() {
                     // 过滤掉所有汉字
                     this.password = this.password.replace(/[\u4e00-\u9fa5]/g, '');
                 },
-                
+
                 // 切换密码可见性
                 togglePassword() {
                     this.showPassword = !this.showPassword;
@@ -442,9 +483,10 @@
                 // 提交登录请求
                 async submitLogin() {
                     if (!this.validateForm()) return;
-                    
+
                     this.loading = true;
                     this.serverError = '';
+                    load_success = false;
 
                     const payload = {
                         username: this.username.trim(),
@@ -464,11 +506,20 @@
 
                         if (response.ok) {
                             if (data.success) {
-                                // 保存token到localStorage或sessionStorage
-                                const storage = this.rememberMe ? localStorage : sessionStorage;
-                                storage.setItem('purecpp_token', data.data.token);
-                                storage.setItem('purecpp_user', JSON.stringify(data.data));
-
+                                // 保存token到localStorage
+                                localStorage.setItem('purecpp_token', data.data.token);
+                                localStorage.setItem('purecpp_user', JSON.stringify(data.data));
+                                load_success = true;
+                                // 保存登录成功用户名、密码
+                                if (this.rememberMe) {
+                                    localStorage.setItem('purecpp_rememberMe', 'true');
+                                    localStorage.setItem('purecpp_username', this.username);
+                                    localStorage.setItem('purecpp_password', this.password);
+                                } else {
+                                    localStorage.removeItem('purecpp_rememberMe');
+                                    localStorage.removeItem('purecpp_username');
+                                    localStorage.removeItem('purecpp_password');
+                                }
                                 // 登录成功跳转到首页
                                 window.location.href = '/index.html';
                             } else {
@@ -491,7 +542,10 @@
                         this.serverError = '网络错误，请稍后重试';
                     } finally {
                         this.loading = false;
-                        this.serverError = '登录失败，原因：' + this.serverError;
+                        // 登录失败显示错误原因
+                        if (!load_success) {
+                            this.serverError = '登录失败，原因：' + this.serverError;
+                        }
                     }
                 }
             };

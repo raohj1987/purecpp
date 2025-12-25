@@ -311,24 +311,8 @@
 </head>
 
 <body>
-    <!-- 头部导航 -->
-    <header class="page-header" id="header-container">
-        <!-- 默认导航，如果加载失败就显示这个 -->
-        <nav class="container-fluid">
-            <ul>
-                <li>
-                    <a href="/" class="secondary">
-                        <img src="logo.png" alt="PureCpp Logo">
-                        <strong>PureCpp</strong>
-                    </a>
-                </li>
-            </ul>
-            <ul>
-                <li><a href="login.html">登录</a></li>
-                <li><a href="register.html">注册</a></li>
-            </ul>
-        </nav>
-    </header>
+    <!-- 统一页头占位符 -->
+    <div id="header-container"></div>
 
     <!-- 文章列表主体 -->
     <main class="articles-container">
@@ -414,6 +398,11 @@
         </div>
     </main>
 
+    <!-- 统一页脚占位符 -->
+    <div id="footer-container"></div>
+    <!-- 统一布局脚本（包含用户信息管理功能） -->
+    <script src="script/layout.js"></script>
+
     <script>
         // 格式化时间戳的辅助函数
         function formatTimestamp(timestamp) {
@@ -440,21 +429,6 @@
         }
         // 加载 header
         document.addEventListener('DOMContentLoaded', async function () {
-            const container = document.getElementById('header-container');
-            if (!container) {
-                console.error('找不到 header-container 元素');
-                return;
-            }
-
-            const response = await fetch('header.html');
-            if (!response.ok) {
-                console.log('Header 加载失败');
-                return;
-            }
-            const html = await response.text();
-            container.innerHTML = html;
-            console.log('Header 加载成功');
-
             checkLoginStatus();
         });
 

@@ -107,22 +107,8 @@
 </head>
 
 <body>
-    <header class="page-header" id="header-container">
-        <nav class="container-fluid">
-            <ul>
-                <li>
-                    <a href="/" class="secondary">
-                        <img src="logo.png" alt="PureCpp Logo">
-                        <strong>PureCpp</strong>
-                    </a>
-                </li>
-            </ul>
-            <ul>
-                <li><a href="login.html">登录</a></li>
-                <li><a href="register.html">注册</a></li>
-            </ul>
-        </nav>
-    </header>
+    <!-- 统一页头占位符 -->
+    <div id="header-container"></div>
 
     <main class="container" x-data="articleDetailComponent()" x-init="init()">
         <div x-show="isLoading" class="text-center py-4">
@@ -151,6 +137,11 @@
             </div>
         </article>
     </main>
+
+        <!-- 统一页脚占位符 -->
+    <div id="footer-container"></div>
+    <!-- 统一布局脚本（包含用户信息管理功能） -->
+    <script src="script/layout.js"></script>
 
     <script>
         marked.setOptions({
