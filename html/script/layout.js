@@ -110,17 +110,18 @@ function initTheme() {
 
 // 处理操作系统主题变化
 function handleSystemThemeChange(e) {
-    // 只有当用户没有手动设置主题时，才跟随系统主题变化
-    if (!localStorage.getItem(THEME_STORAGE_KEY)) {
-        const isDarkMode = e.matches;
-        const themeToggleBtn = document.getElementById('themeToggleBtn');
-        if (themeToggleBtn) {
-            themeToggleBtn.checked = isDarkMode;
-            
-            // 更新主题类
-            htmlRoot.classList.remove('dark', 'light');
-            htmlRoot.classList.add(isDarkMode ? 'dark' : 'light');
-        }
+    const isDarkMode = e.matches;
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    if (themeToggleBtn) {
+        // 无论用户是否有手动设置，都跟随系统主题变化
+        themeToggleBtn.checked = isDarkMode;
+        
+        // 更新主题类
+        htmlRoot.classList.remove('dark', 'light');
+        htmlRoot.classList.add(isDarkMode ? 'dark' : 'light');
+        
+        // 更新localStorage中的主题设置
+        localStorage.setItem(THEME_STORAGE_KEY, isDarkMode ? 'dark' : 'light');
     }
 }
 
