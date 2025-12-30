@@ -1,5 +1,5 @@
 {
   "lock_failed_attempts": 5,
   "lock_duration_minutes": 10,
-  "token_expiration_minutes": 1
+  "token_expiration_minutes": 60
 }

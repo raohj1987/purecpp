@@ -45,4 +45,13 @@ struct login_resp_data {
   uint64_t experience;
   UserLevel level;
 };
+// 修改密码相关结构体
+struct change_password_info {
+  uint64_t user_id;
+  std::string old_password;
+  std::string new_password;
+};
+
+// 密码修改成功时，不响应任何data
+struct change_password_resp_data {};
 } // namespace purecpp

@@ -39,12 +39,15 @@
         color: var(--primary) !important;
     }
 
-    /* 外层包裹器 */
+    /* 外层包裹器 其他页面如何根div使用这个样式，可以确保页脚在底部 */
     .page-wrapper {
         max-width: 1200px !important;
         width: 100% !important;
         padding: 0 1.5rem !important;
         margin: 0 auto !important;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
     }
 
     /* 内部模块统一满宽无额外边距 */

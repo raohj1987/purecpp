@@ -72,7 +72,7 @@
         }
 
         /* 登录容器 */
-        .login-container {
+        .main-container {
             flex: 1;
             display: flex;
             align-items: center;
@@ -80,7 +80,7 @@
             padding: 2rem;
         }
 
-        .login-card {
+        .main-card {
             width: 100%;
             max-width: 500px;
             background: var(--bg-card);
@@ -91,11 +91,11 @@
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        .login-card:hover {
+        .main-card:hover {
             box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
         }
 
-        .login-card h2 {
+        .main-card h2 {
             text-align: center;
             color: var(--text-highlight);
             margin-bottom: 1.5rem;
@@ -111,18 +111,6 @@
             margin-bottom: 1rem;
             padding: 0.75rem;
             background-color: rgba(239, 68, 68, 0.1);
-            border-radius: 6px;
-            animation: slideIn 0.3s ease;
-        }
-
-        /* 成功信息样式 */
-        .success-message {
-            text-align: center;
-            color: var(--success-color);
-            font-size: 0.85rem;
-            margin-bottom: 1rem;
-            padding: 0.75rem;
-            background-color: rgba(16, 185, 129, 0.1);
             border-radius: 6px;
             animation: slideIn 0.3s ease;
         }
@@ -302,34 +290,13 @@
             animation: spin 0.8s linear infinite;
         }
 
-        /* 页面布局 - 确保页脚在底部 */
-        body {
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            margin: 0;
-        }
-
-        .page-wrapper {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-        }
-
-        .login-container {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
         /* 响应式适配 */
         @media (max-width: 768px) {
-            .login-container {
+            .main-container {
                 padding: 1rem;
             }
 
-            .login-card {
+            .main-card {
                 padding: 1.5rem;
             }
         }
@@ -344,8 +311,8 @@
         <div id="header-container"></div>
 
         <!-- 登录主体 -->
-        <div class="login-container">
-            <div class="login-card">
+        <div class="main-container">
+            <div class="main-card">
                 <h2>账号登录</h2>
                 <form x-data="loginFormLogic()" x-init="init()" @submit.prevent="submitLogin">
                     <div x-show="serverError" x-text="serverError" class="error-message"></div>

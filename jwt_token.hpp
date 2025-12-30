@@ -31,7 +31,7 @@ auto generate_jwt_token(uint64_t user_id, const std::string &username,
 }
 
 // Token校验结果结构体
-enum class TokenValidationResult {
+enum class TokenValidationResult : int32_t {
   Valid,
   InvalidFormat,
   InvalidBase64,

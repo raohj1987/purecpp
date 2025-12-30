@@ -52,6 +52,11 @@ inline constexpr std::string_view PURECPP_ERROR_LOGIN_FAILED =
     "用户名或密码错误";
 inline constexpr std::string_view PURECPP_ERROR_TOKEN_EXPIRED = "令牌已过期";
 inline constexpr std::string_view PURECPP_ERROR_TOKEN_INVALID = "令牌无效";
+inline constexpr std::string_view PURECPP_ERROR_TOKEN_MISSING = "令牌缺失";
+inline constexpr std::string_view PURECPP_ERROR_TOKEN_BLACKLISTED =
+    "令牌已被列入黑名单";
+inline constexpr std::string_view PURECPP_ERROR_USER_ID_MISMATCH =
+    "用户ID不匹配";
 
 // 注册相关错误
 inline constexpr std::string_view PURECPP_ERROR_REGISTER_INFO_EMPTY =

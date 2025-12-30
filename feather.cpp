@@ -13,6 +13,7 @@
 #include "entity.hpp"
 #include "tags.hpp"
 #include "user_login.hpp"
+#include "user_password.hpp"
 #include "user_register.hpp"
 
 using namespace cinatra;
@@ -154,6 +155,11 @@ int main() {
   server.set_http_handler<POST>("/api/v1/login", &user_login_t::handle_login,
                                 usr_login, log_request_response{},
                                 check_login_input{});
+  user_password_t usr_password{};
+  server.set_http_handler<POST>(
+      "/api/v1/change_password", &user_password_t::handle_change_password,
+      usr_password, log_request_response{}, check_token{},
+      check_change_password_input{}, check_new_password{});
   tags tag{};
   server.set_http_handler<GET>("/api/v1/get_tags", &tags::get_tags, tag);
 

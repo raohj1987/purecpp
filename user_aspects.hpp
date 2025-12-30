@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include "jwt_token.hpp"
 #include <any>
 #include <cinatra.hpp>
 #include <string_view>
@@ -203,6 +204,142 @@ struct check_login_input {
   }
 };
 
+// Token验证结构体
+struct check_token {
+  bool before(coro_http_request &req, coro_http_response &res) {
+    // 从请求头获取令牌
+    std::string token;
+    auto headers = req.get_headers();
+    for (auto &header : headers) {
+      if (cinatra::iequal0(header.name, "Authorization")) {
+        // 提取Bearer令牌
+        std::string_view auth_header = header.value;
+        if (auth_header.size() > 7 && auth_header.substr(0, 7) == "Bearer ") {
+          token = std::string(auth_header.substr(7));
+          break;
+        }
+      }
+    }
+
+    // 检查令牌是否存在
+    if (token.empty()) {
+      res.set_status_and_content(status_type::unauthorized,
+                                 make_error(PURECPP_ERROR_TOKEN_MISSING));
+      return false;
+    }
+
+    // 验证令牌
+    auto [result, info] = validate_jwt_token(token);
+
+    if (result != TokenValidationResult::Valid) {
+      // 令牌无效，返回错误信息
+      std::string error_msg;
+      switch (result) {
+      case TokenValidationResult::InvalidFormat:
+        error_msg = PURECPP_ERROR_TOKEN_INVALID;
+        break;
+      case TokenValidationResult::InvalidBase64:
+        error_msg = PURECPP_ERROR_TOKEN_INVALID;
+        break;
+      case TokenValidationResult::Expired:
+        error_msg = PURECPP_ERROR_TOKEN_EXPIRED;
+        break;
+      default:
+        error_msg = PURECPP_ERROR_TOKEN_INVALID;
+      }
+
+      res.set_status_and_content(status_type::unauthorized,
+                                 make_error(error_msg));
+      return false;
+    }
+
+    // TODO 将token信息保存到请求中,
+    // 这个方式不是很友好，后面有更好的方式传递时再优化 req.set_user_data(info);
+    return true;
+  }
+};
+
+// 修改密码相关的验证结构体
+struct check_change_password_input {
+  bool before(coro_http_request &req, coro_http_response &res) {
+    auto body = req.get_body();
+    if (body.empty()) {
+      res.set_status_and_content(
+          status_type::bad_request,
+          make_error(PURECPP_ERROR_CHANGE_PASSWORD_EMPTY));
+      return false;
+    }
+
+    change_password_info info{};
+    std::error_code ec;
+    iguana::from_json(info, body, ec);
+    if (ec) {
+      res.set_status_and_content(
+          status_type::bad_request,
+          make_error(PURECPP_ERROR_CHANGE_PASSWORD_JSON_INVALID));
+      return false;
+    }
+
+    // 校验用户ID、旧密码、新密码不能为空
+    if (info.user_id == 0 || info.old_password.empty() ||
+        info.new_password.empty()) {
+      res.set_status_and_content(
+          status_type::bad_request,
+          make_error(PURECPP_ERROR_CHANGE_PASSWORD_REQUIRED_FIELDS));
+      return false;
+    }
+
+    req.set_user_data(info);
+    return true;
+  }
+};
+
+struct check_new_password {
+  bool before(coro_http_request &req, coro_http_response &res) {
+    change_password_info info =
+        std::any_cast<change_password_info>(req.get_user_data());
+
+    // 检查新密码长度
+    if (info.new_password.size() < 6 || info.new_password.size() > 20) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error(PURECPP_ERROR_PASSWORD_LENGTH));
+      return false;
+    }
+
+    bool has_upper = false;
+    bool has_lower = false;
+    bool has_digit = false;
+
+    // 检查新密码字符类型要求
+    for (char c : info.new_password) {
+      if (std::isupper(static_cast<unsigned char>(c))) {
+        has_upper = true;
+      } else if (std::islower(static_cast<unsigned char>(c))) {
+        has_lower = true;
+      } else if (std::isdigit(static_cast<unsigned char>(c))) {
+        has_digit = true;
+      }
+    }
+
+    // 至少包含大小写字母和数字
+    bool valid = has_upper && has_lower && has_digit;
+    if (!valid) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error(PURECPP_ERROR_PASSWORD_COMPLEXITY));
+      return false;
+    }
+
+    // 新密码不能与旧密码相同
+    if (info.new_password == info.old_password) {
+      res.set_status_and_content(
+          status_type::bad_request,
+          make_error(PURECPP_ERROR_PASSWORD_NEW_SAME_AS_OLD));
+      return false;
+    }
+
+    return true;
+  }
+};
 // 日志切面工具
 struct log_request_response {
   // 在请求处理前记录请求信息
