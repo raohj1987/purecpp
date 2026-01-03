@@ -141,12 +141,10 @@ public:
       return;
     }
 
-    auto counts = conn->query_s<std::tuple<int64_t>>(
-        "select count(1) from articles t where t.is_deleted = 0");
-    size_t count = 0;
-    if (!counts.empty()) {
-      count = std::get<0>(counts[0]);
-    }
+    size_t count = conn->select(ormpp::count())
+                       .from<articles_t>()
+                       .where(col(&articles_t::is_deleted) == 0)
+                       .collect();
 
     resp.set_status_and_content(status_type::ok, make_data(count));
   }
@@ -166,14 +164,20 @@ public:
       return;
     }
 
-    std::string sql =
-        "select a.title, a.content, u.user_name as author_name, t.name as "
-        "tag_name, a.created_at, a.updated_at, a.views_count, a.comments_count "
-        "from articles a INNER JOIN users u ON a.author_id = u.id INNER JOIN "
-        "tags t ON a.tag_id = t.tag_id WHERE a.slug = ? and a.is_deleted=0;";
-
     // article_detail
-    auto list = conn->query_s<article_detail>(sql, slug);
+    auto list =
+        conn->select(col(&articles_t::title), col(&articles_t::content),
+                     col(&users_t::user_name), col(&tags_t::name),
+                     col(&articles_t::created_at), col(&articles_t::updated_at),
+                     col(&articles_t::views_count),
+                     col(&articles_t::comments_count))
+            .from<articles_t>()
+            .inner_join(col(&articles_t::author_id), col(&users_t::id))
+            .inner_join(col(&articles_t::tag_id), col(&tags_t::tag_id))
+            .where(col(&articles_t::slug).param() &&
+                   col(&articles_t::is_deleted) == 0)
+            .collect<article_detail>(slug);
+
     std::string json;
     if (!list.empty()) {
       json = make_data(std::move(list[0]));
@@ -194,16 +198,21 @@ public:
       return;
     }
 
-    std::string sql =
-        "SELECT  a.title, a.abstraction AS article_summary, "
-        "a.slug, "
-        "u.user_name AS author_name, t.name AS tag_name, a.created_at, "
-        "a.updated_at, a.views_count, a.comments_count FROM articles a INNER "
-        "JOIN  users u ON a.author_id = u.id INNER JOIN  tags t ON a.tag_id = "
-        "t.tag_id WHERE  a.is_deleted = 0 ORDER BY  a.created_at DESC LIMIT 20 "
-        "OFFSET ?;";
-
-    auto list = conn->query_s<article_list>(sql, 0);
+    auto list =
+        conn->select(col(&articles_t::title), col(&articles_t::abstraction),
+                     col(&articles_t::slug), col(&users_t::user_name),
+                     col(&tags_t::name), col(&articles_t::created_at),
+                     col(&articles_t::updated_at),
+                     col(&articles_t::views_count),
+                     col(&articles_t::comments_count))
+            .from<articles_t>()
+            .inner_join(col(&articles_t::author_id), col(&users_t::id))
+            .inner_join(col(&articles_t::tag_id), col(&tags_t::tag_id))
+            .where(col(&articles_t::is_deleted) == 0)
+            .order_by(col(&articles_t::created_at).desc())
+            .limit(20)
+            .offset(0)
+            .collect<article_list>();
 
     std::string json = make_data(std::move(list));
     if (json.empty()) {

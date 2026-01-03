@@ -25,7 +25,10 @@ public:
     auto conn = connection_pool<dbng<mysql>>::instance().get();
 
     // 根据用户ID查找用户
-    auto users = conn->query_s<users_t>("id = ?", info.user_id);
+    auto users = conn->select(ormpp::all)
+                     .from<users_t>()
+                     .where(col(&users_t::id).param())
+                     .collect(info.user_id);
 
     if (users.empty()) {
       // 用户不存在

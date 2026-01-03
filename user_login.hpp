@@ -29,7 +29,10 @@ public:
     auto conn = connection_pool<dbng<mysql>>::instance().get();
 
     // 先尝试通过用户名查找
-    auto users_by_name = conn->query_s<users_t>("user_name = ?", info.username);
+    auto users_by_name = conn->select(ormpp::all)
+                             .from<users_t>()
+                             .where(col(&users_t::user_name).param())
+                             .collect(info.username);
 
     users_t user{};
     bool found = false;
@@ -40,7 +43,10 @@ public:
       found = true;
     } else {
       // 尝试通过邮箱查找
-      auto users_by_email = conn->query_s<users_t>("email = ?", info.username);
+      auto users_by_email = conn->select(ormpp::all)
+                                .from<users_t>()
+                                .where(col(&users_t::email).param())
+                                .collect(info.username);
       if (!users_by_email.empty()) {
         user = users_by_email[0];
         found = true;
