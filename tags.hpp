@@ -15,7 +15,7 @@ public:
       set_server_internel_error(resp);
       return;
     }
-    std::vector<tags_t> vec = conn->query_s<tags_t>();
+    std::vector<tags_t> vec = conn->select(ormpp::all).from<tags_t>().collect();
 
     std::string json;
     iguana::to_json(vec, json);

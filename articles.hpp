@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common.hpp"
-#include "entity.hpp"
 #include <random>
 
 using namespace cinatra;
