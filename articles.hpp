@@ -198,6 +198,9 @@ public:
       return;
     }
 
+    size_t limit = 20; // will update, it's from web front end.
+    size_t offset = 0; // will update, it's from web front end.
+
     auto list =
         conn->select(col(&articles_t::title), col(&articles_t::abstraction),
                      col(&articles_t::slug), col(&users_t::user_name),
@@ -210,9 +213,9 @@ public:
             .inner_join(col(&articles_t::tag_id), col(&tags_t::tag_id))
             .where(col(&articles_t::is_deleted) == 0)
             .order_by(col(&articles_t::created_at).desc())
-            .limit(20)
-            .offset(0)
-            .collect<article_list>();
+            .limit(ormpp::token)
+            .offset(ormpp::token)
+            .collect<article_list>(limit, offset);
 
     std::string json = make_data(std::move(list));
     if (json.empty()) {
