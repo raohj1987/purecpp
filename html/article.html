@@ -61,9 +61,11 @@
         /* 核心修改：白色背景代码块样式 */
         .article-content pre {
             background: var(--code-background) !important;
-            border: 1px solid var(--code-border) !important; /* 加浅灰色边框区分 */
+            border: 1px solid var(--code-border) !important;
+            /* 加浅灰色边框区分 */
             padding: 1rem !important;
-            border-radius: 8px !important; /* 圆角更柔和 */
+            border-radius: 8px !important;
+            /* 圆角更柔和 */
             overflow-x: auto !important;
             margin: 1rem 0 !important;
         }
@@ -91,7 +93,8 @@
             padding-left: 1rem;
             color: var(--muted-color);
             margin: 1rem 0;
-            background: #f9fafb !important; /* 引用块也适配浅色 */
+            background: #f9fafb !important;
+            /* 引用块也适配浅色 */
             padding: 1rem !important;
             border-radius: 4px !important;
         }
@@ -110,7 +113,7 @@
     <!-- 统一页头占位符 -->
     <div id="header-container"></div>
 
-    <main class="container" x-data="articleDetailComponent()" x-init="init()">
+    <main class="container" x-data="articleDetailComponent()">
         <div x-show="isLoading" class="text-center py-4">
             <i class="fas fa-circle-o-notch fa-spin"></i> 正在加载文章...
         </div>
@@ -126,11 +129,37 @@
                     <span><i class="fas fa-tag"></i> <span x-text="article.tag_name"></span></span>
                     <span><i class="fas fa-calendar"></i> <span x-text="formatDate(article.created_at)"></span></span>
                     <span><i class="fas fa-eye"></i> <span x-text="article.views_count"></span> 浏览</span>
+
+                    <!-- 编辑按钮：仅作者可见 -->
+                    <span x-show="currentUser && currentUser.username === article.author_name" @click="startEdit()"
+                        style="cursor: pointer; color: #007bff; margin-left: 10px;">
+                        <i class="fas fa-edit"></i> 编辑
+                    </span>
                 </div>
 
-                <div id="article-content" class="article-content"></div>
+                <div x-show="!isEditing" id="article-content" class="article-content"></div>
+                <!-- 编辑模式：复用撰写文章的 textarea 结构 -->
+                <div x-show="isEditing" x-cloak style="margin-top: 1rem;">
+                    <label>文章摘要</label>
+                    <textarea x-model="excerpt" rows="3" style="width: 100%; margin-bottom: 1rem;"></textarea>
 
-                <div class="comments-section" style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <label>文章内容 (Markdown)</label>
+                    <textarea id="markdown-editor" x-model="content" rows="20"
+                        style="width: 100%; font-family: monospace;"></textarea>
+
+                    <select id="tag-select" name="tag_id" required x-model="selectedTagId">
+                        <option value="" disabled selected>请选择文章标签</option>
+                        <template x-for="tag in tags" :key="tag.tag_id">
+                            <option :value="tag.tag_id" x-text="tag.name"></option>
+                        </template>
+                    </select>
+                    <div style="margin-top: 1rem;">
+                        <button @click="saveChanges()" class="primary">保存修改</button>
+                        <button @click="cancelEdit()" class="secondary">取消</button>
+                    </div>
+                </div>
+                <div class="comments-section"
+                    style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
                     <h2>评论 (<span x-text="article.comments_count"></span>)</h2>
                     <p>评论区待实现</p>
                 </div>
@@ -138,7 +167,7 @@
         </article>
     </main>
 
-        <!-- 统一页脚占位符 -->
+    <!-- 统一页脚占位符 -->
     <div id="footer-container"></div>
     <!-- 统一布局脚本（包含用户信息管理功能） -->
     <script src="script/layout.js"></script>
@@ -162,6 +191,15 @@
                 article: {},
                 isLoading: true,
                 errorMessage: '',
+                currentUser: {},
+                isEditing: false,
+                tags: [],
+                selectedTagId: '',
+                simplemde: null,
+                slug: '',
+                title: '',
+                excerpt: '',
+                content: '',
 
                 get pageTitle() {
                     return this.article.title ? `${this.article.title} - PureCpp社区` : '文章详情 - PureCpp社区';
@@ -187,12 +225,12 @@
                 renderMarkdown(content) {
                     const contentEl = document.getElementById('article-content');
                     if (!contentEl || !content) return;
-                    
+
                     const unescaped = content.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
                     const html = marked.parse(unescaped);
-                    
+
                     contentEl.innerHTML = html;
-                    
+
                     // 替换原有 hljs.highlightAll() 为精准高亮
                     setTimeout(() => this.highlightCodeBlocks(), 50);
                 },
@@ -205,15 +243,23 @@
                         return;
                     }
 
+                    this.slug = slug;
+
+                    const userInfo = localStorage.getItem('purecpp_user') || sessionStorage.getItem('purecpp_user');
+                    const token = localStorage.getItem('purecpp_token') || sessionStorage.getItem('purecpp_token');
+                    if (userInfo && token) {
+                        this.currentUser = JSON.parse(userInfo);
+                    }
+
                     try {
                         const res = await fetch(`/api/v1/article/${slug}`);
                         if (!res.ok) throw new Error('接口请求失败');
-                        
+
                         const data = await res.json();
                         this.article = data.data;
-                        
+
                         this.renderMarkdown(this.article.content);
-                        
+
                         this.isLoading = false;
                     } catch (e) {
                         this.errorMessage = `加载失败：${e.message}`;
@@ -223,20 +269,127 @@
 
                 init() {
                     this.fetchArticle();
+                },
+
+                // 进入编辑状态
+                startEdit() {
+                    this.isEditing = true;
+                    // 将原始数据同步到编辑表单（避免直接修改原文章对象）
+                    this.title = this.article.title;
+                    this.excerpt = this.article.summary || '';
+                    this.content = this.article.content;
+
+                    if (this.article.content) {
+                        this.content = this.article.content.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+                    } else {
+                        this.content = '';
+                    }
+
+                    this.$nextTick(() => {
+                        this.initializeSimpleMDE();
+                        this.fetchTags();
+                    });
+                },
+
+                async fetchTags() {
+                    // this.isLoading = true;
+                    this.errorMessage = '';
+                    try {
+                        const response = await fetch('/api/v1/get_tags');
+
+                        if (!response.ok) {
+                            throw new Error('网络请求失败');
+                        }
+
+                        this.tags = await response.json();
+                        const targetTag = this.tags.find(t => t.name === this.article.tag_name);
+                        if (targetTag) {
+                            this.selectedTagId = targetTag.tag_id;
+                        }
+
+                    } catch (error) {
+                        console.error('获取标签失败:', error);
+                        this.errorMessage = '无法加载标签数据，请稍后重试。';
+                        // this.isLoading = false;
+                    }
+                },
+
+                initializeSimpleMDE() {
+                    if (this.simplemde) return;
+                    // --- 实例化 SimpleMDE ---
+                    this.simplemde = new SimpleMDE({
+                        element: document.getElementById("markdown-editor"),
+                        spellChecker: false,
+
+                        // 覆盖默认的预览渲染函数
+                        previewRender: function (plainText, preview) {
+                            return marked.parse(plainText);
+                        },
+                    });
+
+                    // 监听编辑器的 change 事件，同步数据到 Alpine 的 content 变量
+                    this.simplemde.codemirror.on("change", () => {
+                        this.content = this.simplemde.value();
+                    });
+                },
+
+                cancelEdit() {
+                    this.isEditing = false;
+                },
+
+                async saveChanges() {
+                    const payload = {
+                        slug: this.slug,
+                        title: this.title,
+                        excerpt: this.excerpt,
+                        content: this.content,
+                        tag_id: parseInt(this.selectedTagId, 10),
+                        username: this.currentUser.username
+                    };
+
+                    const res = await fetch(`/api/v1/article/edit/${this.slug}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        // 更新本地显示
+                        this.article.title = this.title;
+                        this.article.content = this.content;
+                        this.article.summary = this.excerpt;
+                        this.renderMarkdown(this.article.content);
+                        this.isEditing = false;
+                        alert('修改成功！');
+                    } else {
+                        const errorText = await res.text();
+                        alert(`修改失败: ${res.status} ${errorText}`);
+                    }
                 }
             }));
         });
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const container = document.getElementById('header-container');
-            if (!container) return;
-            try {
-                const res = await fetch('header.html');
-                if (res.ok) container.innerHTML = await res.text();
-            } catch (e) {
-                console.log('Header 加载失败');
+        function checkLoginStatus() {
+            const createBtn = document.getElementById('create-article-btn');
+            if (!createBtn) return;
+
+            // TODO: 在实际项目中，你需要调用后端API或检查本地存储来判断用户是否真的登录
+            // 这里我们用一个模拟变量来演示
+            // const isUserLoggedIn = localStorage.getItem('isLoggedIn') === 'true'; // 假设登录状态存在 localStorage
+            const isUserLoggedIn = true;
+            if (isUserLoggedIn) {
+                // 如果登录，移除 .hidden 类，显示按钮
+                createBtn.classList.remove('hidden');
+            } else {
+                // 如果未登录，确保按钮隐藏
+                createBtn.classList.add('hidden');
             }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            checkLoginStatus();
         });
     </script>
 </body>
+
 </html>

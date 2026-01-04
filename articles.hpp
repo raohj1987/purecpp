@@ -27,6 +27,7 @@ struct article_list {
 
 struct article_detail {
   std::string title;
+  std::string summary;
   std::string content;
   std::array<char, 21> author_name;
   std::array<char, 50> tag_name;
@@ -166,9 +167,10 @@ public:
 
     // article_detail
     auto list =
-        conn->select(col(&articles_t::title), col(&articles_t::content),
-                     col(&users_t::user_name), col(&tags_t::name),
-                     col(&articles_t::created_at), col(&articles_t::updated_at),
+        conn->select(col(&articles_t::title), col(&articles_t::abstraction),
+                     col(&articles_t::content), col(&users_t::user_name),
+                     col(&tags_t::name), col(&articles_t::created_at),
+                     col(&articles_t::updated_at),
                      col(&articles_t::views_count),
                      col(&articles_t::comments_count))
             .from<articles_t>()
