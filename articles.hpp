@@ -125,7 +125,7 @@ public:
 
     if (retry == 0) {
       auto err = conn->get_last_error();
-      std::cout << err << "\n";
+      CINATRA_LOG_ERROR << err;
       set_server_internel_error(resp);
       return;
     }

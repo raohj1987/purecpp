@@ -56,7 +56,7 @@ public:
 
     if (id == 0) {
       auto err = conn->get_last_error();
-      std::cout << err << "\n";
+      CINATRA_LOG_ERROR << err;
       resp.set_status_and_content(status_type::bad_request, make_error(err));
       return;
     }

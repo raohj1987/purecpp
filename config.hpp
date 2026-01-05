@@ -1,9 +1,9 @@
 #pragma once
 
+#include <fstream> // 鐢ㄤ簬 std::ifstream
 #include <iguana/json_reader.hpp>
+#include <iostream> // 鐢ㄤ簬 std::cout
 #include <string>
-#include <iostream>  // 用于 std::cout
-#include <fstream>   // 用于 std::ifstream
 
 namespace purecpp {
 /**
@@ -46,7 +46,7 @@ public:
     // 从JSON文件加载配置
     std::ifstream file(filename, std::ios::in);
     if (!file.is_open()) {
-      std::cout << "no config file\n";
+      CINATRA_LOG_ERROR << "no config file";
       return;
     }
 

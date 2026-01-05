@@ -58,7 +58,7 @@ struct test_optional {
 bool init_db() {
   std::ifstream file("cfg/db_config.json", std::ios::in);
   if (!file.is_open()) {
-    std::cout << "no config file\n";
+    CINATRA_LOG_ERROR << "no config file";
     return false;
   }
 
@@ -73,7 +73,7 @@ bool init_db() {
     pool.init(conf.db_conn_num, conf.db_ip, conf.db_user_name, conf.db_pwd,
               conf.db_name.data(), conf.db_conn_timeout, conf.db_port);
   } catch (const std::exception &e) {
-    std::cout << e.what() << std::endl;
+    CINATRA_LOG_ERROR << e.what();
     return false;
   }
 
@@ -101,9 +101,9 @@ bool init_db() {
       ormpp_not_null{
           {"user_id", "token_type", "token", "created_at", "expires_at"}});
   if (created) {
-    std::cout << "Table 'users_token' created successfully." << std::endl;
+    CINATRA_LOG_INFO << "Table 'users_token' created successfully.";
   } else {
-    std::cout << "Table 'users_token' create error." << std::endl;
+    CINATRA_LOG_ERROR << "Table 'users_token' create error.";
   }
   return true;
 }

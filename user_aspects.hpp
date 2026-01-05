@@ -1,11 +1,11 @@
 #pragma once
 #include <any>
+#include <chrono>
+#include <iomanip>
+#include <regex>
+#include <sstream>
 #include <string_view>
 #include <system_error>
-#include <regex>
-#include <iomanip>
-#include <chrono>
-#include <sstream>
 
 #include <cinatra.hpp>
 #include <iguana/json_reader.hpp>
@@ -16,8 +16,9 @@ using namespace iguana;
 
 #include "common.hpp"
 #include "error_info.hpp"
-#include "user_dto.hpp"
 #include "jwt_token.hpp"
+#include "user_dto.hpp"
+
 namespace purecpp {
 inline const std::vector<std::string_view> cpp_questions{
     "C++中声明指向int的常量指针, 语法是____ int* "
@@ -69,6 +70,7 @@ struct check_cpp_answer {
     return true;
   }
 };
+
 std::string cleanup_markdown(const std::string &markdown_text) {
   std::string text = markdown_text;
 
@@ -102,6 +104,7 @@ std::string cleanup_markdown(const std::string &markdown_text) {
 
   return text;
 }
+
 struct check_user_name {
   bool before(coro_http_request &req, coro_http_response &res) {
     register_info info = std::any_cast<register_info>(req.get_user_data());
@@ -148,7 +151,8 @@ struct check_email {
 };
 
 // 验证密码复杂度的独立函数
-std::pair<bool, std::string> validate_password_complexity(const std::string &password) {
+std::pair<bool, std::string>
+validate_password_complexity(const std::string &password) {
   // 检查密码长度
   if (password.size() < 6 || password.size() > 20) {
     return {false, "密码长度不合法，长度6-20位。"};
@@ -182,7 +186,8 @@ struct check_password {
     register_info info = std::any_cast<register_info>(req.get_user_data());
     auto [valid, error_msg] = validate_password_complexity(info.password);
     if (!valid) {
-      res.set_status_and_content(status_type::bad_request, make_error(error_msg));
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error(error_msg));
       return false;
     }
     return true;
@@ -354,8 +359,9 @@ struct check_new_password {
         res.set_status_and_content(status_type::bad_request,
                                    make_error(PURECPP_ERROR_PASSWORD_LENGTH));
       } else {
-        res.set_status_and_content(status_type::bad_request,
-                                   make_error(PURECPP_ERROR_PASSWORD_COMPLEXITY));
+        res.set_status_and_content(
+            status_type::bad_request,
+            make_error(PURECPP_ERROR_PASSWORD_COMPLEXITY));
       }
       return false;
     }
@@ -452,8 +458,9 @@ struct check_reset_password {
         res.set_status_and_content(status_type::bad_request,
                                    make_error(PURECPP_ERROR_PASSWORD_LENGTH));
       } else {
-        res.set_status_and_content(status_type::bad_request,
-                                   make_error(PURECPP_ERROR_PASSWORD_COMPLEXITY));
+        res.set_status_and_content(
+            status_type::bad_request,
+            make_error(PURECPP_ERROR_PASSWORD_COMPLEXITY));
       }
       return false;
     }
@@ -493,7 +500,7 @@ struct log_request_response {
     }
 
     // 输出日志
-    std::cout << log_stream.str() << std::flush;
+    CINATRA_LOG_INFO << log_stream.str();
 
     return true; // 继续处理请求
   }
@@ -530,7 +537,7 @@ struct log_request_response {
     log_stream << "----------------------------------------" << std::endl;
 
     // 输出日志
-    std::cout << log_stream.str() << std::flush;
+    CINATRA_LOG_INFO << log_stream.str();
 
     return true; // 继续处理后续操作
   }
