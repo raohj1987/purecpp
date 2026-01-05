@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>邮箱验证 - Purecpp.cn 现代C++社区</title>
+    <meta name="description" content="邮箱验证页面">
+
+    <!-- 本地资源（与主站一致） -->
+    <link rel="stylesheet" href="css/pico.min.css">
+    <link rel="stylesheet" href="font-awesome/css/all.min.css">
+    <script defer src="script/alpine.js"></script>
+
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --border-color: #e2e8f0;
+            --muted-color: #6b7280;
+            --bg-page: #ffffff;
+            --bg-card: #ffffff;
+            --text-main: #333;
+            --text-highlight: var(--primary);
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+        }
+
+        /* 深色模式 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-page: #121212;
+                --bg-card: #1e1e1e;
+                --text-main: #f3f4f6;
+                --text-highlight: #818cf8;
+                --border-color: #374151;
+                --success-color: #34d399;
+                --error-color: #f87171;
+                --warning-color: #fbbf24;
+            }
+        }
+
+        body {
+            background-color: var(--bg-page) !important;
+            color: var(--text-main) !important;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            padding: 0;
+        }
+
+        .page-header {
+            max-width: 1400px;
+            width: 100%;
+            padding: 0.8rem 2rem;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none !important;
+        }
+
+        .logo img {
+            width: 32px;
+            height: 32px;
+            background-color: transparent !important;
+        }
+
+        .logo strong {
+            font-size: 18px !important;
+            color: var(--primary) !important;
+        }
+
+        .verify-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .verify-card {
+            width: 100%;
+            max-width: 600px;
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .verify-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .verify-icon.success {
+            color: var(--success-color);
+        }
+
+        .verify-icon.error {
+            color: var(--error-color);
+        }
+
+        .verify-icon.loading {
+            color: var(--primary);
+        }
+
+        .verify-card h2 {
+            color: var(--text-highlight) !important;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .verify-message {
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .btn-primary {
+            background: var(--primary) !important;
+            border: none !important;
+            border-radius: 6px !important;
+            color: white !important;
+            padding: 0.75rem 1.5rem !important;
+            font-size: 1rem !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            transition: background 0.3s ease !important;
+            text-decoration: none !important;
+            display: inline-block !important;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover) !important;
+        }
+
+        .btn-secondary {
+            background: transparent !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 6px !important;
+            color: var(--text-main) !important;
+            padding: 0.75rem 1.5rem !important;
+            font-size: 1rem !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            text-decoration: none !important;
+            display: inline-block !important;
+            margin-left: 1rem;
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color) !important;
+        }
+
+        .resend-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .resend-form {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .form-control {
+            padding: 0.5rem 0.75rem !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 6px !important;
+            background: var(--bg-card) !important;
+            color: var(--text-main) !important;
+            font-size: 1rem !important;
+            min-width: 250px;
+        }
+
+        .form-control:focus {
+            outline: none !important;
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1) !important;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .verify-card {
+                padding: 1.5rem;
+                margin: 1rem;
+            }
+
+            .resend-form {
+                flex-direction: column;
+            }
+
+            .form-control {
+                min-width: auto;
+                width: 100%;
+            }
+
+            .btn-secondary {
+                margin-left: 0;
+                margin-top: 0.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<!-- 统一页头占位符 -->
+<div id="header-container"></div>
+
+<!-- 验证主体 -->
+<div class="verify-container">
+    <div class="verify-card" x-data="verifyEmailLogic()">
+        <!-- 验证中状态 -->
+        <div x-show="status === 'verifying'">
+            <i class="fas fa-spinner verify-icon loading spinner"></i>
+            <h2>正在验证...</h2>
+            <p class="verify-message">
+                正在验证您的邮箱地址，请稍候...
+            </p>
+        </div>
+
+        <!-- 验证成功状态 -->
+        <div x-show="status === 'success'">
+            <i class="fas fa-check-circle verify-icon success"></i>
+            <h2>验证成功！</h2>
+            <p class="verify-message">
+                恭喜！您的邮箱验证成功。您现在可以使用完整功能了。
+            </p>
+            <a href="/login.html" class="btn-primary">前往登录</a>
+        </div>
+
+        <!-- 验证失败状态 -->
+        <div x-show="status === 'error'">
+            <i class="fas fa-times-circle verify-icon error"></i>
+            <h2>验证失败</h2>
+            <p class="verify-message" x-text="errorMessage">
+                验证链接无效或已过期。
+            </p>
+            <button @click="showResendForm = true" class="btn-primary">
+                重新发送验证邮件
+            </button>
+            <a href="/index.html" class="btn-secondary">返回首页</a>
+        </div>
+
+        <!-- 重新发送表单 -->
+        <div x-show="showResendForm" class="resend-section hidden">
+            <h3>重新发送验证邮件</h3>
+            <p style="margin-bottom: 1rem; color: var(--muted-color);">
+                输入您的邮箱地址，我们将重新发送验证邮件
+            </p>
+            <div class="resend-form">
+                <input type="email" x-model="resendEmail" class="form-control" placeholder="请输入注册时的邮箱地址">
+                <button @click="resendVerification" :disabled="isResending || !resendEmail" class="btn-primary">
+                    <span x-show="!isResending">发送验证邮件</span>
+                    <span x-show="isResending" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-spinner spinner"></i> 发送中...
+                        </span>
+                </button>
+                <button @click="showResendForm = false" class="btn-secondary">
+                    取消
+                </button>
+            </div>
+            <p x-show="resendMessage"
+               :style="resendSuccess ? 'color: var(--success-color);' : 'color: var(--error-color);'"
+               style="margin-top: 1rem;" x-text="resendMessage">
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- 统一页脚占位符 -->
+<div id="footer-container"></div>
+
+<!-- 统一布局脚本 -->
+<script src="script/layout.js"></script>
+
+<script>
+    function verifyEmailLogic() {
+        return {
+            status: 'verifying', // verifying, success, error
+            errorMessage: '',
+            showResendForm: false,
+            resendEmail: '',
+            isResending: false,
+            resendMessage: '',
+            resendSuccess: false,
+
+            // 获取URL参数
+            getUrlParameter(name) {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get(name);
+            },
+
+            // 初始化验证
+            async init() {
+                const token = this.getUrlParameter('token');
+                if (!token) {
+                    this.status = 'error';
+                    this.errorMessage = '缺少验证token';
+                    return;
+                }
+
+                try {
+                    // 使用POST方法调用验证接口
+                    const response = await fetch('/api/v1/verify_email', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({token: token})
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        this.status = 'success';
+                    } else {
+                        this.status = 'error';
+                        this.errorMessage = data.message || '验证失败，请重试';
+                    }
+
+                } catch (error) {
+                    console.error('验证错误:', error);
+                    this.status = 'error';
+                    this.errorMessage = '网络连接失败，请检查网络后重试';
+                }
+            },
+
+            // 重新发送验证邮件
+            async resendVerification() {
+                if (!this.resendEmail) {
+                    this.resendMessage = '请输入邮箱地址';
+                    this.resendSuccess = false;
+                    return;
+                }
+
+                this.isResending = true;
+                this.resendMessage = '';
+                this.resendSuccess = false;
+
+                try {
+                    // 使用POST方法调用重新发送接口
+                    const response = await fetch('/api/v1/resend_verify_email', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({email: this.resendEmail})
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        this.resendMessage = '验证邮件已重新发送，请检查您的邮箱';
+                        this.resendSuccess = true;
+                        this.showResendForm = false;
+                    } else {
+                        this.resendMessage = data.message || '发送失败，请重试';
+                        this.resendSuccess = false;
+                    }
+
+                } catch (error) {
+                    console.error('重发邮件错误:', error);
+                    this.resendMessage = '网络连接失败，请检查网络后重试';
+                    this.resendSuccess = false;
+                } finally {
+                    this.isResending = false;
+                }
+            }
+        };
+    }
+</script>
+</body>
+
+</html>

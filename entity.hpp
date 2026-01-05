@@ -8,7 +8,7 @@ using namespace ormpp;
 
 namespace purecpp {
 // 用户等级枚举
-enum class UserLevel : uint32_t {
+enum class UserLevel : int32_t {
   LEVEL_1 = 1,  // 等级1 - 新手
   LEVEL_2 = 2,  // 等级2 - 入门
   LEVEL_3 = 3,  // 等级3 - 进阶
@@ -22,7 +22,7 @@ enum class UserLevel : uint32_t {
 };
 
 // 用户头衔枚举
-enum class UserTitle : uint32_t {
+enum class UserTitle : int32_t {
   NEWBIE = 0,           // 新手
   DEVELOPER = 1,        // 开发者
   SENIOR_DEVELOPER = 2, // 高级开发者
@@ -33,6 +33,11 @@ enum class UserTitle : uint32_t {
   EXPERT = 7,           // 专家
   MASTER = 8,           // 大师
   LEGEND = 9            // 传奇
+};
+
+enum EmailVerifyStatus : int32_t {
+  UNVERIFIED = 0, // 未验证
+  VERIFIED = 1,   // 已验证
 };
 
 // 在线状态
@@ -58,7 +63,7 @@ struct users_t {
   std::array<char, 254> email;    // unique, not null
   std::string_view pwd_hash;      // not null
   std::string status;             // 在线状态Online, Offline, Away
-  int is_verifyed;                // 邮箱是否已验证
+  EmailVerifyStatus is_verifyed;  // 邮箱是否已验证(0:未验证, 1:已验证)
   uint64_t created_at;
   uint64_t last_active_at; // 最后活跃时间
 
@@ -124,7 +129,7 @@ struct articles_t {
   uint64_t review_date;       // 审核完成时间
   std::string review_status =
       "pending_review"; // pending_review (待审核), rejected (已拒绝), accepted
-  std::string status; // 状态：published, draft, archived
+  std::string status;   // 状态：published, draft, archived
   bool is_deleted;
 };
 inline constexpr std::string_view get_alias_struct_name(articles_t *) {

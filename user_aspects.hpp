@@ -91,7 +91,7 @@ std::string cleanup_markdown(const std::string &markdown_text) {
 
   // 3. 清理代码块和行内代码 (```code``` or `code`)
   text = std::regex_replace(text, std::regex("```[\\s\\S]*?```"),
-                            ""); // 移除代码块
+                            "");                                // 移除代码块
   text = std::regex_replace(text, std::regex("`(.*?)`"), "$1"); // 行内代码
 
   // 4. 清理标题 (# H1, ## H2, etc.)
@@ -123,30 +123,36 @@ struct check_user_name {
     if (!r) {
       res.set_status_and_content(
           status_type::bad_request,
-          make_error(
-              "只允许字母 (a-z, A-Z), 数字 (0-9), 下划线 (_), 连字符 (-)。"));
+          make_error("用户名只允许字母 (a-z, A-Z), 数字 "
+                                            "(0-9), 下划线 (_), 连字符 (-)。"));
       return false;
     }
     return true;
   }
 };
 
+std::pair<bool, std::string> validate_email_format(const std::string &email) {
+  if (email.empty() || email.size() > 254) {
+    return {false, "邮箱格式不合法。"};
+  }
+
+  const std::regex email_regex(
+      R"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})");
+  bool r = std::regex_match(std::string{email}, email_regex);
+
+  if (!r) {
+    return {false, "邮箱格式不合法。"};
+  }
+  return {true, ""};
+}
+
 struct check_email {
   bool before(coro_http_request &req, coro_http_response &res) {
     register_info info = std::any_cast<register_info>(req.get_user_data());
-    if (info.email.empty() || info.email.size() > 254) {
+    auto [valid, error_msg] = validate_email_format(info.email);
+    if (!valid) {
       res.set_status_and_content(status_type::bad_request,
-                                 make_error("邮箱格式不合法。"));
-      return false;
-    }
-
-    const std::regex email_regex(
-        R"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})");
-    bool r = std::regex_match(std::string{info.email}, email_regex);
-
-    if (!r) {
-      res.set_status_and_content(status_type::bad_request,
-                                 make_error("邮箱格式不合法。"));
+                                 make_error(error_msg));
       return false;
     }
     return true;
@@ -598,6 +604,70 @@ struct check_edit_article {
     }
 
     if (!has_login(info.username, resp)) {
+      return false;
+    }
+
+    req.set_user_data(info);
+    return true;
+  }
+};
+
+
+
+// 邮箱验证相关的验证结构体
+struct check_verify_email_input {
+  bool before(coro_http_request &req, coro_http_response &res) {
+    auto body = req.get_body();
+    if (body.empty()) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error("邮箱验证信息不能为空"));
+      return false;
+    }
+
+    verify_email_info info{};
+    std::error_code ec;
+    iguana::from_json(info, body, ec);
+    if (ec) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error("邮箱验证信息格式错误"));
+      return false;
+    }
+
+    // 校验token不能为空
+    if (info.token.empty()) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error("验证令牌不能为空"));
+      return false;
+    }
+
+    req.set_user_data(info);
+    return true;
+  }
+};
+
+struct check_resend_verification_input {
+  bool before(coro_http_request &req, coro_http_response &res) {
+    auto body = req.get_body();
+    if (body.empty()) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error("重新发送验证邮件信息不能为空"));
+      return false;
+    }
+    // 获取入参
+    resend_verify_email_info info{};
+    std::error_code ec;
+    iguana::from_json(info, body, ec);
+    if (ec) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error("重新发送验证邮件信息格式错误"));
+      return false;
+    }
+
+    // 校验邮箱格式
+    auto [valid, error_msg] = validate_email_format(info.email);
+    if (!valid) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error(error_msg));
       return false;
     }
 

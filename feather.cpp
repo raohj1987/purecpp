@@ -10,6 +10,7 @@
 #include "articles.hpp"
 #include "entity.hpp"
 #include "tags.hpp"
+#include "user_aspects.hpp"
 #include "user_login.hpp"
 #include "user_password.hpp"
 #include "user_register.hpp"
@@ -159,6 +160,15 @@ int main() {
       "/api/v1/register", &user_register_t::handle_register, usr_reg,
       check_register_input{}, check_cpp_answer{}, check_user_name{},
       check_email{}, check_password{});
+
+  // 邮箱验证相关路由
+  server.set_http_handler<POST>(
+      "/api/v1/verify_email", &user_register_t::handle_verify_email, usr_reg,
+      log_request_response{}, check_verify_email_input{});
+
+  server.set_http_handler<POST>("/api/v1/resend_verify_email",
+                                &user_register_t::handle_resend_verify_email,
+                                usr_reg, log_request_response{});
 
   user_login_t usr_login{};
   server.set_http_handler<POST>("/api/v1/login", &user_login_t::handle_login,

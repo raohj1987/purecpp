@@ -132,7 +132,7 @@
 
                     <!-- 编辑按钮：仅作者可见 -->
                     <span x-show="currentUser && currentUser.username === article.author_name" @click="startEdit()"
-                        style="cursor: pointer; color: #007bff; margin-left: 10px;">
+                          style="cursor: pointer; color: #007bff; margin-left: 10px;">
                         <i class="fas fa-edit"></i> 编辑
                     </span>
                 </div>
@@ -145,7 +145,7 @@
 
                     <label>文章内容 (Markdown)</label>
                     <textarea id="markdown-editor" x-model="content" rows="20"
-                        style="width: 100%; font-family: monospace;"></textarea>
+                              style="width: 100%; font-family: monospace;"></textarea>
 
                     <select id="tag-select" name="tag_id" required x-model="selectedTagId">
                         <option value="" disabled selected>请选择文章标签</option>
@@ -159,7 +159,7 @@
                     </div>
                 </div>
                 <div class="comments-section"
-                    style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                     style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
                     <h2>评论 (<span x-text="article.comments_count"></span>)</h2>
                     <p>评论区待实现</p>
                 </div>
@@ -349,7 +349,7 @@
 
                     const res = await fetch(`/api/v1/edit_article`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify(payload)
                     });
 

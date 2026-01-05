@@ -10,13 +10,6 @@
 
 namespace purecpp {
 
-// 本地实现的时间戳函数，避免依赖user_aspects.hpp
-inline uint64_t get_jwt_timestamp_milliseconds() {
-  return std::chrono::duration_cast<std::chrono::milliseconds>(
-             std::chrono::system_clock::now().time_since_epoch())
-      .count();
-}
-
 // 生成JWT token的函数
 auto generate_jwt_token(uint64_t user_id, const std::string &username,
                         const std::string &email) {
@@ -25,7 +18,7 @@ auto generate_jwt_token(uint64_t user_id, const std::string &username,
   // 格式: user_id:username:email:timestamp
 
   std::string token = std::to_string(user_id) + ":" + username + ":" + email +
-                      ":" + std::to_string(get_jwt_timestamp_milliseconds());
+                      ":" + std::to_string(get_timestamp_milliseconds());
   return cinatra::base64_encode(token);
 }
 
@@ -116,7 +109,7 @@ validate_jwt_token(const std::string &token) {
     const uint64_t expiration_time =
         purecpp_config::get_instance().user_cfg_.token_expiration_minutes * 60 *
         1000; // 24小时（毫秒）
-    uint64_t current_time = get_jwt_timestamp_milliseconds();
+    uint64_t current_time = get_timestamp_milliseconds();
 
     if (current_time - timestamp > expiration_time) {
       return {TokenValidationResult::Expired, std::nullopt};

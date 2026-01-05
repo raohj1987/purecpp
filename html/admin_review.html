@@ -145,154 +145,154 @@
 </head>
 
 <body>
-    <div class="page-wrapper">
-        <div id="header-container"></div>
+<div class="page-wrapper">
+    <div id="header-container"></div>
 
-        <main class="articles-container" x-data="adminReviewComponent()">
-            <div class="articles-list">
-                <div class="page-header-area">
-                    <div class="title-and-button">
-                        <h5 class="page-title">文章审核中心</h5>
+    <main class="articles-container" x-data="adminReviewComponent()">
+        <div class="articles-list">
+            <div class="page-header-area">
+                <div class="title-and-button">
+                    <h5 class="page-title">文章审核中心</h5>
+                </div>
+
+                <p class="page-description">仅管理员可见：待审核文章列表</p>
+            </div>
+        </div>
+
+        <!-- 无权限提示 -->
+        <div x-show="!isAdmin" x-cloak class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i> 您没有管理员权限，无法访问此页面。
+        </div>
+
+        <!-- 审核列表 -->
+        <div x-show="isAdmin" x-cloak>
+            <template x-if="pendingArticles.length === 0">
+                <ins>目前没有待审核的文章。</ins>
+            </template>
+
+            <template x-for="article in pendingArticles" :key="article.slug">
+                <article class="review-card" x-data="{ expanded: false }">
+                    <header>
+                        <!-- 替换 .grid 为 flex，确保 Alpine 作用域不受干扰 -->
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="font-size: 1.2rem;" x-text="article.title"></strong>
+                                <br>
+                                <small>作者: <span x-text="article.author_name"></span> |
+                                    分类: <span x-text="article.tag_name"></span> |
+                                    时间: <span x-text="formatDate(article.created_at)"></span></small>
+                            </div>
+
+                            <!-- 修改按钮样式和点击逻辑 -->
+                            <button type="button" @click.stop="expanded = !expanded"
+                                    style="width: auto; padding: 4px 12px; font-size: 0.8rem; margin: 0; white-space: nowrap; background-color: #4f46e5; border-color: #4f46e5; color: white;">
+                                <i class="fas" :class="expanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                                <span x-text="expanded ? '收起' : '预览'"></span>
+                            </button>
+                        </div>
+                    </header>
+
+                    <!-- 内容区域 -->
+                    <div x-show="expanded" x-cloak class="content-preview markdown-body"
+                         x-html="renderMarkdown(article.content)"
+                         style="margin-bottom: 0; padding: 1rem; border-top: 1px solid var(--muted-border-color);">
                     </div>
 
-                    <p class="page-description">仅管理员可见：待审核文章列表</p>
-                </div>
-            </div>
-
-            <!-- 无权限提示 -->
-            <div x-show="!isAdmin" x-cloak class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle"></i> 您没有管理员权限，无法访问此页面。
-            </div>
-
-            <!-- 审核列表 -->
-            <div x-show="isAdmin" x-cloak>
-                <template x-if="pendingArticles.length === 0">
-                    <ins>目前没有待审核的文章。</ins>
-                </template>
-
-                <template x-for="article in pendingArticles" :key="article.slug">
-                    <article class="review-card" x-data="{ expanded: false }">
-                        <header>
-                            <!-- 替换 .grid 为 flex，确保 Alpine 作用域不受干扰 -->
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <strong style="font-size: 1.2rem;" x-text="article.title"></strong>
-                                    <br>
-                                    <small>作者: <span x-text="article.author_name"></span> |
-                                        分类: <span x-text="article.tag_name"></span> |
-                                        时间: <span x-text="formatDate(article.created_at)"></span></small>
-                                </div>
-
-                                <!-- 修改按钮样式和点击逻辑 -->
-                                <button type="button" @click.stop="expanded = !expanded"
-                                    style="width: auto; padding: 4px 12px; font-size: 0.8rem; margin: 0; white-space: nowrap; background-color: #4f46e5; border-color: #4f46e5; color: white;">
-                                    <i class="fas" :class="expanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-                                    <span x-text="expanded ? '收起' : '预览'"></span>
-                                </button>
-                            </div>
-                        </header>
-
-                        <!-- 内容区域 -->
-                        <div x-show="expanded" x-cloak class="content-preview markdown-body"
-                            x-html="renderMarkdown(article.content)"
-                            style="margin-bottom: 0; padding: 1rem; border-top: 1px solid var(--muted-border-color);">
+                    <footer>
+                        <div style="display: flex; gap: 10px; justify-content: flex-start; margin: 0;">
+                            <button class="primary" @click="reviewArticle(article.slug, 'approve')"
+                                    style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.9rem; margin: 0;">
+                                <i class="fas fa-check"></i> 审核通过
+                            </button>
+                            <button class="secondary outline" @click="reviewArticle(article.slug, 'reject')"
+                                    style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.9rem; margin: 0;">
+                                <i class="fas fa-times"></i> 拒绝发布
+                            </button>
                         </div>
+                    </footer>
+                </article>
+            </template>
+        </div>
+    </main>
+    <!-- 统一页脚占位符 -->
+    <div id="footer-container"></div>
+</div>
+<!-- 统一布局脚本 -->
+<script src="script/layout.js"></script>
 
-                        <footer>
-                            <div style="display: flex; gap: 10px; justify-content: flex-start; margin: 0;">
-                                <button class="primary" @click="reviewArticle(article.slug, 'approve')"
-                                    style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.9rem; margin: 0;">
-                                    <i class="fas fa-check"></i> 审核通过
-                                </button>
-                                <button class="secondary outline" @click="reviewArticle(article.slug, 'reject')"
-                                    style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.9rem; margin: 0;">
-                                    <i class="fas fa-times"></i> 拒绝发布
-                                </button>
-                            </div>
-                        </footer>
-                    </article>
-                </template>
-            </div>
-        </main>
-        <!-- 统一页脚占位符 -->
-        <div id="footer-container"></div>
-    </div>
-    <!-- 统一布局脚本 -->
-    <script src="script/layout.js"></script>
+<script>
+    function adminReviewComponent() {
+        return {
+            pendingArticles: [],
+            isAdmin: false,
+            currentUser: null,
 
-    <script>
-        function adminReviewComponent() {
-            return {
-                pendingArticles: [],
-                isAdmin: false,
-                currentUser: null,
+            async init() {
+                // 1. 权限校验
+                const userInfo = localStorage.getItem('purecpp_user');
+                if (userInfo) {
+                    this.currentUser = JSON.parse(userInfo);
+                    // 假设后端返回的 user 对象里有 role 字段
 
-                async init() {
-                    // 1. 权限校验
-                    const userInfo = localStorage.getItem('purecpp_user');
-                    if (userInfo) {
-                        this.currentUser = JSON.parse(userInfo);
-                        // 假设后端返回的 user 对象里有 role 字段
-
-                        this.isAdmin = this.currentUser.role === 'admin';
-                    }
-
-                    if (this.isAdmin) {
-                        await this.fetchPendingArticles();
-                    }
-                },
-
-                async fetchPendingArticles() {
-                    try {
-                        const response = await fetch("/api/v1/get_pending_articles", {
-                            method: 'GET'
-                        });
-                        if (response.ok) {
-                            data = await response.json();
-                            this.pendingArticles = data.data;
-                        } else {
-                            console.log("请求服务器失败");
-                        }
-                    } catch (e) {
-                        console.error("加载待审核文章失败", e);
-                    }
-                },
-
-                async reviewArticle(s, action) {
-                    if (!confirm(`确定要${action === 'approve' ? '通过' : '拒绝'}这篇文章吗？`)) return;
-
-                    try {
-                        const res = await fetch(`/api/v1/review_pending_article`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                reviewer_name: this.currentUser.username,
-                                slug: s,
-                                review_status: action === 'approve' ? 'accepted' : 'rejected'
-                            })
-                        });
-
-                        if (res.ok) {
-                            // 从本地列表中移除
-                            this.pendingArticles = this.pendingArticles.filter(a => a.slug !== s);
-                            alert('操作成功');
-                        }
-                    } catch (e) {
-                        alert('审核操作失败');
-                    }
-                },
-
-                renderMarkdown(content) {
-                    const unescaped = content.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-                    return marked.parse(unescaped || '');
-                },
-
-                formatDate(ts) {
-                    return new Date(ts).toLocaleString();
+                    this.isAdmin = this.currentUser.role === 'admin';
                 }
+
+                if (this.isAdmin) {
+                    await this.fetchPendingArticles();
+                }
+            },
+
+            async fetchPendingArticles() {
+                try {
+                    const response = await fetch("/api/v1/get_pending_articles", {
+                        method: 'GET'
+                    });
+                    if (response.ok) {
+                        data = await response.json();
+                        this.pendingArticles = data.data;
+                    } else {
+                        console.log("请求服务器失败");
+                    }
+                } catch (e) {
+                    console.error("加载待审核文章失败", e);
+                }
+            },
+
+            async reviewArticle(s, action) {
+                if (!confirm(`确定要${action === 'approve' ? '通过' : '拒绝'}这篇文章吗？`)) return;
+
+                try {
+                    const res = await fetch(`/api/v1/review_pending_article`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            reviewer_name: this.currentUser.username,
+                            slug: s,
+                            review_status: action === 'approve' ? 'accepted' : 'rejected'
+                        })
+                    });
+
+                    if (res.ok) {
+                        // 从本地列表中移除
+                        this.pendingArticles = this.pendingArticles.filter(a => a.slug !== s);
+                        alert('操作成功');
+                    }
+                } catch (e) {
+                    alert('审核操作失败');
+                }
+            },
+
+            renderMarkdown(content) {
+                const unescaped = content.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+                return marked.parse(unescaped || '');
+            },
+
+            formatDate(ts) {
+                return new Date(ts).toLocaleString();
             }
         }
-    </script>
+    }
+</script>
 </body>
 
 </html>

@@ -8,5 +8,5 @@
   "smtp_password": "xxxxxxxxxx",
   "smtp_from_email": "xxxxx@qq.com",
   "smtp_from_name": "PureCpp管理员",
-  "reset_password_url": "http://localhost:3389/reset_password.html"
+  "web_server_url": "http://localhost:3389"
 }

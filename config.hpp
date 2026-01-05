@@ -18,7 +18,7 @@ struct user_config {
   std::string smtp_password;        // SMTP服务器密码
   std::string smtp_from_email;      // 发件人邮箱地址
   std::string smtp_from_name;       // 发件人名称
-  std::string reset_password_url;   // 密码重置URL
+  std::string web_server_url;       // 网页服务器URL
 }; // 用户配置结构体，包含安全设置和邮件服务器配置
 
 /**

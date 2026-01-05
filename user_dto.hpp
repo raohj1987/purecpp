@@ -1,9 +1,6 @@
 #pragma once
-#include <cinttypes>
-#include <optional>
 #include <string>
 #include <system_error>
-#include <vector>
 
 #include "entity.hpp" // 包含必要的枚举类型
 
@@ -22,7 +19,7 @@ struct user_resp_data {
   uint64_t user_id;
   std::string username;
   std::string email;
-  bool is_verifyed;
+  int is_verifyed;
   UserTitle title;
   std::string role;
   uint64_t experience;
@@ -60,15 +57,23 @@ struct change_password_info {
 
 // 忘记密码相关结构体
 struct forgot_password_info {
-    std::string email;
+  std::string email;
 };
 
 struct reset_password_info {
-    std::string token;
-    std::string new_password;
+  std::string token;
+  std::string new_password;
 };
 
 // 空数据结构体，用于没有具体数据的响应
-struct empty_data {
+struct empty_data {};
+
+// 验证邮箱相关结构体
+struct verify_email_info {
+  std::string token;
+};
+
+struct resend_verify_email_info {
+  std::string email;
 };
 } // namespace purecpp
