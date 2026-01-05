@@ -110,19 +110,24 @@
     .user-menu-header {
         padding: 0.75rem 1rem;
         border-bottom: 1px solid var(--border-color);
+        font-family: "MS UI Gothic";
     }
 
     #user-menu-username {
-        font-weight: 500;
+        font-weight: 400;
+        font-style: italic;
         color: var(--text-main);
+        letter-spacing: 0.3px;
+        text-shadow: 0.1px 0.1px 0.5px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+        font-family: "Georgia", "Times New Roman", serif;
     }
 
-    #user-menu-email {
-        font-size: 0.8rem;
-        color: var(--muted-color);
-        margin-top: 0.25rem;
+    #user-menu-username:hover {
+        letter-spacing: 0.5px;
+        text-shadow: 0.2px 0.2px 0.8px rgba(0, 0, 0, 0.15);
+        transform: translateX(1px);
     }
-
     .user-menu-content {
         padding: 0.5rem 0;
     }
@@ -253,7 +258,6 @@
                 <div id="user-menu" class="user-menu">
                     <div class="user-menu-header">
                         <div id="user-menu-username"></div>
-                        <div id="user-menu-email"></div>
                     </div>
                     <div class="user-menu-content">
                         <a href="profile.html" class="user-menu-item">
@@ -263,10 +267,6 @@
                         <a href="change_password.html" class="user-menu-item">
                             <i class="fas fa-key"></i>
                             修改密码
-                        </a>
-                        <a href="#settings" class="user-menu-item">
-                            <i class="fas fa-cog"></i>
-                            设置
                         </a>
                         <div class="user-menu-divider"></div>
                         <a href="#logout" id="logout-link" class="user-menu-item">

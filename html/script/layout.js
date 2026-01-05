@@ -185,10 +185,8 @@ function checkUserLogin() {
             
             // 更新用户菜单中的信息
             const usernameElement = document.getElementById('user-menu-username');
-            const emailElement = document.getElementById('user-menu-email');
-            
-            if (usernameElement) usernameElement.textContent = user.username;
-            if (emailElement) emailElement.textContent = user.email;
+
+            if (usernameElement) usernameElement.textContent = "你好! " + user.username;
         } catch (error) {
             console.error('Error parsing user info:', error);
         }
