@@ -9,6 +9,7 @@
 
 #include "articles.hpp"
 #include "entity.hpp"
+#include "rate_limiter.hpp"
 #include "tags.hpp"
 #include "user_aspects.hpp"
 #include "user_login.hpp"
@@ -131,6 +132,9 @@ int main() {
   // 从配置文件加载配置
   purecpp_config::get_instance().load_config("cfg/user_config.json");
 
+  // 初始化限流器
+  rate_limiter::instance().init_from_config();
+
   auto &db_pool = connection_pool<dbng<mysql>>::instance();
 
   coro_http_server server(std::thread::hardware_concurrency(), 3389);
@@ -159,7 +163,7 @@ int main() {
   server.set_http_handler<POST>(
       "/api/v1/register", &user_register_t::handle_register, usr_reg,
       check_register_input{}, check_cpp_answer{}, check_user_name{},
-      check_email{}, check_password{});
+      check_email{}, check_password{}, rate_limiter_aspect{});
 
   // 邮箱验证相关路由
   server.set_http_handler<POST>(

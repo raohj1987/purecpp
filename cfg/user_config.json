@@ -8,5 +8,26 @@
   "smtp_password": "xxxxxxxxxx",
   "smtp_from_email": "xxxxx@qq.com",
   "smtp_from_name": "PureCpp管理员",
-  "web_server_url": "http://localhost:3389"
+  "web_server_url": "http://localhost:3389",
+  "rate_limit_rules": [
+    {
+      "path": "/api/v1/register",
+      "max_requests": 5,
+      "window_seconds": 60,
+      "enabled": true
+    },
+    {
+      "path": "/api/v1/login",
+      "max_requests": 10,
+      "window_seconds": 60,
+      "enabled": true
+    },
+    {
+      "path": "^/api/v1/.*$",
+      "max_requests": 100,
+      "window_seconds": 60,
+      "enabled": false,
+      "comment": "匹配所有 /api/v1/ 开头的路径（自动识别为正则表达式）"
+    }
+  ]
 }

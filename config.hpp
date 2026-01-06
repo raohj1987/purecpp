@@ -2,23 +2,40 @@
 
 #include <fstream>
 #include <iguana/json_reader.hpp>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace purecpp {
+
+// 单个路由限流规则配置
+struct rate_limit_rule {
+  std::string path;    // 路由路径或正则表达式
+  int max_requests;    // 最大请求次数
+  int window_seconds;  // 时间窗口（秒）
+  bool enabled = true; // 是否启用
+};
+
 /**
  * @brief 用户配置结构体
  */
 struct user_config {
+  // 安全设置
   int32_t lock_failed_attempts;     // 登录失败锁定阈值
   int32_t lock_duration_minutes;    // 账号锁定持续时间（分钟）
   int32_t token_expiration_minutes; // JWT令牌过期时间（分钟）
-  std::string smtp_host;            // SMTP服务器主机名
-  int smtp_port;                    // SMTP服务器端口
-  std::string smtp_user;            // SMTP服务器用户名
-  std::string smtp_password;        // SMTP服务器密码
-  std::string smtp_from_email;      // 发件人邮箱地址
-  std::string smtp_from_name;       // 发件人名称
-  std::string web_server_url;       // 网页服务器URL
+
+  // 邮件服务器配置
+  std::string smtp_host;       // SMTP服务器主机名
+  int smtp_port;               // SMTP服务器端口
+  std::string smtp_user;       // SMTP服务器用户名
+  std::string smtp_password;   // SMTP服务器密码
+  std::string smtp_from_email; // 发件人邮箱地址
+  std::string smtp_from_name;  // 发件人名称
+  std::string web_server_url;  // 网页服务器URL
+
+  // 基于路由的限流配置
+  std::vector<rate_limit_rule> rate_limit_rules; // 限流规则列表
 }; // 用户配置结构体，包含安全设置和邮件服务器配置
 
 /**
@@ -50,7 +67,7 @@ public:
     }
 
     std::string json;
-    json.resize(1024);
+    json.resize(4096);
     file.read(json.data(), json.size());
     iguana::from_json(user_cfg_, json);
   }

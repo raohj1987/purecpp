@@ -2,6 +2,7 @@
 #include "common.hpp"
 #include "entity.hpp"
 #include "jwt_token.hpp"
+#include "rate_limiter.hpp"
 #include <any>
 #include <chrono>
 #include <iomanip>
@@ -121,9 +122,8 @@ struct check_user_name {
 
     bool r = std::regex_match(std::string(info.username), username_regex);
     if (!r) {
-      res.set_status_and_content(
-          status_type::bad_request,
-          make_error("用户名只允许字母 (a-z, A-Z), 数字 "
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error("用户名只允许字母 (a-z, A-Z), 数字 "
                                             "(0-9), 下划线 (_), 连字符 (-)。"));
       return false;
     }
@@ -612,8 +612,6 @@ struct check_edit_article {
   }
 };
 
-
-
 // 邮箱验证相关的验证结构体
 struct check_verify_email_input {
   bool before(coro_http_request &req, coro_http_response &res) {
@@ -675,4 +673,16 @@ struct check_resend_verification_input {
     return true;
   }
 };
+
+// 频次检查切面
+struct rate_limiter_aspect {
+  bool before(coro_http_request &req, coro_http_response &res) {
+    // 限流检查
+    if (!check_rate_limit(req, res)) {
+      return false; // 请求被限流，停止处理
+    }
+    return true;
+  }
+};
+
 } // namespace purecpp
