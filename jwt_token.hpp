@@ -3,23 +3,66 @@
 #include "config.hpp"
 #include <chrono>
 #include <mutex>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <unordered_set>
 
 namespace purecpp {
+// HMAC-SHA256签名
+std::string hmac_sha256(const std::string &data, const std::string &key) {
+  unsigned char *hash = new unsigned char[EVP_MAX_MD_SIZE];
+  unsigned int hash_len = 0;
 
-// 生成JWT token的函数
+  HMAC(EVP_sha256(), key.c_str(), key.size(),
+       reinterpret_cast<const unsigned char *>(data.c_str()), data.size(), hash,
+       &hash_len);
+
+  std::string result;
+  result.reserve(hash_len * 2);
+  for (unsigned int i = 0; i < hash_len; i++) {
+    char buf[3];
+    snprintf(buf, sizeof(buf), "%02x", hash[i]);
+    result.append(buf);
+  }
+
+  delete[] hash;
+  return result;
+}
+
+// 生成简化JWT token的函数（无Header部分，仅包含Payload和Signature）
 auto generate_jwt_token(uint64_t user_id, const std::string &username,
                         const std::string &email) {
-  // 简单的JWT生成，实际应用中应该使用更安全的实现
-  // 这里使用base64编码的方式生成一个简单的token
-  // 格式: user_id:username:email:timestamp
+  // 从配置文件中获取JWT密钥
+  const std::string &jwt_secret =
+      purecpp_config::get_instance().user_cfg_.jwt_secret;
 
-  std::string token = std::to_string(user_id) + ":" + username + ":" + email +
-                      ":" + std::to_string(get_timestamp_milliseconds());
-  return cinatra::base64_encode(token);
+  // 构建Payload
+  uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                     std::chrono::system_clock::now().time_since_epoch())
+                     .count();
+  // 从配置文件中获取过期时间（分钟），转换为毫秒
+  uint64_t expiration_minutes =
+      purecpp_config::get_instance().user_cfg_.token_expiration_minutes;
+  uint64_t expiration_time = expiration_minutes * 60 * 1000;
+  uint64_t exp = now + expiration_time;
+
+  // 构建Payload JSON字符串，仅包含必要字段
+  std::stringstream payload_ss;
+  payload_ss << "{\"sub\":" << user_id << ",\"iat\":" << now
+             << ",\"exp\":" << exp << "}";
+  std::string payload = payload_ss.str();
+
+  std::string encoded_payload = cinatra::base64_encode(payload);
+
+  // 构建Signature（仅对Payload进行签名，无Header）
+  std::string signature = hmac_sha256(encoded_payload, jwt_secret);
+  std::string encoded_signature = cinatra::base64_encode(signature);
+
+  // 构建简化的JWT（仅包含Payload和Signature，用点分隔）
+  return encoded_payload + "." + encoded_signature;
 }
 
 // Token校验结果结构体
@@ -27,15 +70,15 @@ enum class TokenValidationResult : int32_t {
   Valid,
   InvalidFormat,
   InvalidBase64,
+  InvalidSignature,
   Expired
 };
 
 // Token信息结构体
 struct token_info {
   uint64_t user_id;
-  std::string username;
-  std::string email;
-  uint64_t timestamp;
+  uint64_t iat; // 签发时间
+  uint64_t exp; // 过期时间
 };
 
 // 令牌黑名单类
@@ -72,6 +115,43 @@ private:
   std::mutex mutex_;
 };
 
+// 解析JSON字符串中的字段
+std::optional<std::string> get_json_field(const std::string &json,
+                                          const std::string &field) {
+  size_t field_pos = json.find('"' + field + '"');
+  if (field_pos == std::string::npos) {
+    return std::nullopt;
+  }
+
+  size_t colon_pos = json.find(':', field_pos);
+  if (colon_pos == std::string::npos) {
+    return std::nullopt;
+  }
+
+  size_t value_start = json.find_first_not_of(" \t\n\r", colon_pos + 1);
+  if (value_start == std::string::npos) {
+    return std::nullopt;
+  }
+
+  size_t value_end;
+  if (json[value_start] == '"') {
+    // 字符串值
+    value_start++;
+    value_end = json.find('"', value_start);
+    if (value_end == std::string::npos) {
+      return std::nullopt;
+    }
+  } else {
+    // 数字值
+    value_end = json.find_first_of(",}\n\r", value_start);
+    if (value_end == std::string::npos) {
+      value_end = json.size();
+    }
+  }
+
+  return json.substr(value_start, value_end - value_start);
+}
+
 // Token校验函数
 std::pair<TokenValidationResult, std::optional<token_info>>
 validate_jwt_token(const std::string &token) {
@@ -81,51 +161,51 @@ validate_jwt_token(const std::string &token) {
             std::nullopt}; // 使用Expired状态表示已注销
   }
 
-  // Base64解码
-  auto decoded_opt = cinatra::base64_decode(token);
-  if (!decoded_opt) {
+  // 分割JWT，Payload.Signature
+  size_t first_dot = token.find('.');
+  if (first_dot == std::string::npos) {
+    return {TokenValidationResult::InvalidFormat, std::nullopt};
+  }
+
+  std::string encoded_payload = token.substr(0, first_dot);
+  std::string encoded_signature = token.substr(first_dot + 1);
+
+  // 解码Payload和Signature
+  auto decoded_payload_opt = cinatra::base64_decode(encoded_payload);
+  auto decoded_signature_opt = cinatra::base64_decode(encoded_signature);
+
+  if (!decoded_payload_opt || !decoded_signature_opt) {
     return {TokenValidationResult::InvalidBase64, std::nullopt};
   }
 
-  std::string decoded = *decoded_opt;
+  std::string decoded_payload = *decoded_payload_opt;
+  std::string decoded_signature = *decoded_signature_opt;
 
-  // 解析token内容
-  std::istringstream iss(decoded);
-  std::string user_id_str, username, email, timestamp_str;
-
-  // 使用冒号分隔符解析
-  if (!std::getline(iss, user_id_str, ':') ||
-      !std::getline(iss, username, ':') || !std::getline(iss, email, ':') ||
-      !std::getline(iss, timestamp_str, ':')) {
-    return {TokenValidationResult::InvalidFormat, std::nullopt};
+  // 从配置文件中获取JWT密钥
+  const std::string &jwt_secret =
+      purecpp_config::get_instance().user_cfg_.jwt_secret;
+  // 校验Signature
+  std::string expected_signature = hmac_sha256(encoded_payload, jwt_secret);
+  if (decoded_signature != expected_signature) {
+    return {TokenValidationResult::InvalidSignature, std::nullopt};
   }
 
-  // 转换数据类型
-  try {
-    uint64_t user_id = std::stoull(user_id_str);
-    uint64_t timestamp = std::stoull(timestamp_str);
-
-    // 验证token是否过期（可选，这里设置为24小时有效期）
-    const uint64_t expiration_time =
-        purecpp_config::get_instance().user_cfg_.token_expiration_minutes * 60 *
-        1000; // 24小时（毫秒）
-    uint64_t current_time = get_timestamp_milliseconds();
-
-    if (current_time - timestamp > expiration_time) {
-      return {TokenValidationResult::Expired, std::nullopt};
-    }
-
-    // 构造token_info
-    token_info info;
-    info.user_id = user_id;
-    info.username = username;
-    info.email = email;
-    info.timestamp = timestamp;
-
-    return {TokenValidationResult::Valid, info};
-  } catch (const std::exception &) {
+  // 解析Payload
+  token_info info;
+  std::error_code ec;
+  iguana::from_json(info, decoded_payload, ec);
+  if (ec) {
     return {TokenValidationResult::InvalidFormat, std::nullopt};
   }
+  // 验证token是否过期
+  uint64_t current_time =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count();
+  if (current_time > info.exp) {
+    return {TokenValidationResult::Expired, std::nullopt};
+  }
+  return {TokenValidationResult::Valid, info};
 }
 
 } // namespace purecpp

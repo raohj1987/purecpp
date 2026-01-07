@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cinatra.hpp>
 #include <fstream>
 #include <iguana/json_reader.hpp>
 #include <optional>
@@ -24,6 +25,7 @@ struct user_config {
   int32_t lock_failed_attempts;     // 登录失败锁定阈值
   int32_t lock_duration_minutes;    // 账号锁定持续时间（分钟）
   int32_t token_expiration_minutes; // JWT令牌过期时间（分钟）
+  std::string jwt_secret;           // JWT令牌密钥
 
   // 邮件服务器配置
   std::string smtp_host;       // SMTP服务器主机名

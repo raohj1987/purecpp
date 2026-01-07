@@ -302,6 +302,9 @@ struct check_token {
       case TokenValidationResult::InvalidBase64:
         error_msg = PURECPP_ERROR_TOKEN_INVALID;
         break;
+      case TokenValidationResult::InvalidSignature:
+        error_msg = PURECPP_ERROR_TOKEN_INVALID;
+        break;
       case TokenValidationResult::Expired:
         error_msg = PURECPP_ERROR_TOKEN_EXPIRED;
         break;
