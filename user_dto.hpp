@@ -37,6 +37,10 @@ struct login_resp_data {
   std::string username;
   std::string email;
   std::string token;
+  std::string refresh_token;
+  uint64_t access_token_expires_at;
+  uint64_t refresh_token_expires_at;
+  uint64_t access_token_lifetime; // 访问令牌有效期，单位：秒
   UserTitle title;
   std::string role;
   uint64_t experience;
@@ -75,5 +79,20 @@ struct verify_email_info {
 
 struct resend_verify_email_info {
   std::string email;
+};
+
+// Refresh token请求结构体
+struct refresh_token_request {
+  std::string refresh_token;
+  uint64_t user_id; // 新增：用户ID，用于校验
+};
+
+struct refresh_token_response {
+  uint64_t user_id;
+  std::string token;
+  std::string refresh_token;
+  uint64_t refresh_token_expires_at;
+  uint64_t access_token_expires_at;
+  uint64_t access_token_lifetime; // 访问令牌有效期，单位：秒
 };
 } // namespace purecpp

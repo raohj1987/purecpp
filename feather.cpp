@@ -184,6 +184,11 @@ int main() {
       "/api/v1/logout", &user_login_t::handle_logout, usr_login,
       log_request_response{}, check_token{}, check_logout_input{});
 
+  // 添加刷新token路由
+  server.set_http_handler<POST>(
+      "/api/v1/refresh_token", &user_login_t::handle_refresh_token, usr_login,
+      log_request_response{}, check_refresh_token_input{});
+
   user_password_t usr_password{};
   server.set_http_handler<POST>(
       "/api/v1/change_password", &user_password_t::handle_change_password,

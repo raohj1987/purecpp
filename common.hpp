@@ -50,6 +50,13 @@ inline uint64_t get_timestamp_milliseconds() {
   return static_cast<uint64_t>(milliseconds.count());
 }
 
+inline uint64_t get_timestamp_seconds() {
+  auto now = std::chrono::system_clock::now();
+  auto duration = now.time_since_epoch();
+  auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+  return static_cast<uint64_t>(seconds.count());
+}
+
 // 改进的安全Token生成函数
 inline std::string generate_token(TokenType token_type) {
   // 使用64位随机数生成器，提高熵值

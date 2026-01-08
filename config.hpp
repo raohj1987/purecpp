@@ -24,8 +24,10 @@ struct user_config {
   // 安全设置
   int32_t lock_failed_attempts;     // 登录失败锁定阈值
   int32_t lock_duration_minutes;    // 账号锁定持续时间（分钟）
-  int32_t token_expiration_minutes; // JWT令牌过期时间（分钟）
-  std::string jwt_secret;           // JWT令牌密钥
+  int32_t access_token_exp_minutes; // JWT令牌过期时间（分钟）
+  int32_t refresh_token_exp_days;   // Refresh Token过期时间（天）
+  std::string access_token_secret;  // JWT令牌密钥
+  std::string refresh_token_secret; // Refresh Token密钥
 
   // 邮件服务器配置
   std::string smtp_host;       // SMTP服务器主机名

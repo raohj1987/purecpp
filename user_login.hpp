@@ -125,8 +125,9 @@ public:
     std::string user_name_str(user.user_name.data());
     std::string email_str(user.email.data());
 
-    // 生成JWT token
-    std::string token = generate_jwt_token(user.id, user_name_str, email_str);
+    // 生成JWT token和refresh token
+    token_response token_resp =
+        generate_jwt_token(user.id, user_name_str, email_str);
 
     // 更新最后活跃时间
     user.last_active_at = get_timestamp_milliseconds();
@@ -139,10 +140,52 @@ public:
 
     // 返回登录成功响应
     std::string json = make_data(
-        login_resp_data{user.id, user_name_str, email_str, token, user.title,
-                        user.role, user.experience, user.level},
+        login_resp_data{user.id, user_name_str, email_str,
+                        token_resp.access_token, token_resp.refresh_token,
+                        token_resp.access_token_expires_at,
+                        token_resp.refresh_token_expires_at,
+                        token_resp.access_token_lifetime, user.title, user.role,
+                        user.experience, user.level},
         std::string(PURECPP_LOGIN_SUCCESS));
     resp.set_status_and_content(status_type::ok, std::move(json));
+  }
+
+  /**
+   * @brief 处理刷新token请求
+   *
+   * @param req HTTP请求对象
+   * @param resp HTTP响应对象
+   */
+  void handle_refresh_token(cinatra::coro_http_request &req,
+                            cinatra::coro_http_response &resp) {
+    try {
+      // 从请求中获取刷新令牌信息
+      refresh_token_request refresh_info =
+          std::any_cast<refresh_token_request>(req.get_user_data());
+
+      // 刷新token，传入user_id进行校验
+      token_response new_token_resp = refresh_access_token(
+          refresh_info.refresh_token, refresh_info.user_id);
+
+      // 返回新的token响应
+      refresh_token_response resp_data;
+      resp_data.user_id = refresh_info.user_id;
+      resp_data.token = new_token_resp.access_token;
+      resp_data.refresh_token = new_token_resp.refresh_token;
+      resp_data.access_token_expires_at =
+          new_token_resp.access_token_expires_at;
+      resp_data.access_token_lifetime = new_token_resp.access_token_lifetime;
+      resp_data.refresh_token_expires_at =
+          new_token_resp.refresh_token_expires_at;
+
+      std::string json =
+          make_data(resp_data, std::string("Token refreshed successfully"));
+      resp.set_status_and_content(status_type::ok, std::move(json));
+    } catch (const std::exception &e) {
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error(std::string("Failed to refresh token: ") + e.what()));
+    }
   }
 
   /**
