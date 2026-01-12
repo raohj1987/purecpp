@@ -266,37 +266,6 @@ private:
 };
 
 /**
- * @brief 获取客户端IP地址
- */
-inline std::string get_client_ip(coro_http_request &req) {
-  // 优先从X-Forwarded-For获取（反向代理场景）
-  auto forward_for = req.get_header_value("X-Forwarded-For");
-  if (!forward_for.empty()) {
-    // X-Forwarded-For可能包含多个IP，取第一个
-    auto comma_pos = forward_for.find(',');
-    if (comma_pos != std::string::npos) {
-      return std::string(forward_for.substr(0, comma_pos));
-    }
-    return std::string(forward_for);
-  }
-
-  // 其次从X-Real-IP获取
-  auto real_ip = req.get_header_value("X-Real-IP");
-  if (!real_ip.empty()) {
-    return std::string(real_ip);
-  }
-
-  // 从conn的连接中获取
-  auto conn_ip = req.get_conn()->remote_address();
-  if (!conn_ip.empty()) {
-    return std::string(conn_ip);
-  }
-
-  // 如果都无法获取，返回默认值
-  return "unknown";
-}
-
-/**
  * @brief 统一的限流检查函数
  * @param req HTTP请求对象
  * @param resp HTTP响应对象
