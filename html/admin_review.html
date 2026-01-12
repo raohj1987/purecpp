@@ -217,6 +217,8 @@
     <!-- 统一页脚占位符 -->
     <div id="footer-container"></div>
 </div>
+<!-- API服务脚本 -->
+<script src="script/api_service.js"></script>
 <!-- 统一布局脚本 -->
 <script src="script/layout.js"></script>
 
@@ -228,12 +230,9 @@
             currentUser: null,
 
             async init() {
-                // 1. 权限校验
-                const userInfo = localStorage.getItem('purecpp_user');
-                if (userInfo) {
-                    this.currentUser = JSON.parse(userInfo);
-                    // 假设后端返回的 user 对象里有 role 字段
-
+                // 1. 权限校验 - 使用apiService获取用户信息
+                this.currentUser = apiService.getUserInfo();
+                if (this.currentUser) {
                     this.isAdmin = this.currentUser.role === 'admin';
                 }
 
@@ -244,15 +243,9 @@
 
             async fetchPendingArticles() {
                 try {
-                    const response = await fetch("/api/v1/get_pending_articles", {
-                        method: 'GET'
-                    });
-                    if (response.ok) {
-                        data = await response.json();
-                        this.pendingArticles = data.data;
-                    } else {
-                        console.log("请求服务器失败");
-                    }
+                    // 使用apiService获取待审核文章列表
+                    const response = await apiService.getPendingArticles();
+                    this.pendingArticles = response.data;
                 } catch (e) {
                     console.error("加载待审核文章失败", e);
                 }
@@ -262,22 +255,20 @@
                 if (!confirm(`确定要${action === 'approve' ? '通过' : '拒绝'}这篇文章吗？`)) return;
 
                 try {
-                    const res = await fetch(`/api/v1/review_pending_article`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            reviewer_name: this.currentUser.username,
-                            slug: s,
-                            review_status: action === 'approve' ? 'accepted' : 'rejected'
-                        })
-                    });
+                    // 查找文章ID
+                    const article = this.pendingArticles.find(a => a.slug === s);
+                    if (!article) {
+                        alert('文章不存在');
+                        return;
+                    }
 
-                    if (res.ok) {
+                    // 使用apiService审核文章
+                    const response = await apiService.reviewArticle(this.currentUser.username, article.slug, action === 'approve' ? 'accepted' : 'rejected');
                         // 从本地列表中移除
                         this.pendingArticles = this.pendingArticles.filter(a => a.slug !== s);
                         alert('操作成功');
-                    }
                 } catch (e) {
+                    console.error('审核操作失败', e);
                     alert('审核操作失败');
                 }
             },

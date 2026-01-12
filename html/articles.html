@@ -361,7 +361,7 @@
                             <i class="fas fa-comment"></i>
                             <span x-text="article.comments_count + ' 评论'"></span>
                         </div>
-                        <a :href="'/article/' + article.slug" class="read-more">阅读全文 →</a>
+                        <a :href="'/article.html?slug=' + article.slug" class="read-more">阅读全文 →</a>
                     </div>
                 </article>
             </template>
@@ -398,6 +398,8 @@
 
     <!-- 统一页脚占位符 -->
     <div id="footer-container"></div>
+    <!-- API服务脚本 -->
+    <script src="script/api_service.js"></script>
     <!-- 统一布局脚本（包含用户信息管理功能） -->
     <script src="script/layout.js"></script>
 
@@ -426,20 +428,15 @@
                 },
 
                 async fetchArticles() {
-                    const userInfo = localStorage.getItem('purecpp_user') || sessionStorage.getItem('purecpp_user');
-                    const token = localStorage.getItem('purecpp_token') || sessionStorage.getItem('purecpp_token');
-                    if (userInfo && token) {
-                        this.currentUser = JSON.parse(userInfo);
-                    }
+                    // 使用apiService获取用户信息
+                    this.currentUser = apiService.getUserInfo();
 
-                    const response = await fetch("/api/v1/get_articles", {
-                        method: 'GET'
-                    });
-                    if (response.ok) {
-                        data = await response.json();
-                        this.articles = data.data;
-                    } else {
-                        console.log("请求服务器失败");
+                    try {
+                        // 使用apiService获取文章列表
+                        const response = await apiService.getArticles();
+                        this.articles = response.data;
+                    } catch (error) {
+                        console.log("请求服务器失败", error);
                     }
                 },
                 get formattedDate() {
@@ -485,15 +482,13 @@
                     // 从 URL 中解析当前页码
                     // const urlParams = new URLSearchParams(window.location.search);
                     // this.currentPage = parseInt(urlParams.get('page')) || 1;
-                    const response = await fetch("/api/v1/get_article_count", {
-                        method: 'GET'
-                    });
-                    if (response.ok) {
-                        data = await response.json();
-                        console.log("total: ", data.data);
-                        this.totalArticles = data.data;
-                    } else {
-                        console.log("请求服务器失败");
+                    try {
+                        // 使用apiService获取文章数量
+                        const response = await apiService.getArticleCount();
+                        console.log("total: ", response.data);
+                        this.totalArticles = response.data;
+                    } catch (error) {
+                        console.log("请求服务器失败", error);
                     }
                     this.currentPage = 1;
                 },

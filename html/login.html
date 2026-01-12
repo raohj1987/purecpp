@@ -315,7 +315,9 @@
             <div class="main-card">
                 <h2>账号登录</h2>
                 <form x-data="loginFormLogic()" x-init="init()" @submit.prevent="submitLogin">
-                    <div x-show="serverError" x-text="serverError" class="error-message"></div>
+                    <div x-show="message" x-text="message"
+                         :style="{color: messageColor, marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem', padding: '0.75rem', borderRadius: '6px', backgroundColor: messageColor === '#ef4444' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}">
+                    </div>
                     <div class="form-group">
                         <label for="username">用户名/邮箱</label>
                         <input type="text" id="username" x-model="username" @input="handleUsernameInput"
@@ -357,6 +359,8 @@
         <!-- 统一页脚占位符 -->
         <div id="footer-container"></div>
     </div>
+    <!-- API服务脚本 -->
+    <script src="script/api_service.js"></script>
     <!-- 统一布局脚本 -->
     <script src="script/layout.js"></script>
 
@@ -367,7 +371,8 @@
                 username: '',
                 password: '',
                 rememberMe: false,
-                serverError: '',
+                message: '',
+                messageColor: '',
                 showPassword: false,
                 loading: false,
 
@@ -387,37 +392,43 @@
                     }
                 },
 
+                // 显示消息函数
+                showMessage(message, isError = false) {
+                    this.message = message;
+                    this.messageColor = isError ? '#ef4444' : '#10b981';
+                },
+
                 // 表单验证
                 validateForm() {
                     if (!this.username.trim()) {
-                        this.serverError = '请输入用户名或邮箱';
+                        this.showMessage('请输入用户名或邮箱', true);
                         return false;
                     }
 
                     if (!this.password.trim()) {
-                        this.serverError = '请输入密码';
+                        this.showMessage('请输入密码', true);
                         return false;
                     }
 
                     // 验证用户名不包含汉字
                     if (/[\u4e00-\u9fa5]/.test(this.username)) {
-                        this.serverError = '用户名不允许包含汉字';
+                        this.showMessage('用户名不允许包含汉字', true);
                         return false;
                     }
 
                     // 验证密码不包含汉字
                     if (/[\u4e00-\u9fa5]/.test(this.password)) {
-                        this.serverError = '密码不允许包含汉字';
+                        this.showMessage('密码不允许包含汉字', true);
                         return false;
                     }
 
                     // 简单的邮箱格式验证
                     if (this.username.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.username)) {
-                        this.serverError = '请输入有效的邮箱地址';
+                        this.showMessage('请输入有效的邮箱地址', true);
                         return false;
                     }
 
-                    this.serverError = '';
+                    this.message = '';
                     return true;
                 },
 
@@ -452,67 +463,33 @@
                     if (!this.validateForm()) return;
 
                     this.loading = true;
-                    this.serverError = '';
-                    load_success = false;
-
-                    const payload = {
-                        username: this.username.trim(),
-                        password: this.password
-                    };
+                    this.message = '';
 
                     try {
-                        const response = await fetch('/api/v1/login', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(payload)
-                        });
+                        // 使用apiService处理登录请求
+                        const response = await apiService.login(this.username.trim(), this.password, this.rememberMe);
 
-                        const data = await response.json();
-
-                        if (response.ok) {
-                            if (data.success) {
-                                // 保存token到localStorage
-                                localStorage.setItem('purecpp_token', data.data.token);
-                                localStorage.setItem('purecpp_user', JSON.stringify(data.data));
-                                load_success = true;
-                                // 保存登录成功用户名、密码
-                                if (this.rememberMe) {
-                                    localStorage.setItem('purecpp_rememberMe', 'true');
-                                    localStorage.setItem('purecpp_username', this.username);
-                                    localStorage.setItem('purecpp_password', this.password);
-                                } else {
-                                    localStorage.removeItem('purecpp_rememberMe');
-                                    localStorage.removeItem('purecpp_username');
-                                    localStorage.removeItem('purecpp_password');
-                                }
-                                // 登录成功跳转到首页
-                                window.location.href = '/index.html';
+                        if (response.success) {
+                            // 保存登录成功用户名、密码
+                            if (this.rememberMe) {
+                                localStorage.setItem('purecpp_rememberMe', 'true');
+                                localStorage.setItem('purecpp_username', this.username);
+                                localStorage.setItem('purecpp_password', this.password);
                             } else {
-                                this.serverError = data.message || '登录失败，请检查用户名和密码';
+                                localStorage.removeItem('purecpp_rememberMe');
+                                localStorage.removeItem('purecpp_username');
+                                localStorage.removeItem('purecpp_password');
                             }
-                        } else if (response.status === 400) {
-                            // 400 Bad Request: 客户端数据验证失败
-                            if (data.message) {
-                                // 统一错误信息
-                                this.serverError = data.message;
-                            } else {
-                                this.serverError = data['errors'][0] || '登录失败，请检查用户名和密码';
-                            }
+                            // 登录成功跳转到首页
+                            window.location.href = '/index.html';
                         } else {
-                            // 5xx Server Error 或其他非 400 错误
-                            this.serverError = `登录失败：服务器返回状态码 ${response.status}。请稍后再试。`;
+                            this.showMessage(response.message || '登录失败，请检查用户名和密码', true);
                         }
                     } catch (error) {
                         console.error('登录请求失败:', error);
-                        this.serverError = '网络错误，请稍后重试';
+                        this.showMessage('登录失败，原因：' + (error.message || '网络错误，请稍后重试'), true);
                     } finally {
                         this.loading = false;
-                        // 登录失败显示错误原因
-                        if (!load_success) {
-                            this.serverError = '登录失败，原因：' + this.serverError;
-                        }
                     }
                 }
             };

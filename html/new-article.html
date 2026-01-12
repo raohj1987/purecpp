@@ -225,7 +225,8 @@
 
     <!-- 统一页脚占位符 -->
     <div id="footer-container"></div>
-
+    <!-- API服务脚本 -->
+    <script src="script/api_service.js"></script>
     <!-- 统一布局脚本 -->
     <script src="script/layout.js"></script>
 
@@ -271,15 +272,9 @@
                     this.isLoading = true;
                     this.errorMessage = '';
                     try {
-                        const response = await fetch('/api/v1/get_tags');
-
-                        if (!response.ok) {
-                            throw new Error('网络请求失败');
-                        }
-
-                        this.tags = await response.json();
-                        // this.isLoading = false;
-
+                        // 使用apiService获取标签列表
+                        const response = await apiService.getTags();
+                        this.tags = response.data;
                     } catch (error) {
                         console.error('获取标签失败:', error);
                         this.errorMessage = '无法加载标签数据，请稍后重试。';
@@ -317,33 +312,15 @@
 
                     if (!content || content.trim() === '') {
                         alert('文章内容不能为空！');
-                        // event.preventDefault() 应该已经被 @submit.prevent 包含，确保阻止表单提交
                         return;
                     }
 
-                    const tagId = parseInt(this.selectedTagId, 10);
-                    const payload = {
-                        title: this.title,
-                        excerpt: this.excerpt,
-                        content: this.content,
-                        tag_id: tagId
-                    };
-
                     try {
-                        const response = await fetch('/api/v1/new_article', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-
-                        if (response.ok) {
-                            alert('文章提交成功！请等待审核。');
-                            // 可选：跳转
-                            window.location.href = '/articles.html';
-                        } else {
-                            const errorText = await response.text();
-                            throw new Error(`提交失败: ${response.status} ${errorText}`);
-                        }
+                        // 使用apiService提交文章
+                        const tagId = parseInt(this.selectedTagId, 10);
+                        const response = await apiService.createArticle(this.title, this.excerpt, this.content, tagId);
+                        alert('文章提交成功！请等待审核。');
+                        window.location.href = '/articles.html';
                     } catch (error) {
                         console.error('Submit error:', error);
                         this.errorMessage = '提交失败：' + error.message;

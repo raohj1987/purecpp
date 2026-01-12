@@ -376,6 +376,8 @@
     <!-- 统一页脚占位符 -->
     <div id="footer-container"></div>
 
+    <!-- API服务脚本 -->
+    <script src="script/api_service.js"></script>
     <!-- 统一布局脚本 -->
     <script src="script/layout.js"></script>
 
@@ -398,15 +400,14 @@
 
                 // 初始化：随机选择C++问题
                 async init() {
-                    const response = await fetch("/api/v1/get_questions", {
-                        method: 'GET'
-                    });
-                    if (response.ok) {
-                        const data = await response.json();
+                    try {
+                        const response = await apiService.getQuestions();
+                        const data = response.data;
                         this.currentQuestion = data.data;
                         this.question_index = data.data.index;
                         console.log("question index: " + this.question_index);
-                    } else {
+                    } catch (error) {
+                        console.error('获取问题失败:', error);
                         this.currentQuestion = "请求服务器失败";
                     }
                 },
@@ -421,7 +422,6 @@
                     const verifyAnswer = this.verifyAnswer.trim();
                     const question_index = this.question_index;
 
-
                     // 保留原始验证逻辑
                     if (password !== confirmPwd) {
                         alert('两次输入的密码不一致，请重新输入');
@@ -432,51 +432,29 @@
                         return;
                     }
 
-                    const payload = {
-                        username: this.username,
-                        email: this.email,
-                        password: this.password,
-                        // 注意：通常不需要发送 confirmPwd 和 agreement 到后端
-                        cpp_answer: this.verifyAnswer.trim(),
-                        question_index: this.question_index
-                    };
-
                     this.isSubmitting = true;
+                    this.serverError = '';
 
                     try {
-                        const response = await fetch("/api/v1/register", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(payload)
-                        });
+                        // 使用apiService处理注册请求
+                        const response = await apiService.register(this.username, this.email, this.password, verifyAnswer, question_index);
 
-                        const data = await response.json();
-
-                        if (response.ok) {
-                            // 200 OK: 注册成功
-                            alert('注册成功！请在24小时内前往邮箱验证账号。' + data.data.username);
+                        if (response.success) {
+                            // 注册成功
+                            alert('注册成功！请在24小时内前往邮箱验证账号。' + response.data.email);
                             window.location.href = '/login.html';
-                        } else if (response.status === 400) {
-                            // 400 Bad Request: 客户端数据验证失败
-                            if (data.message) {
-                                // 统一错误信息
-                                this.serverError = data.message;
-                            } else {
-                                this.serverError = data['errors'][0] || '注册失败：请检查输入信息。';
-                            }
                         } else {
-                            // 5xx Server Error 或其他非 400 错误
-                            this.serverError = `注册失败：服务器返回状态码 ${response.status}。请稍后再试。`;
+                            this.serverError = response.message || '注册失败：请检查输入信息。';
                         }
-
                     } catch (error) {
-                        // 网络错误 (例如断网或 CORS 阻止)
+                        // 网络错误或其他异常
+                        console.error('注册失败:', error);
                         this.serverError = '网络连接失败，请检查网络后重试。';
                     } finally {
                         this.isSubmitting = false;
-                        this.serverError = '注册失败，原因：' + this.serverError;
+                        if (this.serverError) {
+                            this.serverError = '注册失败，原因：' + this.serverError;
+                        }
                     }
                 }
             };

@@ -281,6 +281,9 @@
             <p style="margin-bottom: 1rem; color: var(--muted-color);">
                 输入您的邮箱地址，我们将重新发送验证邮件
             </p>
+            <div x-show="message" x-text="message"
+                 :style="{color: messageColor, marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem', padding: '0.5rem', borderRadius: '6px', backgroundColor: messageColor === '#ef4444' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}">
+            </div>
             <div class="resend-form">
                 <input type="email" x-model="resendEmail" class="form-control" placeholder="请输入注册时的邮箱地址">
                 <button @click="resendVerification" :disabled="isResending || !resendEmail" class="btn-primary">
@@ -293,17 +296,14 @@
                     取消
                 </button>
             </div>
-            <p x-show="resendMessage"
-               :style="resendSuccess ? 'color: var(--success-color);' : 'color: var(--error-color);'"
-               style="margin-top: 1rem;" x-text="resendMessage">
-            </p>
         </div>
     </div>
 </div>
 
 <!-- 统一页脚占位符 -->
 <div id="footer-container"></div>
-
+<!-- API服务脚本 -->
+<script src="script/api_service.js"></script>
 <!-- 统一布局脚本 -->
 <script src="script/layout.js"></script>
 
@@ -315,13 +315,19 @@
             showResendForm: false,
             resendEmail: '',
             isResending: false,
-            resendMessage: '',
-            resendSuccess: false,
+            message: '',
+            messageColor: '',
 
             // 获取URL参数
             getUrlParameter(name) {
                 const urlParams = new URLSearchParams(window.location.search);
                 return urlParams.get(name);
+            },
+
+            // 显示消息函数
+            showMessage(message, isError = false) {
+                this.message = message;
+                this.messageColor = isError ? '#ef4444' : '#10b981';
             },
 
             // 初始化验证
@@ -334,68 +340,47 @@
                 }
 
                 try {
-                    // 使用POST方法调用验证接口
-                    const response = await fetch('/api/v1/verify_email', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({token: token})
-                    });
+                    // 使用apiService调用验证接口
+                    const response = await apiService.verifyEmail(token);
 
-                    const data = await response.json();
-
-                    if (response.ok && data.success) {
+                    if (response.success) {
                         this.status = 'success';
                     } else {
                         this.status = 'error';
-                        this.errorMessage = data.message || '验证失败，请重试';
+                        this.errorMessage = response.message || '验证失败，请重试';
                     }
 
                 } catch (error) {
                     console.error('验证错误:', error);
                     this.status = 'error';
-                    this.errorMessage = '网络连接失败，请检查网络后重试';
+                    this.errorMessage = '失败，原因：' + (error.message || '网络错误，请稍后重试');
                 }
             },
 
             // 重新发送验证邮件
             async resendVerification() {
                 if (!this.resendEmail) {
-                    this.resendMessage = '请输入邮箱地址';
-                    this.resendSuccess = false;
+                    this.showMessage('请输入邮箱地址', true);
                     return;
                 }
 
                 this.isResending = true;
-                this.resendMessage = '';
-                this.resendSuccess = false;
+                this.message = '';
 
                 try {
-                    // 使用POST方法调用重新发送接口
-                    const response = await fetch('/api/v1/resend_verify_email', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({email: this.resendEmail})
-                    });
+                    // 使用apiService调用重新发送接口
+                    const response = await apiService.resendVerifyEmail(this.resendEmail);
 
-                    const data = await response.json();
-
-                    if (response.ok && data.success) {
-                        this.resendMessage = '验证邮件已重新发送，请检查您的邮箱';
-                        this.resendSuccess = true;
+                    if (response.success) {
+                        this.showMessage('验证邮件已重新发送，请检查您的邮箱');
                         this.showResendForm = false;
                     } else {
-                        this.resendMessage = data.message || '发送失败，请重试';
-                        this.resendSuccess = false;
+                        this.showMessage(response.message || '发送失败，请重试', true);
                     }
 
                 } catch (error) {
                     console.error('重发邮件错误:', error);
-                    this.resendMessage = '网络连接失败，请检查网络后重试';
-                    this.resendSuccess = false;
+                    this.showMessage('失败，原因：' + (error.message || '网络错误，请稍后重试'), true);
                 } finally {
                     this.isResending = false;
                 }
