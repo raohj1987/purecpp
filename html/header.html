@@ -260,10 +260,8 @@
                     <div class="user-menu-header">
                         <div id="user-menu-username"></div>
                     </div>
-                    <div class="user-menu-content"
-                         x-data="{ user: JSON.parse(localStorage.getItem('purecpp_user') || '{}') }">
-                        <a href="admin_review.html" x-show="user.role === 'admin'" class="user-menu-item"
-                           style="color: var(--primary);">
+                    <div class="user-menu-content"/>
+                    <a href="admin_review.html" id="admin_review_link" class="user-menu-item">
                             <i class="fas fa-tasks"></i>
                             审核管理
                         </a>
