@@ -447,7 +447,7 @@ class APIService {
             method: 'POST',
             body: JSON.stringify({
                 content,
-                parent_id: parentId,
+                parent_comment_id: parentId,
                 author_name: userInfo.username,
                 slug
             })

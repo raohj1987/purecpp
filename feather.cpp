@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "articles.hpp"
+#include "articles_aspects.hpp"
+#include "articles_comment.hpp"
 #include "entity.hpp"
 #include "rate_limiter.hpp"
 #include "tags.hpp"
@@ -91,7 +93,7 @@ bool init_db() {
   //                          {0, "程序人生"}, {0, "并发编程"}, {0,
   //                          "开发心得"}};
   // conn->insert(tags);
-  conn->create_datatable<article_comments>(ormpp_auto_key{"comment_id"});
+  conn->create_datatable<article_comments_t>(ormpp_auto_key{"comment_id"});
   conn->create_datatable<articles_t>(ormpp_auto_key{"article_id"},
                                      ormpp_unique{{"slug"}});
 
@@ -142,7 +144,8 @@ int main() {
   server.set_static_res_dir("", "html");
   server.set_http_handler<GET, POST>(
       "/", [](coro_http_request &req, coro_http_response &resp) {
-        resp.set_status_and_content(status_type::ok, "hello purecpp");
+        resp.set_status_and_content(status_type::ok,
+                                    make_data(empty_data{}, "hello purecpp"));
       });
 
   server.set_http_handler<GET>(
@@ -153,8 +156,7 @@ int main() {
         rest_response<question_resp> data{};
         data.data = question;
 
-        std::string json;
-        iguana::to_json(data, json);
+        std::string json = make_data(data, "获取问题成功");
         resp.set_content_type<resp_content_type::json>();
         resp.set_status_and_content(status_type::ok, std::move(json));
       });
@@ -209,7 +211,8 @@ int main() {
 
   articles article{};
   server.set_http_handler<POST>("/api/v1/new_article",
-                                &articles::handle_new_article, article);
+                                &articles::handle_new_article, article,
+                                log_request_response{}, check_token{});
   server.set_http_handler<GET>("/api/v1/get_articles", &articles::get_articles,
                                article);
   server.set_http_handler<GET>("/api/v1/get_article_count",
@@ -217,10 +220,23 @@ int main() {
   server.set_http_handler<GET>("/api/v1/article/:slug", &articles::show_article,
                                article);
   server.set_http_handler<POST>("/api/v1/edit_article", &articles::edit_article,
-                                article, check_edit_article{});
+                                article, log_request_response{}, check_token{},
+                                check_edit_article{});
   server.set_http_handler<GET>("/api/v1/get_pending_articles",
-                               &articles::get_pending_articles, article);
+                               &articles::get_pending_articles, article,
+                               log_request_response{}, check_token{});
   server.set_http_handler<POST>("/api/v1/review_pending_article",
-                                &articles::handle_review_article, article);
+                                &articles::handle_review_article, article,
+                                log_request_response{}, check_token{});
+
+  // 评论相关路由
+  articles_comment comment{};
+  server.set_http_handler<GET>("/api/v1/get_article_comment/:slug",
+                               &articles_comment::get_article_comment, comment,
+                               log_request_response{}, check_get_comments{});
+  server.set_http_handler<POST>(
+      "/api/v1/add_article_comment", &articles_comment::add_article_comment,
+      comment, log_request_response{}, check_token{}, check_add_comment{});
+
   server.sync_start();
 }

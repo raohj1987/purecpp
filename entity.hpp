@@ -136,16 +136,20 @@ inline constexpr std::string_view get_alias_struct_name(articles_t *) {
   return "articles";
 }
 
-struct article_comments {
-  uint64_t comment_id;
+struct article_comments_t {
+  uint64_t comment_id = 0;
   uint64_t article_id; // 外键
   uint64_t user_id;    // 外键
   std::string content;
+  uint64_t parent_comment_id; // 指向父评论
+  uint64_t parent_user_id;
+  std::array<char, 21> parent_user_name; // unique, not null
+  std::array<char, 16> ip;               // 评论者IP地址
   uint64_t created_at;
   uint64_t updated_at;
-  uint64_t parent_id; // 指向父评论
 };
-inline constexpr std::string_view get_alias_struct_name(article_comments *) {
+REGISTER_AUTO_KEY(article_comments_t, comment_id);
+inline constexpr std::string_view get_alias_struct_name(article_comments_t *) {
   return "article_comments";
 }
 
