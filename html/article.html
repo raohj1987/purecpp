@@ -249,7 +249,9 @@
 
                 <!-- 评论列表 -->
                 <div class="comments-list" style="margin-top: 1rem;">
-                    <template x-for="comment in comments.filter(c => c.parent_id === 0)" :key="comment.comment_id">
+                    <template
+                            x-for="comment in comments.filter(c => c.parent_id === 0).sort((a, b) => b.created_at - a.created_at)"
+                            :key="comment.comment_id">
                         <div class="comment-item"
                              style="margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px;">
                             <div class="comment-header"

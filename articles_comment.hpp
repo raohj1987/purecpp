@@ -52,7 +52,7 @@ public:
             .from<article_comments_t>()
             .inner_join(col(&article_comments_t::user_id), col(&users_t::id))
             .where(col(&article_comments_t::article_id) == article_id)
-            .order_by(col(&article_comments_t::created_at).asc())
+            .order_by(col(&article_comments_t::created_at).desc())
             .collect<comment_response>();
 
     std::string json =
