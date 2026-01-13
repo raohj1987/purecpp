@@ -99,6 +99,70 @@
             border-radius: 4px !important;
         }
 
+        /* 回复表单样式 */
+        .reply-form {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .reply-form textarea {
+            width: 100%;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        .reply-form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .reply-form-cancel,
+        .reply-form-submit {
+            padding: 0.25rem 0.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .reply-form-cancel {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .reply-form-submit {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .reply-form-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* 子评论的回复表单样式 */
+        .child-comment-item .reply-form {
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background-color: #e9ecef;
+        }
+
+        .child-comment-item .reply-form textarea {
+            font-size: 0.85rem;
+        }
+
+        .child-comment-item .reply-form-cancel,
+        .child-comment-item .reply-form-submit {
+            font-size: 0.8rem;
+        }
+
         .page-header {
             max-width: 1200px;
             width: 100%;
@@ -158,10 +222,121 @@
                         <button @click="cancelEdit()" class="secondary">取消</button>
                     </div>
                 </div>
-                <div class="comments-section"
-                     style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-                    <h2>评论 (<span x-text="article.comments_count"></span>)</h2>
-                    <p>评论区待实现</p>
+            </div>
+            <div class="comments-section"
+                 style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                <h2>评论 (<span x-text="article.comments_count"></span>)</h2>
+
+                <!-- 评论表单 -->
+                <div class="comment-form" x-show="currentUser"
+                     style="margin-bottom: 2rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px;">
+                    <h3>发表评论</h3>
+                    <textarea x-model="newCommentContent" rows="4" placeholder="写下你的评论..."
+                              style="width: 100%; margin-bottom: 1rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;"></textarea>
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button @click="submitComment" :disabled="!newCommentContent.trim()"
+                                style="padding: 0.5rem 1rem; background-color: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            提交评论
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 未登录提示 -->
+                <div x-show="!currentUser"
+                     style="margin-bottom: 2rem; padding: 1rem; background-color: #f8f9fa; border-radius: 8px;">
+                    <p>请<a href="/login.html">登录</a>后发表评论</p>
+                </div>
+
+                <!-- 评论列表 -->
+                <div class="comments-list" style="margin-top: 1rem;">
+                    <template x-for="comment in comments.filter(c => c.parent_id === 0)" :key="comment.comment_id">
+                        <div class="comment-item"
+                             style="margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px;">
+                            <div class="comment-header"
+                                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <span class="comment-author" style="font-weight: bold; color: var(--primary);"
+                                      x-text="comment.author_name"></span>
+                            </div>
+                            <div class="comment-content" style="margin-bottom: 0.5rem; line-height: 1.5;"
+                                 x-text="comment.content"></div>
+                            <div class="comment-footer"
+                                 style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+                                <div style="display: flex; gap: 1rem; font-size: 0.8rem; color: var(--muted-color);">
+                                    <span class="comment-time" x-text="formatDate(comment.created_at)"></span>
+                                    <span class="comment-ip" x-text="comment.ip || ''"></span>
+                                </div>
+                                <div class="comment-actions" style="font-size: 0.8rem; margin-left: 0.5rem;">
+                                    <button @click="replyToComment(comment.comment_id)"
+                                            style="background: none; border: none; color: var(--primary); cursor: pointer; padding: 0; margin-right: 1rem;">
+                                        回复
+                                    </button>
+                                </div>
+                            </div>
+
+
+                            <!-- 回复表单 -->
+                            <div class="reply-form" x-show="replyTo === comment.comment_id">
+                                <textarea x-model="replyContent" rows="3" placeholder="回复评论..."></textarea>
+                                <div class="reply-form-actions">
+                                    <button @click="cancelReply" class="reply-form-cancel">取消</button>
+                                    <button @click="submitReply(comment.comment_id)" :disabled="!replyContent.trim()"
+                                            class="reply-form-submit">回复
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 子评论 -->
+                            <div class="child-comments"
+                                 style="margin-left: 2rem; margin-top: 1rem; border-left: 2px solid var(--border-color); padding-left: 1rem;">
+                                <template x-for="child in getChildComments(comment.comment_id)" :key="child.comment_id">
+                                    <div class="child-comment-item"
+                                         style="margin-bottom: 0.75rem; padding: 0.75rem; background-color: #f8f9fa; border-radius: 4px;">
+                                        <!-- 回复标题：xx回复xx -->
+                                        <div class="reply-title"
+                                             style="font-size: 0.75rem; color: var(--muted-color); margin-bottom: 0.3rem;">
+                                            <span x-text="child.author_name"></span> 回复 <span
+                                                x-text="comment.author_name"></span>
+                                        </div>
+
+                                        <div class="comment-content"
+                                             style="margin-bottom: 0.3rem; line-height: 1.4; font-size: 0.9rem;"
+                                             x-text="child.content"></div>
+
+                                        <div class="comment-footer"
+                                             style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+                                            <div style="display: flex; gap: 0.75rem; color: var(--muted-color);">
+                                                <span class="comment-time" x-text="formatDate(child.created_at)"></span>
+                                                <span class="comment-ip" x-text="child.ip || ''"></span>
+                                            </div>
+                                            <button @click="replyToComment(child.comment_id)"
+                                                    style="background: none; border: none; color: var(--primary); cursor: pointer; padding: 0;">
+                                                回复
+                                            </button>
+                                        </div>
+
+                                        <!-- 子评论的回复表单 -->
+                                        <div class="reply-form" x-show="replyTo === child.comment_id">
+                                            <textarea x-model="replyContent" rows="2"
+                                                      placeholder="回复评论..."></textarea>
+                                            <div class="reply-form-actions">
+                                                <button @click="cancelReply" class="reply-form-cancel">取消</button>
+                                                <button @click="submitReply(child.comment_id)"
+                                                        :disabled="!replyContent.trim()"
+                                                        class="reply-form-submit">回复
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- 暂无评论 -->
+                    <div x-show="comments.length === 0"
+                         style="text-align: center; padding: 2rem; color: var(--muted-color);">
+                        <p>暂无评论，快来发表第一条评论吧！</p>
+                    </div>
                 </div>
             </div>
         </article>
@@ -169,6 +344,8 @@
 
     <!-- 统一页脚占位符 -->
     <div id="footer-container"></div>
+    <!-- API服务脚本 -->
+    <script src="script/api_service.js"></script>
     <!-- 统一布局脚本（包含用户信息管理功能） -->
     <script src="script/layout.js"></script>
 
@@ -186,12 +363,12 @@
 
         hljs.configure({ ignoreUnescapedHTML: true, languages: ['cpp', 'c'] });
 
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('articleDetailComponent', () => ({
+        function articleDetailComponent() {
+            return {
                 article: {},
                 isLoading: true,
                 errorMessage: '',
-                currentUser: {},
+                currentUser: null,
                 isEditing: false,
                 tags: [],
                 selectedTagId: '',
@@ -200,13 +377,62 @@
                 title: '',
                 excerpt: '',
                 content: '',
+                // 评论相关数据
+                comments: [],
+                newCommentContent: '',
+                replyTo: null,
+                replyContent: '',
 
                 get pageTitle() {
                     return this.article.title ? `${this.article.title} - PureCpp社区` : '文章详情 - PureCpp社区';
                 },
 
                 formatDate(timestamp) {
-                    return timestamp ? new Date(timestamp).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+                    if (!timestamp) return '';
+
+                    const commentDate = new Date(timestamp);
+                    const now = new Date();
+                    const diffMs = now - commentDate;
+                    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+                    // 半小时以内显示“刚刚”
+                    if (diffMinutes < 30) {
+                        return '刚刚';
+                    }
+
+                    if (diffMinutes < 60) {
+                        return `半小时以前`;
+                    }
+
+                    // 12小时以内显示“几小时以前”
+                    if (diffHours < 12) {
+                        return `${diffHours}小时以前`;
+                    }
+
+                    // 3天以内显示“几天前”
+                    if (diffDays < 3) {
+                        return `${diffDays}天前`;
+                    }
+
+                    // 超过3天，判断是否在今年内
+                    const isSameYear = now.getFullYear() === commentDate.getFullYear();
+
+                    if (isSameYear) {
+                        // 今年内显示“几月几号”
+                        return commentDate.toLocaleString('zh-CN', {
+                            month: 'long',
+                            day: 'numeric'
+                        });
+                    } else {
+                        // 今年以前显示“几年几月几日”
+                        return commentDate.toLocaleString('zh-CN', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        });
+                    }
                 },
 
                 // 新增：修复重复高亮的核心函数
@@ -245,20 +471,18 @@
 
                     this.slug = slug;
 
-                    const userInfo = localStorage.getItem('purecpp_user') || sessionStorage.getItem('purecpp_user');
-                    const token = localStorage.getItem('purecpp_token') || sessionStorage.getItem('purecpp_token');
-                    if (userInfo && token) {
-                        this.currentUser = JSON.parse(userInfo);
-                    }
+                    // 使用apiService获取用户信息
+                    this.currentUser = apiService.getUserInfo();
 
                     try {
-                        const res = await fetch(`/api/v1/article/${slug}`);
-                        if (!res.ok) throw new Error('接口请求失败');
-
-                        const data = await res.json();
-                        this.article = data.data;
+                        // 使用apiService获取文章信息
+                        const response = await apiService.getArticle(slug);
+                        this.article = response.data;
 
                         this.renderMarkdown(this.article.content);
+
+                        // 加载评论
+                        await this.fetchComments();
 
                         this.isLoading = false;
                     } catch (e) {
@@ -295,13 +519,9 @@
                     // this.isLoading = true;
                     this.errorMessage = '';
                     try {
-                        const response = await fetch('/api/v1/get_tags');
-
-                        if (!response.ok) {
-                            throw new Error('网络请求失败');
-                        }
-
-                        this.tags = await response.json();
+                        // 使用apiService获取标签列表
+                        const response = await apiService.getTags();
+                        this.tags = response.data;
                         const targetTag = this.tags.find(t => t.name === this.article.tag_name);
                         if (targetTag) {
                             this.selectedTagId = targetTag.tag_id;
@@ -338,22 +558,17 @@
                 },
 
                 async saveChanges() {
-                    const payload = {
-                        slug: this.slug,
-                        title: this.title,
-                        excerpt: this.excerpt,
-                        content: this.content,
-                        tag_id: parseInt(this.selectedTagId, 10),
-                        username: this.currentUser.username
-                    };
+                    try {
+                        // 使用apiService保存文章修改
+                        const response = await apiService.editArticle(
+                            this.slug,
+                            this.title,
+                            this.excerpt,
+                            this.content,
+                            this.selectedTagId,
+                            this.currentUser.username
+                        );
 
-                    const res = await fetch(`/api/v1/edit_article`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (res.ok) {
                         // 更新本地显示
                         this.article.title = this.title;
                         this.article.content = this.content;
@@ -361,17 +576,104 @@
                         this.renderMarkdown(this.article.content);
                         this.isEditing = false;
                         alert('修改成功！');
-                    } else {
-                        const errorText = await res.text();
-                        alert(`修改失败: ${res.status} ${errorText}`);
+                    } catch (error) {
+                        console.error('保存修改失败:', error);
+                        alert('修改失败: ' + error.message);
                     }
-                }
-            }));
-        });
+                },
 
-        document.addEventListener('DOMContentLoaded', async () => {
-        });
+                // 评论相关方法
+                async fetchComments() {
+                    try {
+                        const response = await apiService.getArticleComments(this.slug);
+                        if (response.success && response.data) {
+                            this.comments = response.data;
+                        }
+                    } catch (error) {
+                        console.error('获取评论失败:', error);
+                    }
+                },
+
+                async submitComment() {
+                    if (!this.newCommentContent.trim()) return;
+
+                    try {
+                        const response = await apiService.addArticleComment(
+                            this.slug,
+                            this.newCommentContent.trim(),
+                            0
+                        );
+
+                        if (response.success && response.data) {
+                            // 添加到评论列表
+                            this.comments.push(response.data);
+                            // 清空输入框
+                            this.newCommentContent = '';
+                            // 更新评论计数
+                            this.article.comments_count++;
+                        }
+                    } catch (error) {
+                        console.error('提交评论失败:', error);
+                        alert('提交评论失败: ' + error.message);
+                    }
+                },
+
+                replyToComment(commentId) {
+                    this.replyTo = commentId;
+                    this.replyContent = '';
+                },
+
+                cancelReply() {
+                    this.replyTo = null;
+                    this.replyContent = '';
+                },
+
+                async submitReply(parentId) {
+                    if (!this.replyContent.trim()) return;
+
+                    try {
+                        const response = await apiService.addArticleComment(
+                            this.slug,
+                            this.replyContent.trim(),
+                            parentId
+                        );
+
+                        if (response.success && response.data) {
+                            // 添加到评论列表
+                            this.comments.push(response.data);
+                            // 清空输入框
+                            this.replyContent = '';
+                            this.replyTo = null;
+                            // 更新评论计数
+                            this.article.comments_count++;
+                        }
+                    } catch (error) {
+                        console.error('提交回复失败:', error);
+                        alert('提交回复失败: ' + error.message);
+                    }
+                },
+
+                getChildComments(parentId) {
+                    // 查找所有直接或间接属于该一级评论的二级评论
+                    const getParentComment = (commentId) => {
+                        const comment = this.comments.find(c => c.comment_id === commentId);
+                        return comment ? (comment.parent_id === 0 ? comment : getParentComment(comment.parent_id)) : null;
+                    };
+
+                    // 筛选出所有属于当前一级评论的二级评论
+                    const childComments = this.comments.filter(comment => {
+                        if (comment.parent_id === 0) return false; // 排除一级评论
+                        const rootComment = getParentComment(comment.parent_id);
+                        return rootComment && rootComment.comment_id === parentId;
+                    });
+
+                    // 按照创建时间排序，时间越大（越新）的评论展示越靠前
+                    return childComments.sort((a, b) => b.created_at - a.created_at);
+                },
+            };
+        }
     </script>
+
 </body>
 
 </html>
