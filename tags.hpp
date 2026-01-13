@@ -17,9 +17,7 @@ public:
     }
     std::vector<tags_t> vec = conn->select(ormpp::all).from<tags_t>().collect();
 
-    std::string json;
-    iguana::to_json(vec, json);
-
+    std::string json = make_data(vec, "获取标签成功");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 };

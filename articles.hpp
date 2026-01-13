@@ -152,7 +152,7 @@ public:
       return;
     }
 
-    resp.set_status_and_content(status_type::ok, "提交审核成功");
+    resp.set_status_and_content(status_type::ok, make_data("提交审核成功"));
   }
 
   void get_article_count(coro_http_request &req, coro_http_response &resp) {
@@ -174,7 +174,8 @@ public:
   void show_article(coro_http_request &req, coro_http_response &resp) {
     auto it = req.params_.find("slug");
     if (it == req.params_.end()) {
-      resp.set_status_and_content(status_type::bad_request, "error");
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("error"));
       return;
     }
 
@@ -305,9 +306,9 @@ public:
             .where(col(&articles_t::is_deleted) == 0 &&
                    col(&articles_t::review_status) == "pending_review")
             .order_by(col(&articles_t::created_at).desc())
-            .limit(20)
-            .offset(0)
-            .collect<pending_article_list>();
+            .limit(ormpp::token)
+            .offset(ormpp::token)
+            .collect<pending_article_list>(limit, offset);
 
     std::string json = make_data(std::move(list));
     if (json.empty()) {
@@ -355,7 +356,7 @@ public:
                    .collect(op.reviewer_name);
     if (vec.empty()) {
       resp.set_status_and_content(status_type::bad_request,
-                                  "invalid request parameter");
+                                  make_error("invalid request parameter"));
       return;
     }
 
