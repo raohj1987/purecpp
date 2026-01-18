@@ -18,6 +18,35 @@ struct rate_limit_rule {
 };
 
 /**
+ * @brief 等级规则配置结构体
+ */
+struct level_rule {
+  int32_t level;                 // 等级
+  uint64_t experience_threshold; // 升级到该等级所需的最低经验值
+};
+
+/**
+ * @brief 经验值奖励配置结构体
+ */
+struct experience_reward_config {
+  int32_t register_reward;        // 注册奖励经验值
+  int32_t daily_login_reward;     // 每日登录奖励经验值
+  int32_t publish_article_reward; // 发布文章奖励经验值
+  int32_t publish_comment_reward; // 发布评论奖励经验值
+};
+
+/**
+ * @brief 每日经验值上限配置结构体
+ */
+struct experience_limit_config {
+  uint64_t daily_total_limit;           // 每日总经验值上限
+  uint64_t daily_login_limit;           // 每日登录相关经验值上限
+  uint64_t daily_publish_article_limit; // 每日发布文章相关经验值上限
+  uint64_t daily_publish_comment_limit; // 每日发表评论相关经验值上限
+  uint64_t daily_interaction_limit;     // 每日互动相关经验值上限
+};
+
+/**
  * @brief 用户配置结构体
  */
 struct user_config {
@@ -40,6 +69,15 @@ struct user_config {
 
   // 基于路由的限流配置
   std::vector<rate_limit_rule> rate_limit_rules; // 限流规则列表
+
+  // 经验值奖励配置
+  experience_reward_config experience_rewards; // 经验值奖励配置
+
+  // 每日经验值上限配置
+  experience_limit_config experience_limits; // 每日经验值上限配置
+
+  // 等级规则配置
+  std::vector<level_rule> level_rules; // 等级规则配置，按等级从小到大排序
 }; // 用户配置结构体，包含安全设置和邮件服务器配置
 
 /**

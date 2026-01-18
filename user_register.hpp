@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "email_verify.hpp"
 #include "user_aspects.hpp"
+#include "user_experience.hpp"
 #include <cinatra/smtp_client.hpp>
 #include <openssl/sha.h>
 #include <regex>
@@ -44,7 +45,10 @@ public:
                  .status = STATUS_OF_OFFLINE.data(),
                  .is_verifyed = EmailVerifyStatus::UNVERIFIED,
                  .created_at = get_timestamp_milliseconds(),
-                 .last_active_at = 0};
+                 .last_active_at = 0,
+                 .experience = 0, // 初始经验值
+                 .level = UserLevel::LEVEL_1 // 初始等级
+                 };
     std::string pwd_sha = sha256_simple(info.password);
     user.pwd_hash = pwd_sha;
     std::copy(info.username.begin(), info.username.end(),

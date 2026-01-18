@@ -316,9 +316,10 @@ struct check_token {
                                  make_error(error_msg));
       return false;
     }
-
-    // TODO 将token信息保存到请求中,
-    // 这个方式不是很友好，后面有更好的方式传递时再优化 req.set_user_data(info);
+    // 将token信息保存到切面中
+    std::string payload;
+    iguana::to_json(info, payload);
+    req.params_["user_token"] = payload;
     return true;
   }
 };

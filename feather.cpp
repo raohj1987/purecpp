@@ -14,6 +14,8 @@
 #include "rate_limiter.hpp"
 #include "tags.hpp"
 #include "user_aspects.hpp"
+#include "user_experience.hpp"
+#include "user_experience_aspects.hpp"
 #include "user_login.hpp"
 #include "user_password.hpp"
 #include "user_register.hpp"
@@ -108,6 +110,50 @@ bool init_db() {
   } else {
     CINATRA_LOG_ERROR << "Table 'users_token' create error.";
   }
+
+  // 创建经验值交易表
+  created = conn->create_datatable<user_experience_detail_t>(
+      ormpp_auto_key{"id"},
+      ormpp_not_null{{"user_id", "change_type", "experience_change",
+                      "balance_after_experience", "created_at"}});
+  if (created) {
+    CINATRA_LOG_INFO << "Table 'user_experience_detail' created successfully.";
+  } else {
+    CINATRA_LOG_ERROR << "Table 'user_experience_detail' create error.";
+  }
+
+  // 创建特权表
+  created = conn->create_datatable<privileges_t>(
+      ormpp_auto_key{"id"},
+      ormpp_not_null{{"privilege_type", "name", "description", "points_cost",
+                      "duration_days", "is_active"}});
+  if (created) {
+    CINATRA_LOG_INFO << "Table 'privileges' created successfully.";
+  } else {
+    CINATRA_LOG_ERROR << "Table 'privileges' create error.";
+  }
+
+  // 创建用户特权表
+  created = conn->create_datatable<user_privileges_t>(
+      ormpp_auto_key{"id"},
+      ormpp_not_null{{"user_id", "privilege_id", "start_time", "end_time",
+                      "is_active", "created_at"}});
+  if (created) {
+    CINATRA_LOG_INFO << "Table 'user_privileges' created successfully.";
+  } else {
+    CINATRA_LOG_ERROR << "Table 'user_privileges' create error.";
+  }
+
+  // 创建打赏记录表
+  created = conn->create_datatable<user_gifts_t>(
+      ormpp_auto_key{"id"}, ormpp_not_null{{"sender_id", "receiver_id",
+                                            "points_amount", "created_at"}});
+  if (created) {
+    CINATRA_LOG_INFO << "Table 'user_gifts' created successfully.";
+  } else {
+    CINATRA_LOG_ERROR << "Table 'user_gifts' create error.";
+  }
+
   return true;
 }
 
@@ -165,7 +211,8 @@ int main() {
   server.set_http_handler<POST>(
       "/api/v1/register", &user_register_t::handle_register, usr_reg,
       check_register_input{}, check_cpp_answer{}, check_user_name{},
-      check_email{}, check_password{}, rate_limiter_aspect{});
+      check_email{}, check_password{}, rate_limiter_aspect{},
+      experience_reward_aspect{});
 
   // 邮箱验证相关路由
   server.set_http_handler<POST>(
@@ -177,9 +224,9 @@ int main() {
                                 usr_reg, log_request_response{});
 
   user_login_t usr_login{};
-  server.set_http_handler<POST>("/api/v1/login", &user_login_t::handle_login,
-                                usr_login, log_request_response{},
-                                check_login_input{});
+  server.set_http_handler<POST>(
+      "/api/v1/login", &user_login_t::handle_login, usr_login,
+      log_request_response{}, check_login_input{}, experience_reward_aspect{});
 
   // 添加退出登录路由
   server.set_http_handler<POST, GET>(
@@ -210,9 +257,9 @@ int main() {
   server.set_http_handler<GET>("/api/v1/get_tags", &tags::get_tags, tag);
 
   articles article{};
-  server.set_http_handler<POST>("/api/v1/new_article",
-                                &articles::handle_new_article, article,
-                                log_request_response{}, check_token{});
+  server.set_http_handler<POST>(
+      "/api/v1/new_article", &articles::handle_new_article, article,
+      log_request_response{}, check_token{}, experience_reward_aspect{});
   server.set_http_handler<GET>("/api/v1/get_articles", &articles::get_articles,
                                article);
   server.set_http_handler<GET>("/api/v1/get_article_count",
@@ -236,7 +283,27 @@ int main() {
                                log_request_response{}, check_get_comments{});
   server.set_http_handler<POST>(
       "/api/v1/add_article_comment", &articles_comment::add_article_comment,
-      comment, log_request_response{}, check_token{}, check_add_comment{});
+      comment, log_request_response{}, check_token{}, check_add_comment{},
+      experience_reward_aspect{});
+
+  // 用户等级和积分相关路由
+  user_level_api_t user_level_api{};
+  server.set_http_handler<GET>(
+      "/api/v1/user/level_info", &user_level_api_t::get_user_level,
+      user_level_api, log_request_response{}, check_token{});
+  server.set_http_handler<GET>("/api/v1/user/experience_transactions",
+                               &user_level_api_t::get_experience_transactions,
+                               user_level_api, log_request_response{},
+                               check_token{});
+  server.set_http_handler<POST>(
+      "/api/v1/user/purchase_privilege", &user_level_api_t::purchase_privilege,
+      user_level_api, log_request_response{}, check_token{});
+  server.set_http_handler<POST>("/api/v1/user/gift_user",
+                                &user_level_api_t::user_gifts, user_level_api,
+                                log_request_response{}, check_token{});
+  server.set_http_handler<GET>("/api/v1/user/available_privileges",
+                               &user_level_api_t::get_available_privileges,
+                               user_level_api, log_request_response{});
 
   server.sync_start();
 }

@@ -7,6 +7,24 @@
 using namespace ormpp;
 
 namespace purecpp {
+// 积分变动类型枚举
+enum class PointChangeType : int32_t {
+  REGISTER = 0,            // 注册
+  DAILY_LOGIN = 1,         // 每日登录
+  PUBLISH_ARTICLE = 2,     // 发布文章
+  ARTICLE_ACCEPTED = 3,    // 文章被接受
+  ARTICLE_REJECTED = 4,    // 文章被拒绝
+  PUBLISH_COMMENT = 5,     // 发布评论
+  COMMENT_LIKED = 6,       // 评论被点赞
+  ARTICLE_LIKED = 7,       // 文章被点赞
+  ARTICLE_VIEWED = 8,      // 文章被浏览
+  SYSTEM_REWARD = 9,       // 系统奖励
+  ADMIN_OPERATION = 10,    // 管理员操作
+  POINT_CONSUMPTION = 11,  // 积分消费
+  PURCHASE_PRIVILEGE = 12, // 购买特权
+  GIFT_TO_USER = 13        // 打赏用户
+};
+
 // 用户等级枚举
 enum class UserLevel : int32_t {
   LEVEL_1 = 1,  // 等级1 - 新手
@@ -151,6 +169,81 @@ struct article_comments_t {
 REGISTER_AUTO_KEY(article_comments_t, comment_id);
 inline constexpr std::string_view get_alias_struct_name(article_comments_t *) {
   return "article_comments";
+}
+
+// 特权类型枚举
+enum class PrivilegeType : int32_t {
+  PREMIUM_MEMBER = 0,     // 高级会员
+  NO_ADS = 1,             // 无广告
+  UNLIMITED_COMMENTS = 2, // 无限评论
+  CUSTOM_TITLE = 3,       // 自定义头衔
+  ARTICLE_PROMOTION = 4,  // 文章推广
+  PRIVATE_MESSAGE = 5     // 私信功能
+};
+
+// 特权表
+struct privileges_t {
+  uint64_t id = 0;
+  PrivilegeType privilege_type; // 特权类型
+  std::string name;             // 特权名称
+  std::string description;      // 特权描述
+  uint64_t points_cost;         // 积分消耗
+  uint64_t duration_days;       // 有效期（天）
+  bool is_active;               // 是否激活
+};
+REGISTER_AUTO_KEY(privileges_t, id);
+inline constexpr std::string_view get_alias_struct_name(privileges_t *) {
+  return "privileges";
+}
+
+// 用户特权表
+struct user_privileges_t {
+  uint64_t id = 0;
+  uint64_t user_id;      // 外键，关联用户表
+  uint64_t privilege_id; // 外键，关联特权表
+  uint64_t start_time;   // 生效时间
+  uint64_t end_time;     // 过期时间
+  bool is_active;        // 是否激活
+  uint64_t created_at;   // 创建时间
+};
+REGISTER_AUTO_KEY(user_privileges_t, id);
+inline constexpr std::string_view get_alias_struct_name(user_privileges_t *) {
+  return "user_privileges";
+}
+
+// 打赏记录表
+struct user_gifts_t {
+  uint64_t id = 0;
+  uint64_t sender_id;                 // 打赏者ID
+  uint64_t receiver_id;               // 接收者ID
+  uint64_t article_id;                // 关联文章ID（可选）
+  uint64_t comment_id;                // 关联评论ID（可选）
+  int64_t experience_amount;          // 打赏经验值数量
+  std::optional<std::string> message; // 打赏留言
+  uint64_t created_at;                // 打赏时间
+};
+REGISTER_AUTO_KEY(user_gifts_t, id);
+inline constexpr std::string_view get_alias_struct_name(user_gifts_t *) {
+  return "user_gifts";
+}
+
+// 经验值交易记录表
+struct user_experience_detail_t {
+  uint64_t id = 0;
+  uint64_t user_id;                  // 外键，关联用户表
+  PointChangeType change_type;       // 经验值变动类型
+  int64_t experience_change;         // 经验值变动量，正数表示增加，负数表示减少
+  uint64_t balance_after_experience; // 变动后的经验值余额
+  std::optional<uint64_t> related_id; // 关联的实体ID（如文章ID、评论ID）
+  std::optional<std::string>
+      related_type; // 关联的实体类型（如"article"、"comment"）
+  std::optional<std::string> description; // 交易描述
+  uint64_t created_at;                    // 交易时间
+};
+REGISTER_AUTO_KEY(user_experience_detail_t, id);
+inline constexpr std::string_view
+get_alias_struct_name(user_experience_detail_t *) {
+  return "user_experience_detail";
 }
 
 struct tags_t {

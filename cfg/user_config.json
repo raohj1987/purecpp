@@ -32,5 +32,60 @@
       "enabled": false,
       "comment": "匹配所有 /api/v1/ 开头的路径（自动识别为正则表达式）"
     }
+  ],
+  "experience_rewards": {
+    "register_reward": 150,
+    "daily_login_reward": 10,
+    "publish_article_reward": 70,
+    "publish_comment_reward": 15
+  },
+  "experience_limits": {
+    "daily_total_limit": 500,
+    "daily_login_limit": 30,
+    "daily_publish_article_limit": 200,
+    "daily_publish_comment_limit": 100,
+    "daily_interaction_limit": 170
+  },
+  "level_rules": [
+    {
+      "level": 1,
+      "experience_threshold": 0
+    },
+    {
+      "level": 2,
+      "experience_threshold": 100
+    },
+    {
+      "level": 3,
+      "experience_threshold": 300
+    },
+    {
+      "level": 4,
+      "experience_threshold": 600
+    },
+    {
+      "level": 5,
+      "experience_threshold": 1200
+    },
+    {
+      "level": 6,
+      "experience_threshold": 2400
+    },
+    {
+      "level": 7,
+      "experience_threshold": 4800
+    },
+    {
+      "level": 8,
+      "experience_threshold": 9600
+    },
+    {
+      "level": 9,
+      "experience_threshold": 19200
+    },
+    {
+      "level": 10,
+      "experience_threshold": 38400
+    }
   ]
 }
