@@ -108,9 +108,9 @@ private:
     }
 
     // 从配置获取注册奖励经验值
-    auto& config = purecpp_config::get_instance().user_cfg_;
+    auto &config = purecpp_config::get_instance().user_cfg_;
     int32_t reward = config.experience_rewards.register_reward;
-    
+
     // 给予注册经验值奖励（原积分奖励+经验值奖励合并）
     user_level_t::add_experience(register_result.data.user_id, reward,
                                  PointChangeType::REGISTER, std::nullopt,
@@ -158,12 +158,14 @@ private:
     uint64_t today_start = now - (now % one_day_ms);
 
     // 直接使用SQL查询今天是否已经有过登录奖励记录
-    auto experience_details = conn->select(ormpp::all)
-        .from<user_experience_detail_t>()
-        .where(ormpp::col(&user_experience_detail_t::user_id).param() &&
-               ormpp::col(&user_experience_detail_t::change_type).param() &&
-               ormpp::col(&user_experience_detail_t::created_at) > today_start)
-        .collect(user_id, PointChangeType::DAILY_LOGIN);
+    auto experience_details =
+        conn->select(ormpp::all)
+            .from<user_experience_detail_t>()
+            .where(ormpp::col(&user_experience_detail_t::user_id).param() &&
+                   ormpp::col(&user_experience_detail_t::change_type).param() &&
+                   ormpp::col(&user_experience_detail_t::created_at) >
+                       today_start)
+            .collect(user_id, PointChangeType::DAILY_LOGIN);
 
     if (experience_details.size() > 0) {
       // 今天已经获得过登录奖励，不再重复奖励
@@ -171,9 +173,9 @@ private:
     }
 
     // 从配置获取每日登录奖励经验值
-    auto& config = purecpp_config::get_instance().user_cfg_;
+    auto &config = purecpp_config::get_instance().user_cfg_;
     int32_t reward = config.experience_rewards.daily_login_reward;
-    
+
     // 给予每日登录经验值奖励
     user_level_t::add_experience(user_id, reward, PointChangeType::DAILY_LOGIN,
                                  std::nullopt, std::nullopt, "每日登录奖励");
@@ -197,12 +199,13 @@ private:
     }
 
     // 从配置获取发布文章奖励经验值
-    auto& config = purecpp_config::get_instance().user_cfg_;
+    auto &config = purecpp_config::get_instance().user_cfg_;
     int32_t reward = config.experience_rewards.publish_article_reward;
-    
+
     // 给予发布文章经验值奖励（原积分奖励+经验值奖励合并）
-    user_level_t::add_experience(user_id, reward, PointChangeType::PUBLISH_ARTICLE,
-                                 std::nullopt, std::nullopt, "发布文章奖励");
+    user_level_t::add_experience(user_id, reward,
+                                 PointChangeType::PUBLISH_ARTICLE, std::nullopt,
+                                 std::nullopt, "发布文章奖励");
   }
 
   /**
@@ -223,12 +226,13 @@ private:
     }
 
     // 从配置获取发布评论奖励经验值
-    auto& config = purecpp_config::get_instance().user_cfg_;
+    auto &config = purecpp_config::get_instance().user_cfg_;
     int32_t reward = config.experience_rewards.publish_comment_reward;
-    
+
     // 给予发布评论经验值奖励（原积分奖励+经验值奖励合并）
-    user_level_t::add_experience(user_id, reward, PointChangeType::PUBLISH_COMMENT,
-                                 std::nullopt, std::nullopt, "发布评论奖励");
+    user_level_t::add_experience(user_id, reward,
+                                 PointChangeType::PUBLISH_COMMENT, std::nullopt,
+                                 std::nullopt, "发布评论奖励");
   }
 };
 
