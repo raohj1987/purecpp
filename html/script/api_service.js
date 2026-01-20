@@ -453,6 +453,26 @@ class APIService {
             })
         });
     }
+
+    // 获取用户个人资料，支持通过userId或username查询
+    async getUserProfile(identifier) {
+        const payload = typeof identifier === 'string'
+            ? {username: identifier}
+            : {user_id: identifier};
+
+        return this.request('/api/v1/user/get_profile', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    }
+
+    // 更新用户个人资料
+    async updateUserProfile(profileData) {
+        return this.request('/api/v1/user/update_profile', {
+            method: 'POST',
+            body: JSON.stringify(profileData)
+        });
+    }
 }
 
 // 创建单例实例

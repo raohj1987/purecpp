@@ -23,9 +23,17 @@
             --primary-hover: #4338ca;
             --border-color: #e2e8f0;
             --muted-color: #6b7280;
+            --bg-card: #ffffff;
             /* 代码块改为白色背景 */
             --code-background: #ffffff;
             --code-border: #e5e7eb;
+        }
+
+        /* 深色模式 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-card: #1e1e1e;
+            }
         }
 
         body {
@@ -97,6 +105,85 @@
             /* 引用块也适配浅色 */
             padding: 1rem !important;
             border-radius: 4px !important;
+        }
+
+        /* 用户资料弹窗样式 */
+        .user-profile-popup {
+            position: absolute;
+            z-index: 1000;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 300px;
+            max-width: 400px;
+            max-height: 400px;
+            overflow-y: auto;
+            opacity: 1;
+        }
+
+        .user-profile-popup .popup-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+
+        .user-profile-popup .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 1rem;
+            object-fit: cover;
+        }
+
+        .user-profile-popup .user-info h4 {
+            margin: 0 0 0.2rem 0;
+            color: var(--text-main);
+        }
+
+        .user-profile-popup .user-info p {
+            margin: 0;
+            color: var(--muted-color);
+            font-size: 0.85rem;
+        }
+
+        .user-profile-popup .user-bio {
+            margin-bottom: 0.8rem;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .user-profile-popup .user-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            font-size: 0.85rem;
+            color: var(--muted-color);
+        }
+
+        .user-profile-popup .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .user-profile-popup .loading {
+            text-align: center;
+            padding: 1rem;
+            color: var(--muted-color);
+        }
+
+        /* 用户名样式，添加悬停效果 */
+        .username-hover {
+            cursor: pointer;
+            position: relative;
+            font-weight: 500;
+            color: var(--primary);
+        }
+
+        .username-hover:hover {
+            text-decoration: underline;
         }
 
         /* 回复表单样式 */
@@ -364,6 +451,159 @@
         });
 
         hljs.configure({ ignoreUnescapedHTML: true, languages: ['cpp', 'c'] });
+
+        // 用户资料弹窗功能
+        (function () {
+            // 创建全局弹窗容器
+            const popupContainer = document.createElement('div');
+            popupContainer.className = 'user-profile-popup';
+            popupContainer.style.display = 'none';
+            popupContainer.style.position = 'fixed';
+            document.body.appendChild(popupContainer);
+
+            let currentUsername = null;
+            let timer = null;
+
+            // 格式化日期
+            function formatDate(timestamp) {
+                const date = new Date(timestamp);
+                return date.toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            }
+
+            // 显示用户资料弹窗
+            async function showUserProfilePopup(username, x, y) {
+                if (currentUsername === username) {
+                    return;
+                }
+
+                currentUsername = username;
+                popupContainer.innerHTML = '<div class="loading">加载中...</div>';
+                popupContainer.style.display = 'block';
+                popupContainer.style.left = `${x}px`;
+                popupContainer.style.top = `${y}px`;
+
+                try {
+                    const response = await apiService.getUserProfile(username);
+                    if (response.success && response.data) {
+                        const user = response.data;
+
+                        // 构建弹窗内容
+                        popupContainer.innerHTML = `
+                            <div class="popup-header">
+                                <img src="${user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.username) + '&background=random'}" 
+                                     alt="${user.username}" class="avatar">
+                                <div class="user-info">
+                                    <h4>${user.username}</h4>
+                                    <p>${user.title || '用户'}</p>
+                                </div>
+                            </div>
+                            ${user.bio ? `<div class="user-bio">${user.bio}</div>` : ''}
+                            <div class="user-details">
+                                <div class="detail-item">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>${user.location || '未知'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-star"></i>
+                                    <span>等级 ${user.level}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-experience"></i>
+                                    <span>${user.experience} 经验值</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-calendar"></i>
+                                    <span>注册于 ${formatDate(user.created_at)}</span>
+                                </div>
+                                ${user.skills ? `
+                                <div class="detail-item">
+                                    <i class="fas fa-tags"></i>
+                                    <span>${user.skills}</span>
+                                </div>
+                                ` : ''}
+                                <div class="detail-item">
+                                    <i class="fas fa-circle"></i>
+                                    <span>${user.status}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('获取用户资料失败:', error);
+                    popupContainer.innerHTML = '<div class="loading">获取用户资料失败</div>';
+                }
+            }
+
+            // 隐藏用户资料弹窗
+            function hideUserProfilePopup() {
+                currentUsername = null;
+                popupContainer.style.display = 'none';
+            }
+
+            // 为所有用户名添加悬停事件
+            function initUserProfileHover() {
+                // 在Alpine.js渲染完成后执行
+                setTimeout(() => {
+                    // 为article.html中的用户名添加悬停事件
+
+                    // 1. 文章作者用户名
+                    const articleAuthor = document.querySelector('.article-meta span:first-child span');
+                    if (articleAuthor) {
+                        articleAuthor.className = 'username-hover';
+                        articleAuthor.addEventListener('mouseenter', function (e) {
+                            const username = this.textContent.trim();
+                            const rect = this.getBoundingClientRect();
+                            const x = rect.left + window.pageXOffset;
+                            const y = rect.bottom + window.pageYOffset + 5;
+
+                            timer = setTimeout(() => {
+                                showUserProfilePopup(username, x, y);
+                            }, 300);
+                        });
+
+                        articleAuthor.addEventListener('mouseleave', function () {
+                            clearTimeout(timer);
+                        });
+                    }
+
+                    // 2. 评论作者用户名
+                    document.querySelectorAll('.comment-author').forEach(usernameElement => {
+                        usernameElement.className = 'username-hover';
+                        usernameElement.addEventListener('mouseenter', function (e) {
+                            const username = this.textContent.trim();
+                            const rect = this.getBoundingClientRect();
+                            const x = rect.left + window.pageXOffset;
+                            const y = rect.bottom + window.pageYOffset + 5;
+
+                            timer = setTimeout(() => {
+                                showUserProfilePopup(username, x, y);
+                            }, 300);
+                        });
+
+                        usernameElement.addEventListener('mouseleave', function () {
+                            clearTimeout(timer);
+                        });
+                    });
+                }, 500);
+            }
+
+            // 初始化用户资料悬停功能
+            document.addEventListener('DOMContentLoaded', initUserProfileHover);
+
+            // 点击页面其他地方关闭弹窗
+            document.addEventListener('click', function (e) {
+                if (!e.target.closest('.username-hover') && !e.target.closest('.user-profile-popup')) {
+                    hideUserProfilePopup();
+                }
+            });
+
+            // 监听Alpine.js的更新事件，重新初始化悬停事件
+            document.addEventListener('alpine:init', initUserProfileHover);
+        })();
 
         function articleDetailComponent() {
             return {

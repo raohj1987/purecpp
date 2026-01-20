@@ -16,6 +16,7 @@
 #include "user_aspects.hpp"
 #include "user_login.hpp"
 #include "user_password.hpp"
+#include "user_profile.hpp"
 #include "user_register.hpp"
 
 using namespace cinatra;
@@ -237,6 +238,15 @@ int main() {
   server.set_http_handler<POST>(
       "/api/v1/add_article_comment", &articles_comment::add_article_comment,
       comment, log_request_response{}, check_token{}, check_add_comment{});
+
+  // 用户个人信息相关路由
+  user_profile_t user_profile{};
+  server.set_http_handler<POST>("/api/v1/user/get_profile",
+                                &user_profile_t::get_user_profile, user_profile,
+                                log_request_response{});
+  server.set_http_handler<POST>(
+      "/api/v1/user/update_profile", &user_profile_t::update_user_profile,
+      user_profile, log_request_response{}, check_token{});
 
   server.sync_start();
 }
