@@ -8,7 +8,7 @@ using namespace ormpp;
 
 namespace purecpp {
 // 积分变动类型枚举
-enum class PointChangeType : int32_t {
+enum class ExperienceChangeType : int32_t {
   REGISTER = 0,            // 注册
   DAILY_LOGIN = 1,         // 每日登录
   PUBLISH_ARTICLE = 2,     // 发布文章
@@ -233,7 +233,7 @@ inline constexpr std::string_view get_alias_struct_name(user_gifts_t *) {
 struct user_experience_detail_t {
   uint64_t id = 0;
   uint64_t user_id;                  // 外键，关联用户表
-  PointChangeType change_type;       // 经验值变动类型
+  ExperienceChangeType change_type;  // 经验值变动类型
   int64_t experience_change;         // 经验值变动量，正数表示增加，负数表示减少
   uint64_t balance_after_experience; // 变动后的经验值余额
   std::optional<uint64_t> related_id; // 关联的实体ID（如文章ID、评论ID）

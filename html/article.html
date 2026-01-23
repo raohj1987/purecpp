@@ -490,6 +490,7 @@
                     const response = await apiService.getUserProfile(username);
                     if (response.success && response.data) {
                         const user = response.data;
+                        const levelText = apiService.getLevelText(user.level);
 
                         // 构建弹窗内容
                         popupContainer.innerHTML = `
@@ -509,11 +510,7 @@
                                 </div>
                                 <div class="detail-item">
                                     <i class="fas fa-star"></i>
-                                    <span>等级 ${user.level}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <i class="fas fa-experience"></i>
-                                    <span>${user.experience} 经验值</span>
+                                    <span>${levelText}</span>
                                 </div>
                                 <div class="detail-item">
                                     <i class="fas fa-calendar"></i>

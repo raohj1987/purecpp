@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include "user_aspects.hpp"
+#include "user_experience_aspects.hpp"
 
 #include <random>
 
@@ -118,6 +119,13 @@ public:
                                   make_error("内容太长，不要超过64KB个字符"));
       return;
     }
+    // 从token中提取用户ID
+    auto user_id = purecpp::get_user_id_from_token(req);
+    if (user_id == 0) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("error"));
+      return;
+    }
 
     articles_t article{};
     article.tag_id = art.tag_id;
@@ -125,7 +133,7 @@ public:
     article.abstraction = art.excerpt;
     article.content = art.content;
     article.created_at = get_timestamp_milliseconds();
-    article.author_id = 1; // only for test
+    article.author_id = user_id;
     generate_random_string(article.slug);
 
     auto &db_pool = connection_pool<dbng<mysql>>::instance();

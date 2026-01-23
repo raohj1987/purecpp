@@ -540,6 +540,23 @@ class APIService {
             throw error;
         }
     }
+
+    // 等级转换方法：将数字等级转换为汉字等级名称
+    getLevelText(level) {
+        const levelMap = {
+            1: '新手',
+            2: '入门',
+            3: '进阶',
+            4: '熟练',
+            5: '专家',
+            6: '大师',
+            7: '宗师',
+            8: '传奇',
+            9: '神话',
+            10: '不朽'
+        };
+        return levelMap[level] || '新手';
+    }
 }
 
 // 创建单例实例

@@ -360,4 +360,22 @@ validate_jwt_token(const std::string &token) {
   return {TokenValidationResult::Valid, info};
 }
 
+/**
+ * @brief 从请求中提取用户ID
+ * @param req HTTP请求
+ * @return 用户ID
+ */
+uint64_t get_user_id_from_token(coro_http_request &req) {
+  auto aspect_data = req.params_["user_token"];
+  if (aspect_data.empty()) {
+    return 0;
+  }
+  access_token_info token_info;
+  std::error_code ec;
+  iguana::from_json(token_info, aspect_data, ec);
+  if (ec) {
+    return 0;
+  }
+  return token_info.user_id;
+}
 } // namespace purecpp

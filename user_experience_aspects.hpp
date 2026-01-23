@@ -62,24 +62,6 @@ struct experience_reward_aspect {
 
 private:
   /**
-   * @brief 从请求中提取用户ID
-   * @param req HTTP请求
-   * @return 用户ID
-   */
-  uint64_t get_user_id_from_token(coro_http_request &req) {
-    auto aspect_data = req.params_["user_token"];
-    if (aspect_data.empty()) {
-      return 0;
-    }
-    access_token_info token_info;
-    std::error_code ec;
-    iguana::from_json(token_info, aspect_data, ec);
-    if (ec) {
-      return 0;
-    }
-    return token_info.user_id;
-  }
-  /**
    * @brief 处理注册成功后的经验值奖励
    * @param req HTTP请求
    * @param resp HTTP响应
@@ -113,7 +95,7 @@ private:
 
     // 给予注册经验值奖励（原积分奖励+经验值奖励合并）
     user_level_t::add_experience(register_result.data.user_id, reward,
-                                 PointChangeType::REGISTER, std::nullopt,
+                                 ExperienceChangeType::REGISTER, std::nullopt,
                                  std::nullopt, "注册奖励");
   }
 
@@ -165,7 +147,7 @@ private:
                    ormpp::col(&user_experience_detail_t::change_type).param() &&
                    ormpp::col(&user_experience_detail_t::created_at) >
                        today_start)
-            .collect(user_id, PointChangeType::DAILY_LOGIN);
+            .collect(user_id, ExperienceChangeType::DAILY_LOGIN);
 
     if (experience_details.size() > 0) {
       // 今天已经获得过登录奖励，不再重复奖励
@@ -177,7 +159,8 @@ private:
     int32_t reward = config.experience_rewards.daily_login_reward;
 
     // 给予每日登录经验值奖励
-    user_level_t::add_experience(user_id, reward, PointChangeType::DAILY_LOGIN,
+    user_level_t::add_experience(user_id, reward,
+                                 ExperienceChangeType::DAILY_LOGIN,
                                  std::nullopt, std::nullopt, "每日登录奖励");
   }
 
@@ -204,8 +187,8 @@ private:
 
     // 给予发布文章经验值奖励（原积分奖励+经验值奖励合并）
     user_level_t::add_experience(user_id, reward,
-                                 PointChangeType::PUBLISH_ARTICLE, std::nullopt,
-                                 std::nullopt, "发布文章奖励");
+                                 ExperienceChangeType::PUBLISH_ARTICLE,
+                                 std::nullopt, std::nullopt, "发布文章奖励");
   }
 
   /**
@@ -231,8 +214,8 @@ private:
 
     // 给予发布评论经验值奖励（原积分奖励+经验值奖励合并）
     user_level_t::add_experience(user_id, reward,
-                                 PointChangeType::PUBLISH_COMMENT, std::nullopt,
-                                 std::nullopt, "发布评论奖励");
+                                 ExperienceChangeType::PUBLISH_COMMENT,
+                                 std::nullopt, std::nullopt, "发布评论奖励");
   }
 };
 

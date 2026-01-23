@@ -213,7 +213,7 @@ public:
    * @return 是否可以增加经验值
    */
   static bool check_experience_limit(uint64_t user_id, int64_t experience_add,
-                                     PointChangeType change_type) {
+                                     ExperienceChangeType change_type) {
     auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       return false;
@@ -259,7 +259,7 @@ public:
   static bool add_experience(uint64_t user_id, uint64_t experience_add) {
     // 默认使用系统奖励类型
     return add_experience(user_id, experience_add,
-                          PointChangeType::SYSTEM_REWARD);
+                          ExperienceChangeType::SYSTEM_REWARD);
   }
 
   /**
@@ -274,7 +274,7 @@ public:
    */
   static bool
   add_experience(uint64_t user_id, int64_t experience_add,
-                 PointChangeType change_type,
+                 ExperienceChangeType change_type,
                  std::optional<uint64_t> related_id = std::nullopt,
                  std::optional<std::string> related_type = std::nullopt,
                  std::optional<std::string> description = std::nullopt) {
@@ -345,7 +345,7 @@ public:
    */
   static bool
   reduce_experience(uint64_t user_id, int64_t experience_reduce,
-                    PointChangeType change_type,
+                    ExperienceChangeType change_type,
                     std::optional<uint64_t> related_id = std::nullopt,
                     std::optional<std::string> related_type = std::nullopt,
                     std::optional<std::string> description = std::nullopt) {
@@ -456,8 +456,9 @@ public:
 
     // 减少用户经验值
     if (!reduce_experience(user_id, privilege.points_cost,
-                           PointChangeType::PURCHASE_PRIVILEGE, privilege_id,
-                           "privilege", "购买特权：" + privilege.name)) {
+                           ExperienceChangeType::PURCHASE_PRIVILEGE,
+                           privilege_id, "privilege",
+                           "购买特权：" + privilege.name)) {
       conn->rollback();
       return false;
     }
@@ -517,15 +518,15 @@ public:
 
     // 减少打赏者经验值
     if (!reduce_experience(sender_id, experience_amount,
-                           PointChangeType::GIFT_TO_USER, article_id, "gift",
-                           "打赏用户")) {
+                           ExperienceChangeType::GIFT_TO_USER, article_id,
+                           "gift", "打赏用户")) {
       conn->rollback();
       return false;
     }
 
     // 增加接收者经验值
     if (!add_experience(receiver_id, experience_amount,
-                        PointChangeType::SYSTEM_REWARD, article_id, "gift",
+                        ExperienceChangeType::SYSTEM_REWARD, article_id, "gift",
                         "收到打赏")) {
       conn->rollback();
       return false;
@@ -563,7 +564,7 @@ struct user_level_info {
 
 struct experience_transaction_info {
   uint64_t id;
-  PointChangeType change_type;
+  ExperienceChangeType change_type;
   int64_t experience_change;
   uint64_t balance_after_experience;
   std::optional<uint64_t> related_id;
