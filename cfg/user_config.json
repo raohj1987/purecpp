@@ -12,6 +12,7 @@
   "smtp_from_email": "xxxxx@qq.com",
   "smtp_from_name": "PureCpp管理员",
   "web_server_url": "http://localhost:3389",
+  "default_avatar_url": "/images/avatar.png",
   "rate_limit_rules": [
     {
       "path": "/api/v1/register",

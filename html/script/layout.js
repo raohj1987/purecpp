@@ -189,6 +189,12 @@ function checkUserLogin() {
         // 更新用户菜单中的信息
         const usernameElement = document.getElementById('user-menu-username');
         if (usernameElement) usernameElement.textContent = "你好! " + userInfo.username;
+
+        // 更新用户头像
+        const userAvatarElement = document.getElementById('user-avatar');
+        if (userAvatarElement) {
+            userAvatarElement.src = userInfo.avatar;
+        }
     } else {
         // 用户未登录，显示登录/注册链接，隐藏用户信息图标
         if (loginLink) loginLink.style.display = 'block';

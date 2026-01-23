@@ -279,6 +279,7 @@ class APIService {
                 email,
                 title,
                 role,
+                avatar = '',
                 experience,
                 level
             } = data.data;
@@ -292,7 +293,16 @@ class APIService {
             this.saveTokens(token, refresh_token, access_token_expires_at, refresh_token_expires_at, rememberMe);
 
             // 保存用户信息
-            this.saveUserInfo({id: user_id, username: user_name, email, title, role, experience, level});
+            this.saveUserInfo({
+                id: user_id,
+                username: user_name,
+                email,
+                title,
+                role,
+                experience,
+                level,
+                avatar: avatar || ''
+            });
         }
 
         return data;
@@ -452,6 +462,83 @@ class APIService {
                 slug
             })
         });
+    }
+
+    // 获取用户个人资料，支持通过userId或username查询
+    async getUserProfile(identifier) {
+        const payload = typeof identifier === 'string'
+            ? {username: identifier}
+            : {user_id: identifier};
+
+        return this.request('/api/v1/user/get_profile', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    }
+
+    // 更新用户个人资料
+    async updateUserProfile(profileData) {
+        const response = await this.request('/api/v1/user/update_profile', {
+            method: 'POST',
+            body: JSON.stringify(profileData)
+        });
+
+        // 如果更新成功，更新本地存储的用户信息
+        if (response.success) {
+            const userInfo = this.getUserInfo();
+            if (userInfo) {
+                // 更新用户头像（如果返回了头像信息）
+                if (response.data && response.data.avatar) {
+                    userInfo.avatar = response.data.avatar;
+                    this.saveUserInfo(userInfo);
+                }
+            }
+        }
+
+        return response;
+    }
+
+    // 上传用户头像
+    async uploadAvatar(userId, file) {
+        // 将图片转换为base64格式的辅助方法
+        const fileToBase64 = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        };
+
+        try {
+            // 将图片转换为base64格式
+            const base64Data = await fileToBase64(file);
+
+            // 构建JSON请求
+            const uploadData = {
+                user_id: userId,
+                avatar_data: base64Data,
+                filename: file.name
+            };
+
+            const response = await this.request('/api/v1/user/upload_avatar', {
+                method: 'POST',
+                body: JSON.stringify(uploadData)
+            });
+
+            // 如果上传成功，更新本地存储的用户头像信息
+            if (response.success && response.data && response.data.url) {
+                const userInfo = this.getUserInfo();
+                if (userInfo) {
+                    userInfo.avatar = response.data.url;
+                    this.saveUserInfo(userInfo);
+                }
+            }
+
+            return response;
+        } catch (error) {
+            throw error;
+        }
     }
 }
 

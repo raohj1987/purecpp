@@ -74,8 +74,10 @@ struct users_t {
   UserLevel level;     // 用户等级枚举
 
   // 个人资料信息
-  std::optional<std::string> bio;    // 个人简介
-  std::optional<std::string> avatar; // 头像URL
+  std::optional<std::string> bio;      // 个人简介
+  std::optional<std::string> avatar;   // 头像URL
+  std::optional<std::string> location; // 所在地
+  std::optional<std::string> skills;   // 技能标签，逗号分隔
 
   // 登录安全相关字段
   uint32_t login_attempts;    // 登录失败次数

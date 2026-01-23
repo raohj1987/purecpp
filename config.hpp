@@ -30,13 +30,14 @@ struct user_config {
   std::string refresh_token_secret; // Refresh Token密钥
 
   // 邮件服务器配置
-  std::string smtp_host;       // SMTP服务器主机名
-  int smtp_port;               // SMTP服务器端口
-  std::string smtp_user;       // SMTP服务器用户名
-  std::string smtp_password;   // SMTP服务器密码
-  std::string smtp_from_email; // 发件人邮箱地址
-  std::string smtp_from_name;  // 发件人名称
-  std::string web_server_url;  // 网页服务器URL
+  std::string smtp_host;          // SMTP服务器主机名
+  int smtp_port;                  // SMTP服务器端口
+  std::string smtp_user;          // SMTP服务器用户名
+  std::string smtp_password;      // SMTP服务器密码
+  std::string smtp_from_email;    // 发件人邮箱地址
+  std::string smtp_from_name;     // 发件人名称
+  std::string web_server_url;     // 网页服务器URL
+  std::string default_avatar_url; // 默认头像URL
 
   // 基于路由的限流配置
   std::vector<rate_limit_rule> rate_limit_rules; // 限流规则列表

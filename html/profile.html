@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人资料 - Purecpp.cn 现代C++社区</title>
+    <meta name="description" content="Purecpp社区个人资料页面，管理您的个人信息">
+
+    <!-- 本地资源 -->
+    <link rel="stylesheet" href="css/pico.min.css">
+    <link rel="stylesheet" href="font-awesome/css/all.min.css">
+    <script defer src="script/alpine.js"></script>
+
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --border-color: #e2e8f0;
+            --muted-color: #6b7280;
+            --bg-page: #ffffff;
+            --bg-card: #ffffff;
+            --text-main: #333;
+            --text-highlight: var(--primary);
+            --input-bg: #f9fafb;
+        }
+
+        /* 深色模式 */
+        :root.dark {
+            --bg-page: #121212;
+            --bg-card: #1e1e1e;
+            --text-main: #f3f4f6;
+            --text-highlight: #818cf8;
+            --border-color: #374151;
+            --input-bg: #2d2d2d;
+        }
+
+        /* 全局样式 */
+        body {
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+            line-height: 1.5;
+        }
+
+        /* 页面容器 */
+        .page-wrapper {
+            max-width: 1200px !important;
+            width: 100% !important;
+            padding: 0 1.5rem !important;
+            margin: 0 auto !important;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        /* 主内容容器 */
+        .main-container {
+            flex: 1;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .main-card {
+            width: 100%;
+            max-width: 800px;
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .main-card h2 {
+            text-align: center;
+            color: var(--text-highlight) !important;
+            margin-bottom: 2rem !important;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 1.5rem !important;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem !important;
+            font-size: 0.9rem;
+            color: var(--text-main) !important;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100% !important;
+            padding: 0.5rem 0.8rem !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 6px !important;
+            background: var(--input-bg) !important;
+            color: var(--text-main) !important;
+            font-size: 0.9rem !important;
+            box-sizing: border-box !important;
+            transition: border-color 0.2s ease !important;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none !important;
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2) !important;
+        }
+
+        /* 多行文本框 */
+        textarea.form-control {
+            resize: vertical !important;
+            min-height: 100px !important;
+            max-height: 300px !important;
+            line-height: 1.5 !important;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1.5rem !important;
+            border: 1px solid transparent !important;
+            border-radius: 6px !important;
+            font-size: 0.9rem !important;
+            font-weight: 500 !important;
+            text-align: center !important;
+            text-decoration: none !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            box-sizing: border-box !important;
+            background-color: var(--primary) !important;
+            color: white !important;
+            font-family: inherit;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3) !important;
+        }
+
+        .btn-primary {
+            background-color: var(--primary) !important;
+            color: white !important;
+        }
+
+        /* 按钮组 */
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        /* 错误信息样式 */
+        .error-message {
+            color: #ef4444 !important;
+            font-size: 0.8rem !important;
+            margin-top: 0.3rem !important;
+        }
+
+        /* 成功信息样式 */
+        .success-message {
+            color: #10b981 !important;
+            font-size: 0.9rem !important;
+            margin-bottom: 1rem !important;
+            text-align: center;
+        }
+
+        /* 加载指示器 */
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+
+            .main-card {
+                padding: 1.5rem;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="page-wrapper">
+    <!-- 统一页头占位符 -->
+    <div id="header-container"></div>
+
+    <!-- 个人资料容器 -->
+    <div class="main-container">
+        <div class="main-card">
+            <form x-data="profileFormLogic()" @submit.prevent="handleUpdateProfile">
+                <h2>个人资料</h2>
+
+                <!-- 提示信息 -->
+                <div x-show="message" x-text="message"
+                     :class="messageColor === '#10b981' ? 'success-message' : 'error-message'"
+                     style="margin-bottom: 1rem; text-align: center;">
+                </div>
+
+
+                <!-- 头像上传 -->
+                <div class="form-group">
+                    <label for="avatar-upload">头像</label>
+                    <div style="margin-bottom: 0.5rem; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <!-- 头像预览 -->
+                            <div style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 2px solid var(--border-color); cursor: pointer;"
+                                 @click="document.getElementById('avatar-upload').click()" title="修改我的头像">
+                                <img :src="previewAvatar"
+                                     alt="修改我的头像"
+                                     style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;">
+                            </div>
+                            <!-- 隐藏的文件输入 -->
+                            <input type="file" id="avatar-upload" accept="image/*" style="display: none;"
+                                   @change="handleFileUpload">
+                        </div>
+                    </div>
+
+                </div>
+                <!-- 个人简介 -->
+                <div class="form-group">
+                    <label for="bio">个人简介</label>
+                    <textarea id="bio" x-model="profileData.bio" class="form-control"
+                              placeholder="介绍一下自己..."></textarea>
+                    <div x-show="errors.bio" x-text="errors.bio" class="error-message"></div>
+                </div>
+
+                <!-- 所在地 -->
+                <div class="form-group">
+                    <label for="location">所在地</label>
+                    <input type="text" id="location" x-model="profileData.location" class="form-control"
+                           placeholder="城市, 国家">
+                    <div x-show="errors.location" x-text="errors.location" class="error-message"></div>
+                </div>
+
+                <!-- 技能标签 -->
+                <div class="form-group">
+                    <label for="skills">技能标签</label>
+                    <input type="text" id="skills" x-model="profileData.skills" class="form-control"
+                           placeholder="C++, Python, 算法, 分布式系统">
+                    <div x-show="errors.skills" x-text="errors.skills" class="error-message"></div>
+                    <div style="font-size: 0.8rem; color: var(--muted-color); margin-top: 0.3rem;">多个技能用逗号分隔
+                    </div>
+                </div>
+
+                <!-- 按钮组 -->
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary" :disabled="loading">
+                        <span x-show="!loading">保存更改</span>
+                        <span x-show="loading" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                                <span class="loading-spinner"></span>
+                                <span>保存中...</span>
+                            </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- 统一页脚占位符 -->
+    <div id="footer-container"></div>
+</div>
+<!-- API服务脚本 -->
+<script src="script/api_service.js"></script>
+<!-- 统一布局脚本 -->
+<script src="script/layout.js"></script>
+<!-- 个人资料表单逻辑 -->
+<script>
+    function profileFormLogic() {
+        return {
+            profileData: {
+                user_id: '',
+                bio: '',
+                avatar: '',
+                location: '',
+                skills: ''
+            },
+            originalData: {},
+            errors: {},
+            message: '',
+            messageColor: '',
+            loading: false,
+            previewAvatar: '',
+            selectedFile: null,
+
+            // 初始化函数
+            init() {
+                // 加载用户信息
+                this.loadUserProfile();
+            },
+
+            // 加载用户资料
+            async loadUserProfile() {
+                try {
+                    const userInfo = apiService.getUserInfo();
+                    if (!userInfo) {
+                        this.showMessage('请先登录', true);
+                        setTimeout(() => {
+                            window.location.href = 'login.html';
+                        }, 1500);
+                        return;
+                    }
+
+                    const response = await apiService.getUserProfile(userInfo.id);
+                    if (response.success && response.data) {
+                        // 填充表单数据
+                        this.profileData.bio = response.data.bio || '';
+                        this.profileData.avatar = response.data.avatar || '';
+                        this.profileData.location = response.data.location || '';
+                        this.profileData.skills = response.data.skills || '';
+
+                        // 设置头像预览
+                        this.previewAvatar = this.profileData.avatar;
+
+                        // 保存原始数据，用于重置
+                        this.originalData = {...this.profileData};
+                    } else {
+                        this.showMessage('获取用户资料失败', true);
+                    }
+                } catch (error) {
+                    console.error('加载用户资料失败:', error);
+                    this.showMessage('加载用户资料失败', true);
+                }
+            },
+
+            // 处理文件上传
+            handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                // 检查文件类型
+                if (!file.type.startsWith('image/')) {
+                    this.showMessage('请选择图片文件', true);
+                    return;
+                }
+
+                // 检查文件大小（限制为2MB）
+                if (file.size > 512 * 1024) {
+                    this.showMessage('图片大小不能超过512KB', true);
+                    return;
+                }
+
+                // 保存选中的文件
+                this.selectedFile = file;
+
+                // 创建预览URL
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.previewAvatar = e.target.result;
+                    // 清除手动输入的URL，因为使用了本地文件
+                    this.profileData.avatar = '';
+                };
+                reader.readAsDataURL(file);
+            },
+
+            // 表单验证
+            validateForm() {
+                this.errors = {};
+                let isValid = true;
+
+                // 验证个人简介（可选，但有长度限制）
+                if (this.profileData.bio && this.profileData.bio.length > 500) {
+                    this.errors.bio = '个人简介不能超过500个字符';
+                    isValid = false;
+                }
+
+                // 验证所在地（可选，但有长度限制）
+                if (this.profileData.location && this.profileData.location.length > 100) {
+                    this.errors.location = '所在地不能超过100个字符';
+                    isValid = false;
+                }
+
+                // 验证技能标签（可选，但有长度限制）
+                if (this.profileData.skills && this.profileData.skills.length > 200) {
+                    this.errors.skills = '技能标签不能超过200个字符';
+                    isValid = false;
+                }
+
+                return isValid;
+            },
+
+            // 显示消息
+            showMessage(message, isError = false) {
+                this.message = message;
+                this.messageColor = isError ? '#ef4444' : '#10b981';
+            },
+
+
+            // 更新个人资料
+            async handleUpdateProfile() {
+                this.message = '';
+                this.errors = {};
+
+                // 表单验证
+                if (!this.validateForm()) {
+                    return;
+                }
+
+                // 检查登录状态
+                const userInfo = apiService.getUserInfo();
+                if (!userInfo) {
+                    this.showMessage('请先登录', true);
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 1500);
+                    return;
+                }
+
+                this.loading = true;
+
+                try {
+                    // 添加用户ID
+                    this.profileData.user_id = userInfo.id;
+
+                    // 处理图片上传
+                    if (this.selectedFile) {
+                        try {
+                            const uploadResult = await apiService.uploadAvatar(this.profileData.user_id, this.selectedFile);
+                            if (uploadResult.success && uploadResult.data) {
+                                this.profileData.avatar = uploadResult.data.url;
+                            } else {
+                                this.showMessage(uploadResult.message || '图片上传失败', true);
+                            }
+                        } catch (error) {
+                            console.error('图片上传失败:', error);
+                            this.showMessage('图片上传失败', true);
+                        }
+                    }
+
+                    const response = await apiService.updateUserProfile(this.profileData);
+
+                    if (response.success) {
+                        this.showMessage('个人资料更新成功！');
+                        // 更新原始数据
+                        this.originalData = {...this.profileData};
+                        // 清除选中的文件
+                        this.selectedFile = null;
+                    } else {
+                        this.showMessage(response.message || '更新失败', true);
+                    }
+                } catch (error) {
+                    console.error('更新个人资料失败:', error);
+                    this.showMessage('更新失败，请稍后重试', true);
+                } finally {
+                    this.loading = false;
+                }
+            }
+        };
+    }
+
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', () => {
+        // 检查登录状态
+        const userInfo = apiService.getUserInfo();
+        const token = apiService.getAccessToken();
+
+        if (!userInfo || !token) {
+            // 如果未登录，跳转到登录页面
+            window.location.href = 'login.html';
+            return;
+        }
+
+        // 初始化表单
+        const formLogic = profileFormLogic();
+        formLogic.init();
+    });
+</script>
+</body>
+</html>
