@@ -43,6 +43,7 @@ struct login_resp_data {
   uint64_t access_token_lifetime; // 访问令牌有效期，单位：秒
   UserTitle title;
   std::string role;
+  std::optional<std::string> avatar; // 头像URL
   uint64_t experience;
   UserLevel level;
 };
@@ -94,5 +95,57 @@ struct refresh_token_response {
   uint64_t refresh_token_expires_at;
   uint64_t access_token_expires_at;
   uint64_t access_token_lifetime; // 访问令牌有效期，单位：秒
+};
+
+struct get_profile_request {
+  uint64_t user_id;
+};
+struct get_profile_response {
+  std::string username;
+  std::string email;
+  std::optional<std::string> location;
+  std::optional<std::string> bio;
+  std::optional<std::string> avatar;
+  std::optional<std::string> skills;
+  uint64_t created_at;
+  uint64_t last_active_at;
+  UserTitle title;
+  std::string role;
+  uint64_t experience;
+  UserLevel level;
+  std::string status;
+};
+
+// 修改用户信息请求结构体
+struct user_profile_request {
+  uint64_t user_id;
+  std::optional<std::string> location;
+  std::optional<std::string> bio;
+  std::optional<std::string> avatar;
+  std::optional<std::string> skills;
+};
+
+// 修改用户信息响应结构体
+struct user_profile_response {
+  std::string username;
+  std::string email;
+  std::optional<std::string> location;
+  std::optional<std::string> bio;
+  std::optional<std::string> avatar;
+  std::optional<std::string> skills;
+  uint64_t created_at;
+  uint64_t last_active_at;
+  UserTitle title;
+  std::string role;
+  uint64_t experience;
+  UserLevel level;
+  std::string status;
+};
+
+// 用户头像上传请求结构体
+struct avatar_upload_request {
+  uint64_t user_id;
+  std::string avatar_data;
+  std::string filename;
 };
 } // namespace purecpp

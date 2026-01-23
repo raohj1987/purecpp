@@ -145,7 +145,7 @@ public:
                         token_resp.access_token_expires_at,
                         token_resp.refresh_token_expires_at,
                         token_resp.access_token_lifetime, user.title, user.role,
-                        user.experience, user.level},
+                        user.avatar, user.experience, user.level},
         std::string(PURECPP_LOGIN_SUCCESS));
     resp.set_status_and_content(status_type::ok, std::move(json));
   }

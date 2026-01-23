@@ -39,16 +39,17 @@ public:
   async_simple::coro::Lazy<void> handle_register(coro_http_request &req,
                                                  coro_http_response &resp) {
     register_info info = std::any_cast<register_info>(req.get_user_data());
+    const auto &cfg = purecpp_config::get_instance().user_cfg_;
 
     // save to database
     users_t user{.id = 0,
                  .status = STATUS_OF_OFFLINE.data(),
                  .is_verifyed = EmailVerifyStatus::UNVERIFIED,
                  .created_at = get_timestamp_milliseconds(),
-        .last_active_at = 0,
-        .experience = 0,            // 初始经验值
-        .level = UserLevel::LEVEL_1 // 初始等级
-    };
+                 .last_active_at = 0,
+                 .experience = 0,             // 初始经验值
+                 .level = UserLevel::LEVEL_1, // 初始等级
+                 .avatar = cfg.default_avatar_url.data()};
     std::string pwd_sha = sha256_simple(info.password);
     user.pwd_hash = pwd_sha;
     std::copy(info.username.begin(), info.username.end(),

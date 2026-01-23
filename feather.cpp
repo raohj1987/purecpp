@@ -18,6 +18,7 @@
 #include "user_experience_aspects.hpp"
 #include "user_login.hpp"
 #include "user_password.hpp"
+#include "user_profile.hpp"
 #include "user_register.hpp"
 
 using namespace cinatra;
@@ -305,5 +306,63 @@ int main() {
                                &user_level_api_t::get_available_privileges,
                                user_level_api, log_request_response{});
 
+  // 用户个人信息相关路由
+  user_profile_t user_profile{};
+  server.set_http_handler<POST>("/api/v1/user/get_profile",
+                                &user_profile_t::get_user_profile, user_profile,
+                                log_request_response{});
+  server.set_http_handler<POST>(
+      "/api/v1/user/update_profile", &user_profile_t::update_user_profile,
+      user_profile, log_request_response{}, check_token{});
+
+  // 头像上传路由
+  server.set_http_handler<POST>("/api/v1/user/upload_avatar",
+                                &user_profile_t::upload_avatar, user_profile,
+                                log_request_response{}, check_token{});
+  // 处理上传到头像不能下载的问题
+  server.set_http_handler<GET>(
+      "/uploads/avatars/(.*)",
+      [](coro_http_request &req,
+         coro_http_response &resp) -> async_simple::coro::Lazy<void> {
+        auto url = req.get_url();
+        std::string file_name;
+        file_name.append("html/").append(url);
+        coro_io::coro_file in_file{};
+        in_file.open(file_name, std::ios::in);
+        if (!in_file.is_open()) {
+          resp.set_status(status_type::not_found);
+          co_return;
+        }
+        std::string_view extension = get_extension(file_name);
+        std::string_view mime = get_mime_type(extension);
+        resp.add_header("Content-Type", std::string{mime});
+        resp.set_format_type(format_type::chunked);
+        bool ok;
+        if (ok = co_await resp.get_conn()->begin_chunked(); !ok) {
+          co_return;
+        }
+        std::string content;
+        cinatra::detail::resize(content, 10240);
+        while (true) {
+          auto [ec, size] =
+              co_await in_file.async_read(content.data(), content.size());
+          if (ec) {
+            resp.set_status(status_type::no_content);
+            co_await resp.get_conn()->reply();
+            co_return;
+          }
+
+          bool r = co_await resp.get_conn()->write_chunked(
+              std::string_view(content.data(), size));
+          if (!r) {
+            co_return;
+          }
+
+          if (in_file.eof()) {
+            co_await resp.get_conn()->end_chunked();
+            break;
+          }
+        }
+      });
   server.sync_start();
 }
