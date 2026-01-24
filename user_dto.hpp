@@ -20,10 +20,10 @@ struct user_resp_data {
   std::string username;
   std::string email;
   int is_verifyed;
-  UserTitle title;
+  int title;
   std::string role;
   uint64_t experience;
-  UserLevel level;
+  int level;
 };
 
 // 登录相关结构体
@@ -41,11 +41,11 @@ struct login_resp_data {
   uint64_t access_token_expires_at;
   uint64_t refresh_token_expires_at;
   uint64_t access_token_lifetime; // 访问令牌有效期，单位：秒
-  UserTitle title;
+  int title;
   std::string role;
   std::optional<std::string> avatar; // 头像URL
   uint64_t experience;
-  UserLevel level;
+  int level;
 };
 
 // 登出相关结构体
@@ -109,10 +109,10 @@ struct get_profile_response {
   std::optional<std::string> skills;
   uint64_t created_at;
   uint64_t last_active_at;
-  UserTitle title;
+  int title;
   std::string role;
   uint64_t experience;
-  UserLevel level;
+  int level;
   std::string status;
 };
 
@@ -135,10 +135,10 @@ struct user_profile_response {
   std::optional<std::string> skills;
   uint64_t created_at;
   uint64_t last_active_at;
-  UserTitle title;
+  int title;
   std::string role;
   uint64_t experience;
-  UserLevel level;
+  int level;
   std::string status;
 };
 

@@ -43,41 +43,28 @@ struct refresh_token_info {
   uint64_t exp; // 过期时间
 };
 
-// HMAC-SHA1签名
+// HMAC-SHA1签名，直接返回二进制数据
 std::string hmac_sha1(const std::string &data, const std::string &key) {
-  unsigned char *hash = new unsigned char[EVP_MAX_MD_SIZE];
+  unsigned char hash[EVP_MAX_MD_SIZE];
   unsigned int hash_len = 0;
 
   HMAC(EVP_sha1(), key.c_str(), key.size(),
        reinterpret_cast<const unsigned char *>(data.c_str()), data.size(), hash,
        &hash_len);
 
-  std::string result;
-  result.reserve(hash_len * 2);
-  for (unsigned int i = 0; i < hash_len; i++) {
-    char buf[3];
-    snprintf(buf, sizeof(buf), "%02x", hash[i]);
-    result.append(buf);
-  }
-
-  delete[] hash;
-  return result;
+  // 直接返回二进制哈希值，无需转换为十六进制
+  return std::string(reinterpret_cast<const char *>(hash), hash_len);
 }
 
 // 生成简化JWT token的函数（无Header部分，仅包含Payload和Signature）
 std::string generate_access_token(uint64_t user_id) {
-  // 从配置文件中获取JWT密钥
-  const std::string &jwt_secret =
-      purecpp_config::get_instance().user_cfg_.access_token_secret;
+  auto &conf = purecpp_config::get_instance().user_cfg_;
 
   // 构建Payload，使用秒级时间戳
   uint64_t now = get_timestamp_seconds();
   // 从配置文件中获取过期时间（分钟），转换为秒
   uint64_t exp =
-      now +
-      static_cast<uint64_t>(
-          purecpp_config::get_instance().user_cfg_.access_token_exp_minutes) *
-          60;
+      now + static_cast<uint64_t>(conf.access_token_exp_minutes) * 60;
 
   // 构建Payload JSON字符串，仅包含必要字段
   access_token_info t_token_info{user_id, now, exp};
@@ -87,7 +74,7 @@ std::string generate_access_token(uint64_t user_id) {
   std::string encoded_payload = cinatra::base64_encode(payload);
 
   // 构建Signature（仅对Payload进行签名，无Header），使用HMAC-SHA1
-  std::string signature = hmac_sha1(encoded_payload, jwt_secret);
+  std::string signature = hmac_sha1(encoded_payload, conf.access_token_secret);
   std::string encoded_signature = cinatra::base64_encode(signature);
 
   // 构建简化的JWT（仅包含Payload和Signature，用点分隔）
@@ -96,18 +83,13 @@ std::string generate_access_token(uint64_t user_id) {
 
 // 生成refresh token的函数
 std::string generate_refresh_token(uint64_t user_id) {
-  // 从配置文件中获取refresh token密钥
-  const std::string &refresh_token_secret =
-      purecpp_config::get_instance().user_cfg_.refresh_token_secret;
+  auto &conf = purecpp_config::get_instance().user_cfg_;
 
   // 构建Payload，使用秒级时间戳
   uint64_t now = get_timestamp_seconds();
   // 从配置文件中获取过期时间（天），转换为秒
   uint64_t exp =
-      now +
-      static_cast<uint64_t>(
-          purecpp_config::get_instance().user_cfg_.refresh_token_exp_days) *
-          24 * 60 * 60;
+      now + static_cast<uint64_t>(conf.refresh_token_exp_days) * 24 * 60 * 60;
 
   // 构建Payload JSON字符串，仅包含必要字段
   refresh_token_info t_refresh_token_info{user_id, now, exp};
@@ -117,7 +99,7 @@ std::string generate_refresh_token(uint64_t user_id) {
   std::string encoded_payload = cinatra::base64_encode(payload);
 
   // 构建Signature（仅对Payload进行签名，无Header），使用HMAC-SHA1
-  std::string signature = hmac_sha1(encoded_payload, refresh_token_secret);
+  std::string signature = hmac_sha1(encoded_payload, conf.refresh_token_secret);
   std::string encoded_signature = cinatra::base64_encode(signature);
 
   // 构建refresh token（仅包含Payload和Signature，用点分隔）
@@ -127,31 +109,20 @@ std::string generate_refresh_token(uint64_t user_id) {
 // 生成包含access token和refresh token的token响应
 token_response generate_jwt_token(uint64_t user_id, const std::string &username,
                                   const std::string &email) {
-  // 生成access token
+  // 生成access token和refresh token
   std::string access_token = generate_access_token(user_id);
-
-  // 生成refresh token
   std::string refresh_token = generate_refresh_token(user_id);
 
   // 计算过期时间，使用秒级时间戳
   uint64_t now = get_timestamp_seconds();
+  auto &conf = purecpp_config::get_instance().user_cfg_;
 
   uint64_t access_token_expires_at =
-      now +
-      static_cast<uint64_t>(
-          purecpp_config::get_instance().user_cfg_.access_token_exp_minutes) *
-          60;
+      now + static_cast<uint64_t>(conf.access_token_exp_minutes) * 60;
   uint64_t refresh_token_expires_at =
-      now +
-      static_cast<uint64_t>(
-          purecpp_config::get_instance().user_cfg_.refresh_token_exp_days) *
-          24 * 60 * 60;
-
-  // 计算access token有效期，单位：秒
+      now + static_cast<uint64_t>(conf.refresh_token_exp_days) * 24 * 60 * 60;
   uint64_t access_token_lifetime =
-      static_cast<uint64_t>(
-          purecpp_config::get_instance().user_cfg_.access_token_exp_minutes) *
-      60;
+      static_cast<uint64_t>(conf.access_token_exp_minutes) * 60;
 
   // 构建token响应
   token_response response;

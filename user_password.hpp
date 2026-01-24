@@ -62,7 +62,7 @@ public:
     }
 
     // 返回修改成功响应
-    std::string json = make_data(empty_data{}, "密码修改成功");
+    std::string json = make_success("密码修改成功");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 
@@ -101,7 +101,12 @@ public:
                               .created_at = get_timestamp_milliseconds(),
                               .expires_at = expires_at};
 
-    std::copy(token.begin(), token.end(), reset_token.token.begin());
+    // 安全地复制token，确保不溢出并添加null终止符
+    std::copy_n(token.begin(),
+                std::min(token.size(), reset_token.token.size() - 1),
+                reset_token.token.begin());
+    reset_token.token[reset_token.token.size() - 1] = '\0';
+
     // 删除该用户之前的所有重置token
     conn->delete_records_s<users_token_t>("user_id = ? and token_type = ?",
                                           user.id, TokenType::RESET_PASSWORD);
@@ -191,7 +196,7 @@ public:
                                           user.id, TokenType::RESET_PASSWORD);
 
     // 返回成功响应
-    std::string json = make_data(empty_data{}, "密码重置成功");
+    std::string json = make_success("密码重置成功");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 };

@@ -31,7 +31,11 @@ public:
         .created_at = get_timestamp_milliseconds(),
         .expires_at = get_token_expires_at(TokenType::VERIFY_EMAIL),
     };
-    std::copy(token.begin(), token.end(), token_record.token.data());
+    // 安全地复制token，确保不溢出并添加null终止符
+    std::copy_n(token.begin(),
+                std::min(token.size(), token_record.token.size() - 1),
+                token_record.token.data());
+    token_record.token[token_record.token.size() - 1] = '\0';
 
     auto result = conn->get_insert_id_after_insert(token_record);
     if (result == 0) {
@@ -57,24 +61,25 @@ public:
       return false;
     }
 
-    // 查询数据库token是否存在
+    uint64_t now = get_timestamp_milliseconds();
+
+    // 查询数据库token是否存在，同时检查是否过期
     auto users_token = conn->select(ormpp::all)
                            .from<users_token_t>()
                            .where(col(&users_token_t::token).param() &&
-                                  col(&users_token_t::token_type).param())
+                                  col(&users_token_t::token_type).param() &&
+                                  col(&users_token_t::expires_at) > now)
                            .collect(token, TokenType::VERIFY_EMAIL);
 
     if (users_token.empty()) {
-      CINATRA_LOG_ERROR << "token不存在";
+      CINATRA_LOG_ERROR << "token不存在或已过期";
       return false;
     }
 
-    auto user_token = users_token.front();
-    // 验证token是否过期
-    if (user_token.expires_at < get_timestamp_milliseconds()) {
-      CINATRA_LOG_ERROR << "token已过期";
-      return false;
-    }
+    // 验证通过后删除该token，因为邮箱验证token通常只需要使用一次
+    conn->delete_records_s<users_token_t>("token = ? and token_type = ?", token,
+                                          TokenType::VERIFY_EMAIL);
+
     return true;
   }
 

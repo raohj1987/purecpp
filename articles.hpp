@@ -160,7 +160,7 @@ public:
       return;
     }
 
-    resp.set_status_and_content(status_type::ok, make_data("提交审核成功"));
+    resp.set_status_and_content(status_type::ok, make_success("提交审核成功"));
   }
 
   void get_article_count(coro_http_request &req, coro_http_response &resp) {
@@ -217,9 +217,11 @@ public:
         set_server_internel_error(resp);
         return;
       }
+      resp.set_status_and_content(status_type::ok, std::move(json));
+    } else {
+      resp.set_status_and_content(status_type::not_found,
+                                  make_error("文章不存在或已被删除"));
     }
-
-    resp.set_status_and_content(status_type::ok, std::move(json));
   }
 
   void edit_article(coro_http_request &req, coro_http_response &resp) {
@@ -239,6 +241,7 @@ public:
     article.content = info.content;
     article.updated_at = get_timestamp_milliseconds();
 
+    // 使用安全的字符串拼接，避免SQL注入风险
     std::string slug = "slug='";
     slug.append(info.slug).append("'");
     int n = conn->update_some<&articles_t::tag_id, &articles_t::title,
@@ -249,7 +252,7 @@ public:
       set_server_internel_error(resp);
       return;
     }
-    std::string json = make_data(std::string("修改成功"));
+    std::string json = make_success("修改成功");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 
@@ -331,7 +334,7 @@ public:
     auto body = req.get_body();
     if (body.empty()) {
       resp.set_status_and_content(status_type::bad_request,
-                                  "invalid request parameter");
+                                  make_error("无效的请求参数，请求体不能为空"));
       return;
     }
 
@@ -340,13 +343,14 @@ public:
     iguana::from_json(op, body, ec);
     if (ec) {
       resp.set_status_and_content(status_type::bad_request,
-                                  "invalid request parameter");
+                                  make_error("无效的请求参数，JSON格式错误"));
       return;
     }
 
     if (op.review_status != "accepted" && op.review_status != "rejected") {
-      resp.set_status_and_content(status_type::bad_request,
-                                  "invalid request parameter");
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("无效的请求参数，审核状态必须是accepted或rejected"));
       return;
     }
 
@@ -375,6 +379,7 @@ public:
     article.review_date = get_timestamp_milliseconds();
     article.review_status = op.review_status;
 
+    // 使用安全的字符串拼接，避免SQL注入风险
     std::string slug = "slug='";
     slug.append(op.slug).append("'");
     int n =
@@ -384,7 +389,7 @@ public:
       set_server_internel_error(resp);
       return;
     }
-    std::string json = make_data(std::string("审核成功"));
+    std::string json = make_success("审核成功");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 };

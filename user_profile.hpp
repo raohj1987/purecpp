@@ -82,10 +82,10 @@ public:
     profile.skills = user.skills;
     profile.created_at = user.created_at;
     profile.last_active_at = user.last_active_at;
-    profile.title = user.title;
+    profile.title = static_cast<int>(user.title);
     profile.role = user.role;
     profile.experience = user.experience;
-    profile.level = user.level;
+    profile.level = static_cast<int>(user.level);
     profile.status = user.status;
 
     std::string json = make_data(profile, "获取用户信息成功");
@@ -157,7 +157,7 @@ public:
     }
 
     resp.set_status_and_content(status_type::ok,
-                                make_data(empty_data{}, "更新用户信息成功"));
+                                make_success("更新用户信息成功"));
   }
 
   /**

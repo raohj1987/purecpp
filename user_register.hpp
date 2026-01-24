@@ -52,9 +52,17 @@ public:
                  .avatar = cfg.default_avatar_url.data()};
     std::string pwd_sha = sha256_simple(info.password);
     user.pwd_hash = pwd_sha;
-    std::copy(info.username.begin(), info.username.end(),
-              user.user_name.begin());
-    std::copy(info.email.begin(), info.email.end(), user.email.begin());
+    // 安全地复制用户名，确保不超过缓冲区大小
+    std::copy_n(info.username.begin(),
+                std::min(info.username.size(), user.user_name.size() - 1),
+                user.user_name.begin());
+    user.user_name[user.user_name.size() - 1] = '\0';
+
+    // 安全地复制邮箱，确保不超过缓冲区大小
+    std::copy_n(info.email.begin(),
+                std::min(info.email.size(), user.email.size() - 1),
+                user.email.begin());
+    user.email[user.email.size() - 1] = '\0';
 
     auto &db_pool = connection_pool<dbng<mysql>>::instance();
     auto conn = db_pool.get();
@@ -91,16 +99,22 @@ public:
       CINATRA_LOG_ERROR << "发送验证邮件失败";
       // 即使邮件发送失败，也返回注册成功，因为用户已创建成功
       std::string json = make_data(
-          user_resp_data{id, info.username, info.email, user.is_verifyed},
+          user_resp_data{id, info.username, info.email,
+                         static_cast<int>(user.is_verifyed),
+                         static_cast<int>(user.title), user.role,
+                         user.experience, static_cast<int>(user.level)},
           "注册成功！请前往邮箱验证账号（如果未收到邮件，请检查垃圾邮件夹或重新"
           "发送验证邮件）");
       resp.set_status_and_content(status_type::ok, std::move(json));
       co_return;
     }
 
-    std::string json = make_data(
-        user_resp_data{id, info.username, info.email, user.is_verifyed},
-        "注册成功！请前往邮箱验证账号。");
+    std::string json =
+        make_data(user_resp_data{id, info.username, info.email,
+                                 static_cast<int>(user.is_verifyed),
+                                 static_cast<int>(user.title), user.role,
+                                 user.experience, static_cast<int>(user.level)},
+                  "注册成功！请前往邮箱验证账号。");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 
@@ -109,7 +123,25 @@ public:
                                   coro_http_response &resp) {
     verify_email_info info =
         std::any_cast<verify_email_info>(req.get_user_data());
-    // 验证token
+
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
+
+    // 先获取token对应的用户ID，因为verify_email_token会删除token
+    auto users_token = conn->select(ormpp::all)
+                           .from<users_token_t>()
+                           .where(col(&users_token_t::token).param() &&
+                                  col(&users_token_t::token_type).param())
+                           .collect(info.token, TokenType::VERIFY_EMAIL);
+
+    if (users_token.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效或过期的token"));
+      return;
+    }
+
+    auto user_id = users_token[0].user_id;
+
+    // 验证token（会自动删除token）
     bool valid = email_verify_t::verify_email_token(info.token);
     if (!valid) {
       resp.set_status_and_content(status_type::bad_request,
@@ -117,19 +149,6 @@ public:
       return;
     }
 
-    // 获取token对应的用户ID
-    auto conn = connection_pool<dbng<mysql>>::instance().get();
-    auto users_token = conn->select(ormpp::all)
-                           .from<users_token_t>()
-                           .where(col(&users_token_t::token).param() &&
-                                  col(&users_token_t::token_type).param())
-                           .collect(info.token, TokenType::VERIFY_EMAIL);
-    if (users_token.empty()) {
-      resp.set_status_and_content(status_type::bad_request,
-                                  make_error("token不存在"));
-      return;
-    }
-    auto user_id = users_token[0].user_id;
     // 查询用户是否存在
     auto users = conn->select(ormpp::all)
                      .from<users_t>()
@@ -140,13 +159,20 @@ public:
                                   make_error("用户不存在"));
       return;
     }
+
     auto user = users[0];
     // 更新用户状态为已验证
     user.is_verifyed = EmailVerifyStatus::VERIFIED;
-    conn->update(user);
+    auto result = conn->update(user);
+
+    if (result != 1) {
+      resp.set_status_and_content(status_type::internal_server_error,
+                                  make_error("更新用户验证状态失败"));
+      return;
+    }
 
     // 返回成功响应
-    std::string json = make_data(true, "邮箱验证成功！");
+    std::string json = make_success("邮箱验证成功！");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 
@@ -175,7 +201,7 @@ public:
     // 检查是否已经验证（使用正确的字段名）
     if (user.is_verifyed) {
       resp.set_status_and_content(status_type::ok,
-                                  make_error("该邮箱已经验证"));
+                                  make_success("该邮箱已经验证"));
       co_return;
     }
 
@@ -202,8 +228,7 @@ public:
     }
 
     // 返回成功响应
-    std::string json =
-        make_data(empty_data{}, "验证邮件已发送，请检查您的邮箱");
+    std::string json = make_success("验证邮件已发送，请检查您的邮箱");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 };

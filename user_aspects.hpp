@@ -1,8 +1,10 @@
 #pragma once
 #include "common.hpp"
 #include "entity.hpp"
+#include "error_info.hpp"
 #include "jwt_token.hpp"
 #include "rate_limiter.hpp"
+#include "user_dto.hpp"
 #include <any>
 #include <chrono>
 #include <iomanip>
@@ -17,11 +19,6 @@
 
 using namespace cinatra;
 using namespace iguana;
-
-#include "common.hpp"
-#include "error_info.hpp"
-#include "jwt_token.hpp"
-#include "user_dto.hpp"
 
 namespace purecpp {
 inline const std::vector<std::string_view> cpp_questions{
@@ -131,12 +128,12 @@ struct check_user_name {
   }
 };
 
-std::pair<bool, std::string> validate_email_format(const std::string &email) {
+std::pair<bool, std::string> validate_email_format(std::string_view email) {
   if (email.empty() || email.size() > 254) {
     return {false, "邮箱格式不合法。"};
   }
 
-  const std::regex email_regex(
+  static const std::regex email_regex(
       R"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})");
   bool r = std::regex_match(std::string{email}, email_regex);
 

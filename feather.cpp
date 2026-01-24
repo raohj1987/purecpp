@@ -222,7 +222,9 @@ int main() {
 
   server.set_http_handler<POST>("/api/v1/resend_verify_email",
                                 &user_register_t::handle_resend_verify_email,
-                                usr_reg, log_request_response{});
+                                usr_reg, log_request_response{},
+                                rate_limiter_aspect{},
+                                check_resend_verification_input{});
 
   user_login_t usr_login{};
   server.set_http_handler<POST>(
@@ -248,7 +250,7 @@ int main() {
   // 添加忘记密码和重置密码的路由
   server.set_http_handler<POST>(
       "/api/v1/forgot_password", &user_password_t::handle_forgot_password,
-      usr_password, log_request_response{}, check_forgot_password_input{});
+      usr_password, log_request_response{}, check_forgot_password_input{}, rate_limiter_aspect{});
 
   server.set_http_handler<POST>(
       "/api/v1/reset_password", &user_password_t::handle_reset_password,

@@ -556,7 +556,7 @@ public:
 struct user_level_info {
   uint64_t user_id;
   std::string username;
-  UserLevel level;
+  int level; // 使用int代替枚举，确保前端兼容性
   uint64_t experience;
   int level_progress;
   uint64_t next_level_required;
@@ -564,7 +564,7 @@ struct user_level_info {
 
 struct experience_transaction_info {
   uint64_t id;
-  ExperienceChangeType change_type;
+  int change_type; // 使用int代替枚举，确保前端兼容性
   int64_t experience_change;
   uint64_t balance_after_experience;
   std::optional<uint64_t> related_id;
@@ -618,7 +618,7 @@ public:
     user_level_info resp_data{.user_id = user_info.id,
                               .username =
                                   std::string(user_info.user_name.data()),
-                              .level = user_info.level,
+                              .level = static_cast<int>(user_info.level),
                               .experience = user_info.experience,
                               .level_progress = level_progress,
                               .next_level_required = next_level_required};
@@ -688,7 +688,7 @@ public:
     for (const auto &t : transactions) {
       transaction_infos.push_back(
           {.id = t.id,
-           .change_type = t.change_type,
+           .change_type = static_cast<int>(t.change_type),
            .experience_change = t.experience_change,
            .balance_after_experience = t.balance_after_experience,
            .related_id = t.related_id,
@@ -745,8 +745,7 @@ public:
       return;
     }
 
-    resp.set_status_and_content(status_type::ok,
-                                make_data(empty_data{}, "购买特权成功"));
+    resp.set_status_and_content(status_type::ok, make_success("购买特权成功"));
   }
 
   /**
@@ -793,8 +792,7 @@ public:
       return;
     }
 
-    resp.set_status_and_content(status_type::ok,
-                                make_data(empty_data{}, "打赏成功"));
+    resp.set_status_and_content(status_type::ok, make_success("打赏成功"));
   }
 
   /**
