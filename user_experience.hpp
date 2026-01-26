@@ -308,7 +308,8 @@ public:
     users_t update_user;
     update_user.experience = new_experience;
     update_user.level = new_level;
-    if (conn->update_some<&users_t::experience, &users_t::level>(update_user, "id=" + std::to_string(user.id)) != 1) {
+    if (conn->update_some<&users_t::experience, &users_t::level>(
+            update_user, "id=" + std::to_string(user.id)) != 1) {
       conn->rollback();
       return false;
     }
@@ -379,7 +380,8 @@ public:
     users_t update_user;
     update_user.experience = new_experience;
     update_user.level = new_level;
-    if (conn->update_some<&users_t::experience, &users_t::level>(update_user, "id=" + std::to_string(user.id)) != 1) {
+    if (conn->update_some<&users_t::experience, &users_t::level>(
+            update_user, "id=" + std::to_string(user.id)) != 1) {
       conn->rollback();
       return false;
     }

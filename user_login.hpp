@@ -89,7 +89,9 @@ public:
       update_user.last_failed_login = current_time;
 
       // 保存更新到数据库
-      if (conn->update_some<&users_t::login_attempts, &users_t::last_failed_login>(update_user, "id=" + std::to_string(user.id)) != 1) {
+      if (conn->update_some<&users_t::login_attempts,
+                            &users_t::last_failed_login>(
+              update_user, "id=" + std::to_string(user.id)) != 1) {
         resp.set_status_and_content(status_type::bad_request,
                                     make_error(PURECPP_ERROR_LOGIN_FAILED));
         return;
@@ -125,7 +127,9 @@ public:
     update_user.login_attempts = 0;
     update_user.status = std::string(STATUS_OF_ONLINE);
     update_user.last_active_at = get_timestamp_milliseconds();
-    if (conn->update_some<&users_t::login_attempts, &users_t::status, &users_t::last_active_at>(update_user, "id=" + std::to_string(user.id)) != 1) {
+    if (conn->update_some<&users_t::login_attempts, &users_t::status,
+                          &users_t::last_active_at>(
+            update_user, "id=" + std::to_string(user.id)) != 1) {
       // 更新失败报错
       resp.set_status_and_content(status_type::bad_request,
                                   make_error(PURECPP_ERROR_LOGIN_FAILED));
