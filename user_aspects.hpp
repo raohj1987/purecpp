@@ -200,6 +200,67 @@ struct check_password {
   }
 };
 
+struct check_user_exists {
+  bool before(coro_http_request &req, coro_http_response &res) {
+    register_info info = std::any_cast<register_info>(req.get_user_data());
+
+    auto &db_pool = connection_pool<dbng<mysql>>::instance();
+    auto conn = db_pool.get();
+    if (conn == nullptr) {
+      res.set_status_and_content(status_type::internal_server_error,
+                                 make_error("获取数据库连接失败"));
+      return false;
+    }
+
+    // 检查用户名是否已存在于临时表
+    auto users_tmp_by_username =
+        conn->select(ormpp::count())
+            .from<users_tmp_t>()
+            .where(col(&users_tmp_t::user_name).param())
+            .collect(std::string(info.username));
+    if (users_tmp_by_username > 0) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error("用户名或邮箱已被注册"));
+      return false;
+    }
+
+    // 检查邮箱是否已存在于临时表
+    auto users_tmp_by_email = conn->select(ormpp::count())
+                                  .from<users_tmp_t>()
+                                  .where(col(&users_tmp_t::email).param())
+                                  .collect(std::string(info.email));
+    if (users_tmp_by_email > 0) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error("用户名或邮箱已被注册"));
+      return false;
+    }
+
+    // 检查用户名是否已存在于正式表
+    auto users_by_username = conn->select(ormpp::count())
+                                 .from<users_t>()
+                                 .where(col(&users_t::user_name).param())
+                                 .collect(std::string(info.username));
+    if (users_by_username > 0) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error("用户名或邮箱已被注册"));
+      return false;
+    }
+
+    // 检查邮箱是否已存在于正式表
+    auto users_by_email = conn->select(ormpp::count())
+                              .from<users_t>()
+                              .where(col(&users_t::email).param())
+                              .collect(std::string(info.email));
+    if (users_by_email > 0) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error("用户名或邮箱已被注册"));
+      return false;
+    }
+
+    return true;
+  }
+};
+
 // 登录相关的验证结构体
 struct check_login_input {
   bool before(coro_http_request &req, coro_http_response &res) {

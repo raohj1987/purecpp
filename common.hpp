@@ -341,4 +341,35 @@ inline std::string get_client_ip(coro_http_request &req) {
   return "unknown";
 }
 
+inline uint64_t generate_user_id() {
+  // 获取当前系统时间
+  auto now = std::chrono::system_clock::now();
+
+  // 转换为time_t类型，用于格式化年月日时分秒
+  auto time_t_now = std::chrono::system_clock::to_time_t(now);
+
+  // 转换为tm结构体，用于格式化
+  auto tm_now = *std::localtime(&time_t_now);
+
+  // 格式化年月日时分秒，格式为YYYYMMDDHHmmss
+  char time_buf[20];
+  std::strftime(time_buf, sizeof(time_buf), "%Y%m%d%H%M%S", &tm_now);
+
+  // 获取纳秒部分
+  auto duration = now.time_since_epoch();
+  auto millisenconds =
+      std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+  auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+
+  // 格式化为6位纳秒，确保只输出6位
+  char mill_buf[10];
+  std::snprintf(mill_buf, sizeof(mill_buf), "%03d",
+                millisenconds.count() - seconds.count() * 1000);
+  // 组合时间和纳秒部分
+  std::string id = time_buf;
+  id += mill_buf;
+
+  return std::stoull(id);
+}
+
 } // namespace purecpp

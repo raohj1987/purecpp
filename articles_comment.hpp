@@ -143,8 +143,8 @@ public:
         return;
       }
       auto &parent_user = user_vec.front();
-      std::copy(parent_user.user_name.begin(), parent_user.user_name.end(),
-                new_comment.parent_user_name.begin());
+      std::copy_n(parent_user.user_name.begin(), parent_user.user_name.size(),
+                  new_comment.parent_user_name.begin());
     }
     // 插入评论
     auto comment_id = conn->get_insert_id_after_insert(new_comment);

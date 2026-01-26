@@ -101,11 +101,23 @@ struct users_t {
   uint32_t login_attempts;    // 登录失败次数
   uint64_t last_failed_login; // 最后一次登录失败时间戳
 };
-// 注册users_t的主键
-REGISTER_AUTO_KEY(users_t, id);
 
 inline constexpr std::string_view get_alias_struct_name(users_t *) {
   return "users"; // 表名默认结构体名字(users_t), 这里可以修改表名
+}
+
+// 用户信息临时表
+struct users_tmp_t {
+  uint64_t id;
+  std::array<char, 21> user_name; // unique, not null
+  std::array<char, 254> email;    // unique, not null
+  std::string_view pwd_hash;      // not null
+  EmailVerifyStatus is_verifyed;  // 邮箱是否已验证(0:未验证, 1:已验证)
+  uint64_t created_at;
+};
+// 注册users_t的主键
+inline constexpr std::string_view get_alias_struct_name(users_tmp_t *) {
+  return "users_tmp"; // 用户注册临时表
 }
 
 // 用户token表

@@ -74,8 +74,13 @@ public:
 
     // 构建响应
     get_profile_response profile;
-    profile.username = std::string(user.user_name.data());
-    profile.email = std::string(user.email.data());
+    // 使用安全的字符串转换，避免未终止字符串问题
+    profile.username = std::string(
+        user.user_name.data(),
+        std::find(user.user_name.begin(), user.user_name.end(), '\0'));
+    profile.email =
+        std::string(user.email.data(),
+                    std::find(user.email.begin(), user.email.end(), '\0'));
     profile.location = user.location;
     profile.bio = user.bio;
     profile.avatar = user.avatar;
@@ -135,22 +140,40 @@ public:
 
     users_t user = users[0];
 
-    // 更新字段
+    // 更新数据库中的指定字段
+    bool update_success = true;
+    users_t update_user;
+    std::string condition = "id=" + std::to_string(user.id);
+    
     if (update_info.location.has_value()) {
-      user.location = update_info.location;
+      update_user.location = update_info.location;
+      if (conn->update_some<&users_t::location>(update_user, condition) != 1) {
+        update_success = false;
+      }
     }
-    if (update_info.bio.has_value()) {
-      user.bio = update_info.bio;
+    
+    if (update_info.bio.has_value() && update_success) {
+      update_user.bio = update_info.bio;
+      if (conn->update_some<&users_t::bio>(update_user, condition) != 1) {
+        update_success = false;
+      }
     }
-    if (update_info.avatar.has_value()) {
-      user.avatar = update_info.avatar;
+    
+    if (update_info.avatar.has_value() && update_success) {
+      update_user.avatar = update_info.avatar;
+      if (conn->update_some<&users_t::avatar>(update_user, condition) != 1) {
+        update_success = false;
+      }
     }
-    if (update_info.skills.has_value()) {
-      user.skills = update_info.skills;
+    
+    if (update_info.skills.has_value() && update_success) {
+      update_user.skills = update_info.skills;
+      if (conn->update_some<&users_t::skills>(update_user, condition) != 1) {
+        update_success = false;
+      }
     }
-
-    // 更新数据库
-    if (conn->update<users_t>(user) != 1) {
+    
+    if (!update_success) {
       resp.set_status_and_content(status_type::internal_server_error,
                                   make_error("更新用户信息失败"));
       return;
@@ -247,8 +270,7 @@ public:
       // 更新用户的avatar字段
       auto conn = connection_pool<dbng<mysql>>::instance().get();
       if (conn == nullptr) {
-        resp.set_status_and_content(status_type::internal_server_error,
-                                    make_error("数据库连接失败"));
+        set_server_internel_error(resp);
         return;
       }
 
@@ -264,11 +286,11 @@ public:
         return;
       }
 
-      users_t user = users[0];
-      user.avatar = file_url;
+      users_t update_user;
+      update_user.avatar = file_url;
 
       // 更新数据库
-      if (conn->update<users_t>(user) != 1) {
+      if (conn->update_some<&users_t::avatar>(update_user, "id=" + std::to_string(upload_req.user_id)) != 1) {
         resp.set_status_and_content(status_type::internal_server_error,
                                     make_error("更新用户头像失败"));
         return;

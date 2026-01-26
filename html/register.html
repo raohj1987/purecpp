@@ -305,9 +305,9 @@
     <div class="register-container">
         <div class="register-card" x-data="registerFormLogic()">
             <h2>账号注册</h2>
-            <p x-show="serverError" x-text="serverError"
-                style="text-align: center; margin-bottom: 0.5rem; color: var(--error-color); border: 1px solid var(--error-color); padding: 0.3rem; border-radius: 6px; font-size: 0.85rem;">
-            </p>
+            <div x-show="message" x-text="message"
+                 :style="{color: messageColor, marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem', padding: '0.75rem', borderRadius: '6px', backgroundColor: messageColor === '#ef4444' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', marginBottom: '1rem'}">
+            </div>
             <div
                     style="background-color: #f0f9ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; text-align: center;">
                 <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>
@@ -391,7 +391,8 @@
                 confirmPwd: '',
                 verifyAnswer: '',
                 agreement: false,
-                serverError: '',
+                message: '',
+                messageColor: '',
                 isSubmitting: false,
 
                 // C++ 题库（保留你提供的内容）
@@ -409,7 +410,14 @@
                     } catch (error) {
                         console.error('获取问题失败:', error);
                         this.currentQuestion = "请求服务器失败";
+                        this.showMessage('获取问题失败，请刷新页面重试', true);
                     }
+                },
+
+                // 显示消息函数
+                showMessage(message, isError = false) {
+                    this.message = message;
+                    this.messageColor = isError ? '#ef4444' : '#10b981';
                 },
 
                 // 表单提交处理：保持原样
@@ -424,16 +432,20 @@
 
                     // 保留原始验证逻辑
                     if (password !== confirmPwd) {
-                        alert('两次输入的密码不一致，请重新输入');
+                        this.showMessage('两次输入的密码不一致，请重新输入', true);
                         return;
                     }
                     if (verifyAnswer.length < 1) {
-                        alert('请输入答案');
+                        this.showMessage('请输入答案', true);
+                        return;
+                    }
+                    if (!this.agreement) {
+                        this.showMessage('请阅读并同意用户服务协议和隐私政策', true);
                         return;
                     }
 
                     this.isSubmitting = true;
-                    this.serverError = '';
+                    this.message = '';
 
                     try {
                         // 使用apiService处理注册请求
@@ -441,20 +453,20 @@
 
                         if (response.success) {
                             // 注册成功
-                            alert('注册成功！请在24小时内前往邮箱验证账号。' + response.data.email);
-                            window.location.href = '/login.html';
+                            this.showMessage('注册成功！请在24小时内前往邮箱验证账号。' + response.data.email, false);
+                            // 延迟跳转，让用户看到成功消息
+                            setTimeout(() => {
+                                window.location.href = '/login.html';
+                            }, 2000);
                         } else {
-                            this.serverError = response.message || '注册失败：请检查输入信息。';
+                            this.showMessage(response.message || '注册失败：请检查输入信息。', true);
                         }
                     } catch (error) {
                         // 网络错误或其他异常
-                        console.error('注册失败:', error);
-                        this.serverError = '网络连接失败，请检查网络后重试。';
+                        console.error('注册请求失败:', error);
+                        this.showMessage('注册请求失败，原因：' + (error.message || '网络错误，请稍后重试'), true);
                     } finally {
                         this.isSubmitting = false;
-                        if (this.serverError) {
-                            this.serverError = '注册失败，原因：' + this.serverError;
-                        }
                     }
                 }
             };

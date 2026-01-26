@@ -85,8 +85,11 @@ bool init_db() {
 
   auto conn = pool.get();
   conn->create_datatable<users_t>(
-      ormpp_auto_key{"id"}, ormpp_unique{{"user_name"}},
-      ormpp_unique{{"email"}},
+      ormpp_key{"id"}, ormpp_unique{{"user_name"}}, ormpp_unique{{"email"}},
+      ormpp_not_null{{"user_name", "email", "pwd_hash"}});
+
+  conn->create_datatable<users_tmp_t>(
+      ormpp_key{"id"}, ormpp_unique{{"user_name"}}, ormpp_unique{{"email"}},
       ormpp_not_null{{"user_name", "email", "pwd_hash"}});
 
   conn->create_datatable<tags_t>(ormpp_auto_key{"tag_id"},
@@ -212,8 +215,8 @@ int main() {
   server.set_http_handler<POST>(
       "/api/v1/register", &user_register_t::handle_register, usr_reg,
       check_register_input{}, check_cpp_answer{}, check_user_name{},
-      check_email{}, check_password{}, rate_limiter_aspect{},
-      experience_reward_aspect{});
+      check_email{}, check_password{}, check_user_exists{},
+      rate_limiter_aspect{}, experience_reward_aspect{});
 
   // 邮箱验证相关路由
   server.set_http_handler<POST>(
@@ -250,7 +253,8 @@ int main() {
   // 添加忘记密码和重置密码的路由
   server.set_http_handler<POST>(
       "/api/v1/forgot_password", &user_password_t::handle_forgot_password,
-      usr_password, log_request_response{}, check_forgot_password_input{}, rate_limiter_aspect{});
+      usr_password, log_request_response{}, check_forgot_password_input{},
+      rate_limiter_aspect{});
 
   server.set_http_handler<POST>(
       "/api/v1/reset_password", &user_password_t::handle_reset_password,
@@ -330,8 +334,7 @@ int main() {
         std::string file_name;
         file_name.append("html/").append(url);
         coro_io::coro_file in_file{};
-        in_file.open(file_name, std::ios::in);
-        if (!in_file.is_open()) {
+        if (!in_file.open(file_name, std::ios::in)) {
           resp.set_status(status_type::not_found);
           co_return;
         }
@@ -339,8 +342,9 @@ int main() {
         std::string_view mime = get_mime_type(extension);
         resp.add_header("Content-Type", std::string{mime});
         resp.set_format_type(format_type::chunked);
-        bool ok;
-        if (ok = co_await resp.get_conn()->begin_chunked(); !ok) {
+
+        // 开始chunked传输
+        if (!co_await resp.get_conn()->begin_chunked()) {
           co_return;
         }
         std::string content;
