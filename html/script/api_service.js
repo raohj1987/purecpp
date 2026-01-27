@@ -381,9 +381,10 @@ class APIService {
     }
 
     // 获取文章列表
-    async getArticles() {
+    async getArticles(page = 1, perPage = 10) {
         return this.request('/api/v1/get_articles', {
-            method: 'GET'
+            method: 'POST',
+            body: JSON.stringify({current_page: page, per_page: perPage})
         });
     }
 

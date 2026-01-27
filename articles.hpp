@@ -16,6 +16,11 @@ struct client_artilce {
   int tag_id;
 };
 
+struct article_page_request {
+  int current_page;
+  int per_page;
+};
+
 struct article_list {
   std::string title;
   std::string summary;
@@ -299,8 +304,26 @@ public:
       return;
     }
 
-    size_t limit = 20; // will update, it's from web front end.
-    size_t offset = 0; // will update, it's from web front end.
+    // 从请求体中获取分页信息
+    auto body = req.get_body();
+    article_page_request page_req{};
+    std::error_code ec;
+    iguana::from_json(page_req, body, ec);
+    
+    int page = 1;
+    int per_page = 10;
+    
+    if (!ec) {
+      if (page_req.current_page > 0) {
+        page = page_req.current_page;
+      }
+      if (page_req.per_page > 0 && page_req.per_page <= 50) { // 限制每页最多50条
+        per_page = page_req.per_page;
+      }
+    }
+
+    size_t limit = per_page;
+    size_t offset = (page - 1) * per_page;
 
     auto list =
         conn->select(col(&articles_t::title), col(&articles_t::abstraction),

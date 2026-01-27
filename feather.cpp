@@ -267,7 +267,7 @@ int main() {
   server.set_http_handler<POST>(
       "/api/v1/new_article", &articles::handle_new_article, article,
       log_request_response{}, check_token{}, experience_reward_aspect{});
-  server.set_http_handler<GET>("/api/v1/get_articles", &articles::get_articles,
+  server.set_http_handler<POST>("/api/v1/get_articles", &articles::get_articles,
                                article);
   server.set_http_handler<GET>("/api/v1/get_article_count",
                                &articles::get_article_count, article);
