@@ -162,7 +162,7 @@ struct articles_t {
   std::string review_status =
       "pending_review"; // pending_review (待审核), rejected (已拒绝), accepted
   std::string status;   // 状态：published, draft, archived
-  bool is_deleted;
+  bool is_deleted = false; // 0: 未删除, 1: 已删除
 };
 inline constexpr std::string_view get_alias_struct_name(articles_t *) {
   return "articles";

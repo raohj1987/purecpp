@@ -211,7 +211,8 @@ public:
 
     size_t count = conn->select(ormpp::count())
                        .from<articles_t>()
-                       .where(col(&articles_t::is_deleted) == 0)
+                       .where(col(&articles_t::is_deleted) == 0 &&
+                              col(&articles_t::review_status) == "accepted")
                        .collect();
 
     resp.set_status_and_content(status_type::ok, make_data(count));
@@ -309,15 +310,16 @@ public:
     article_page_request page_req{};
     std::error_code ec;
     iguana::from_json(page_req, body, ec);
-    
+
     int page = 1;
     int per_page = 10;
-    
+
     if (!ec) {
       if (page_req.current_page > 0) {
         page = page_req.current_page;
       }
-      if (page_req.per_page > 0 && page_req.per_page <= 50) { // 限制每页最多50条
+      if (page_req.per_page > 0 &&
+          page_req.per_page <= 50) { // 限制每页最多50条
         per_page = page_req.per_page;
       }
     }
