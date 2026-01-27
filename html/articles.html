@@ -498,6 +498,7 @@
             return {
                 currentUser: null,
                 articles: [],
+                totalArticles: 0,
                 loading: true,
                 currentPage: 1,
 
@@ -515,6 +516,13 @@
                         // 使用apiService获取文章列表
                         const response = await apiService.getArticles(page);
                         this.articles = response.data;
+                        // 从响应中获取总记录数
+                        this.totalArticles = response.total_count || 0;
+                        // 更新分页组件的总记录数
+                        const paginationComponent = document.querySelector('.pagination')._x_dataStack[0];
+                        if (paginationComponent) {
+                            paginationComponent.totalArticles = this.totalArticles;
+                        }
                     } catch (error) {
                         console.log("请求服务器失败", error);
                     }
@@ -588,18 +596,10 @@
                     return pages;
                 },
 
-                async init() {
+                init() {
                     // 从 URL 中解析当前页码
                     const urlParams = new URLSearchParams(window.location.search);
                     this.currentPage = parseInt(urlParams.get('page')) || 1;
-                    try {
-                        // 使用apiService获取文章数量
-                        const response = await apiService.getArticleCount();
-                        console.log("total: ", response.data);
-                        this.totalArticles = response.data;
-                    } catch (error) {
-                        console.log("请求服务器失败", error);
-                    }
                 },
 
                 goToPage(page) {

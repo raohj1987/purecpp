@@ -214,8 +214,8 @@ int main() {
   user_register_t usr_reg{};
   server.set_http_handler<POST>(
       "/api/v1/register", &user_register_t::handle_register, usr_reg,
-      check_register_input{}, check_cpp_answer{}, check_user_name{},
-      check_email{}, check_password{}, check_user_exists{},
+      log_request_response{}, check_register_input{}, check_cpp_answer{},
+      check_user_name{}, check_email{}, check_password{}, check_user_exists{},
       rate_limiter_aspect{}, experience_reward_aspect{});
 
   // 邮箱验证相关路由
@@ -261,18 +261,18 @@ int main() {
       usr_password, log_request_response{}, check_reset_password_input{},
       check_reset_password{});
   tags tag{};
-  server.set_http_handler<GET>("/api/v1/get_tags", &tags::get_tags, tag);
+  server.set_http_handler<GET>("/api/v1/get_tags", &tags::get_tags, tag,
+                               log_request_response{});
 
   articles article{};
   server.set_http_handler<POST>(
       "/api/v1/new_article", &articles::handle_new_article, article,
       log_request_response{}, check_token{}, experience_reward_aspect{});
   server.set_http_handler<POST>("/api/v1/get_articles", &articles::get_articles,
-                                article);
-  server.set_http_handler<GET>("/api/v1/get_article_count",
-                               &articles::get_article_count, article);
+                                article, log_request_response{});
+
   server.set_http_handler<GET>("/api/v1/article/:slug", &articles::show_article,
-                               article);
+                               article, log_request_response{});
   server.set_http_handler<POST>("/api/v1/edit_article", &articles::edit_article,
                                 article, log_request_response{}, check_token{},
                                 check_edit_article{});

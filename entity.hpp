@@ -168,6 +168,12 @@ inline constexpr std::string_view get_alias_struct_name(articles_t *) {
   return "articles";
 }
 
+// 文章评论状态枚举
+enum class CommentStatus : int32_t {
+  TRASH = 0,   // 已删除
+  PUBLISH = 1, // 已发布
+};
+
 struct article_comments_t {
   uint64_t comment_id = 0;
   uint64_t article_id; // 外键
@@ -177,6 +183,7 @@ struct article_comments_t {
   uint64_t parent_user_id;
   std::array<char, 254> parent_user_name; // unique, not null
   std::array<char, 16> ip;                // 评论者IP地址
+  CommentStatus comment_status;           // 评论状态：CommentStatus
   uint64_t created_at;
   uint64_t updated_at;
 };
@@ -272,9 +279,9 @@ template <typename T> struct rest_response {
   bool success = true;
   std::string message;
   std::optional<std::vector<std::string>> errors;
-  std::optional<T> data;
   std::string timestamp;
   int code = 200;
   int total_count = 0; // 总记录数，用于分页
+  std::optional<T> data;
 };
 } // namespace purecpp

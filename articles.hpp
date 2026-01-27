@@ -17,6 +17,7 @@ struct client_artilce {
 };
 
 struct article_page_request {
+  int tag_id = 0; // 0表示所有标签
   int current_page;
   int per_page;
 };
@@ -201,23 +202,6 @@ public:
                                 make_success("文章提交成功，等待审核"));
   }
 
-  void get_article_count(coro_http_request &req, coro_http_response &resp) {
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
-    if (conn == nullptr) {
-      set_server_internel_error(resp);
-      return;
-    }
-
-    size_t count = conn->select(ormpp::count())
-                       .from<articles_t>()
-                       .where(col(&articles_t::is_deleted) == 0 &&
-                              col(&articles_t::review_status) == "accepted")
-                       .collect();
-
-    resp.set_status_and_content(status_type::ok, make_data(count));
-  }
-
   void show_article(coro_http_request &req, coro_http_response &resp) {
     auto it = req.params_.find("slug");
     if (it == req.params_.end()) {
@@ -298,8 +282,7 @@ public:
   }
 
   void get_articles(coro_http_request &req, coro_http_response &resp) {
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       set_server_internel_error(resp);
       return;
@@ -310,24 +293,28 @@ public:
     article_page_request page_req{};
     std::error_code ec;
     iguana::from_json(page_req, body, ec);
+    if (ec) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数"));
+      return;
+    }
 
     int page = 1;
     int per_page = 10;
 
-    if (!ec) {
-      if (page_req.current_page > 0) {
-        page = page_req.current_page;
-      }
-      if (page_req.per_page > 0 &&
-          page_req.per_page <= 50) { // 限制每页最多50条
-        per_page = page_req.per_page;
-      }
+    if (page_req.current_page > 0) {
+      page = page_req.current_page;
     }
-
-    size_t limit = per_page;
-    size_t offset = (page - 1) * per_page;
-
-    auto list =
+    if (page_req.per_page > 0 && page_req.per_page <= 50) { // 限制每页最多50条
+      per_page = page_req.per_page;
+    }
+    // 获取文章列表
+    auto where_cond = col(&articles_t::is_deleted) == 0 &&
+                      col(&articles_t::review_status) == "accepted";
+    if (page_req.tag_id > 0) {
+      where_cond = where_cond && (col(&articles_t::tag_id) == page_req.tag_id);
+    }
+    auto select_cond =
         conn->select(col(&articles_t::title), col(&articles_t::abstraction),
                      col(&articles_t::slug), col(&users_t::user_name),
                      col(&tags_t::name), col(&articles_t::created_at),
@@ -337,19 +324,33 @@ public:
             .from<articles_t>()
             .inner_join(col(&articles_t::author_id), col(&users_t::id))
             .inner_join(col(&articles_t::tag_id), col(&tags_t::tag_id))
-            .where(col(&articles_t::is_deleted) == 0 &&
-                   col(&articles_t::review_status) == "accepted")
-            .order_by(col(&articles_t::created_at).desc())
-            .limit(ormpp::token)
-            .offset(ormpp::token)
-            .collect<article_list>(limit, offset);
+            .where(where_cond);
 
-    std::string json = make_data(std::move(list));
+    // 计算总记录数(根据查询条件)
+    size_t total_count =
+        conn->select(ormpp::count())
+            .from<articles_t>()
+            .inner_join(col(&articles_t::author_id), col(&users_t::id))
+            .inner_join(col(&articles_t::tag_id), col(&tags_t::tag_id))
+            .where(where_cond)
+            .collect();
+
+    size_t limit = per_page;
+    size_t offset = (page - 1) * per_page;
+    auto list = select_cond.order_by(col(&articles_t::created_at).desc())
+                    .limit(ormpp::token)
+                    .offset(ormpp::token)
+                    .collect<article_list>(limit, offset);
+
+    std::string json =
+        make_data(std::move(list), "获取文章列表成功", total_count);
     if (json.empty()) {
       set_server_internel_error(resp);
       return;
     }
 
+    // 添加x_total_count头
+    resp.add_header("x_total_count", std::to_string(total_count));
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 

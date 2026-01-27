@@ -51,11 +51,11 @@ public:
                      col(&article_comments_t::updated_at))
             .from<article_comments_t>()
             .inner_join(col(&article_comments_t::user_id), col(&users_t::id))
-            .where(col(&article_comments_t::article_id) == article_id)
+            .where(col(&article_comments_t::article_id).param() &&
+                   col(&article_comments_t::comment_status).param())
             .order_by(col(&article_comments_t::created_at).desc())
-            .collect<get_comments_response>();
+            .collect<get_comments_response>(article_id, CommentStatus::PUBLISH);
     // 对引用的评论进行用户信息加工
-
     std::string json =
         make_data(comments, std::string("Comments retrieved successfully"));
     resp.set_status_and_content(status_type::ok, std::move(json));
@@ -109,6 +109,7 @@ public:
                                    .parent_comment_id =
                                        request.parent_comment_id,
                                    .ip = {},
+                                   .comment_status = CommentStatus::PUBLISH,
                                    .created_at = now,
                                    .updated_at = now};
     // 复制IP地址到std::array

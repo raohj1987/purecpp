@@ -70,7 +70,8 @@ inline std::string make_error(std::string_view err_msg, int code = 400) {
   return json;
 }
 
-template <typename T> inline std::string make_data(T t, std::string msg = "") {
+template <typename T>
+inline std::string make_data(T t, std::string msg = "", int total_count = 0) {
   rest_response<T> data{};
   data.success = true;
   data.message = std::move(msg);
@@ -78,6 +79,7 @@ template <typename T> inline std::string make_data(T t, std::string msg = "") {
   // 设置当前时间戳
   auto now = get_timestamp_milliseconds();
   data.timestamp = std::to_string(now);
+  data.total_count = total_count;
 
   std::string json;
   try {
