@@ -42,7 +42,7 @@ public:
     const auto &cfg = purecpp_config::get_instance().user_cfg_;
 
     // save to temporary database first
-    users_tmp_t user_tmp{.id = 0,
+    users_tmp_t user_tmp{.id = generate_user_id(),
                          .is_verifyed = EmailVerifyStatus::UNVERIFIED,
                          .created_at = get_timestamp_milliseconds()};
     std::string pwd_sha = sha256_simple(info.password);
@@ -65,9 +65,6 @@ public:
       set_server_internel_error(resp);
       co_return;
     }
-
-    // 生成用户id
-    user_tmp.id = generate_user_id();
 
     // 将用户数据插入到临时表
     auto result = conn->insert(user_tmp);
@@ -166,7 +163,7 @@ public:
     auto user_tmp = users_tmp[0];
     const auto &cfg = purecpp_config::get_instance().user_cfg_;
 
-    // 开启事务
+    // 开启事务(先插入正式表，再删除临时表)
     conn->begin();
 
     // 创建正式用户数据，使用相同的用户id

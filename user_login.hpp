@@ -119,7 +119,7 @@ public:
                                                        user.email.end(), '\0'));
 
     // 生成JWT token和refresh token
-    token_response token_resp = 
+    token_response token_resp =
         generate_jwt_token(user.id, user_name_str, email_str);
 
     // 登录成功，更新状态
@@ -252,7 +252,8 @@ public:
     auto user = users_by_id[0];
     users_t update_user;
     update_user.status = std::string(STATUS_OF_OFFLINE);
-    if (conn->update_some<&users_t::status>(update_user, "id=" + std::to_string(user.id)) != 1) {
+    if (conn->update_some<&users_t::status>(
+            update_user, "id=" + std::to_string(user.id)) != 1) {
       resp.set_status_and_content(cinatra::status_type::bad_request,
                                   make_error(PURECPP_ERROR_LOGOUT_FAILED));
       return;
