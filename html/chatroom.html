@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>聊天室 - PureCpp</title>
+    <link rel="stylesheet" href="css/pico.min.css">
+    <link rel="stylesheet" href="font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="css/simplemde.min.css">
+    <link rel="stylesheet" href="css/atom-one-dark.min.css">
+
+    <script defer src="script/alpine.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --border-color: #e2e8f0;
+            --muted-color: #6b7280;
+            --bg-page: #ffffff;
+            --bg-card: #ffffff;
+            --text-main: #333;
+            --text-highlight: var(--primary);
+
+            --primary-color: #4a154b;
+            --secondary-color: #350d36;
+            --accent-color: #1177aa;
+            --message-bg: #ffffff;
+            --own-message-bg: #e8f5e8;
+            --sidebar-bg: #f8f9fa;
+            --mention-badge: #ec0b43;
+        }
+        
+        body {
+            margin: 0;
+            overflow-x: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+        
+        .page-wrapper {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        .chat-container {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+        
+        /* 左侧边栏 */
+        .sidebar {
+            width: 260px;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        
+        .team-header {
+            padding: 20px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-weight: bold;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .team-header i {
+            margin-right: 10px;
+        }
+        
+        .user-profile {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            background-color: #5d275d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-weight: bold;
+        }
+        
+        .user-name {
+            font-weight: bold;
+            color: white;
+        }
+        
+        .user-status {
+            font-size: 12px;
+            color: #ccc;
+        }
+        
+        .channels-section, .direct-messages-section {
+            padding: 16px 0;
+        }
+        
+        .section-header {
+            padding: 0 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .section-header-text {
+            color: white;
+        }
+        
+        .add-channel {
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .channel-list, .user-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .channel-item, .user-item {
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            position: relative;
+        }
+        
+        .channel-item:hover, .user-item:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        
+        .channel-item.active {
+            background-color: rgba(255,255,255,0.15);
+            font-weight: bold;
+        }
+        
+        .channel-item i, .user-item i {
+            margin-right: 8px;
+            width: 20px;
+            text-align: center;
+            color: white;
+        }
+        
+        .channel-item-text, .user-item-text {
+            color: white;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 16px;
+        }
+        
+        .user-item {
+            position: relative;
+        }
+        
+        .mention-badge {
+            position: absolute;
+            right: 16px;
+            background-color: var(--mention-badge);
+            color: white;
+            border-radius: 10px;
+            font-size: 12px;
+            min-width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+        }
+        
+        /* 主聊天区域 */
+        .main-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+        }
+        
+        .chat-header {
+            padding: 0 20px;
+            height: 60px;
+            border-bottom: 1px solid #e8e8e8;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .channel-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .channel-name {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .channel-topic {
+            margin-left: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .chat-content {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background-color: var(--sidebar-bg);
+            max-height: calc(100vh - 200px); /* 显式设置最大高度 */
+            min-height: 0; /* 确保flex子元素正确计算高度 */
+            scrollbar-width: thin; /* 自定义滚动条样式（可选） */
+            scrollbar-color: #ccc #f1f1f1; /* 自定义滚动条颜色（可选） */
+        }
+
+        /* 为WebKit浏览器（Chrome, Safari等）添加滚动条样式 */
+        .chat-messages::-webkit-scrollbar {
+            width: 6px; /* 滚动条宽度 */
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f1f1; /* 滚动条背景 */
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #ccc; /* 滚动条滑块 */
+            border-radius: 3px; /* 滚动条滑块圆角 */
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #aaa; /* 滚动条滑块悬停颜色 */
+        }
+        
+        .channel-users {
+            width: 220px;
+            background-color: white;
+            border-left: 1px solid #e8e8e8;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .channel-users-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e8e8e8;
+            font-weight: bold;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .channel-users-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+        
+        .channel-user-item {
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .channel-user-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .channel-user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            background-color: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .channel-user-name {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .channel-action {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 16px; /* 减小字体大小 */
+    width: 20px; /* 设置固定宽度 */
+    height: 20px; /* 设置固定高度 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px; /* 添加圆角 */
+    margin-left: 5px; /* 调整与频道名称的间距 */
+}
+
+.channel-action:hover {
+    background-color: rgba(255, 255, 255, 0.2); /* 悬停效果 */
+}
+        
+        .message {
+            display: flex;
+            margin-bottom: 16px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background-color: var(--message-bg);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .message.own-message {
+            background-color: var(--own-message-bg);
+        }
+        
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            background-color: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+            font-weight: bold;
+        }
+        
+        .message-content {
+            flex: 1;
+        }
+        
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        
+        .message-user {
+            font-weight: bold;
+            margin-right: 8px;
+            font-size: 16px;
+        }
+        
+        .message-time {
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .message-text {
+            line-height: 1.4;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        
+        .message-text .mention {
+            background-color: #ffeaea;
+            color: #c00;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        /* 添加到CSS样式表中的.message-text部分 */
+        .message-text .mention-self {
+            background-color: #e1f7d9; /* 浅绿色背景 */
+            color: #2e7d32; /* 深绿色文字 */
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        .message-text .mention-other {
+            background-color: #fff9c4; /* 浅黄色背景 */
+            color: #f57c00; /* 橙色文字 */
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .message-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .message-action {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        .message-action:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .emoji-reaction {
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 12px;
+            margin-right: 5px;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .emoji-reaction:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .emoji-reaction i {
+            margin-right: 4px;
+        }
+        
+        .load-more {
+            text-align: center;
+            padding: 10px;
+            color: var(--accent-color);
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        /* 输入区域 */
+        .chat-input-container {
+            padding: 20px;
+            border-top: 1px solid #e8e8e8;
+            background-color: white;
+        }
+        
+        .chat-input-wrapper {
+            position: relative;
+        }
+        
+        .chat-input {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 15px;
+            resize: none;
+            box-sizing: border-box;
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+        
+        .input-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-button {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 18px;
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .action-button:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .send-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .send-button:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        /* 用户建议下拉框 */
+        .user-suggestions {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px 6px 0 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            z-index: 100;
+        }
+        
+        .user-suggestion {
+            padding: 10px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-suggestion:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .user-suggestion.active {
+            background-color: #e8f0fe;
+        }
+
+        /* 表情选择器样式 */
+.reaction-picker {
+    position: relative;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 10px;
+    display: none;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    z-index: 1000;
+    max-width: 250px;
+}
+
+.reaction-emoji {
+    font-size: 20px;
+    cursor: pointer;
+    text-align: center;
+    padding: 5px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.reaction-emoji:hover {
+    background-color: #f0f0f0;
+    transform: scale(1.2);
+}
+        
+        /* 表情选择器 */
+        .emoji-picker {
+            position: relative;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            width: 300px;
+            padding: 10px;
+            display: none;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+            z-index: 100;
+        }
+        
+        .emoji-item {
+            font-size: 20px;
+            cursor: pointer;
+            text-align: center;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        
+        .emoji-item:hover {
+            background-color: #f0f0f0;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 70px;
+            }
+            
+            .sidebar .user-item-text,
+            .sidebar .channel-item-text,
+            .sidebar .section-header-text,
+            .sidebar .user-name,
+            .sidebar .user-status {
+                display: none;
+            }
+            
+            .section-header {
+                justify-content: center;
+            }
+            
+            .user-profile {
+                justify-content: center;
+            }
+            
+            .user-avatar {
+                margin-right: 0;
+            }
+            
+            .mention-badge {
+                right: 5px;
+            }
+            
+            .channel-users {
+                width: 60px;
+            }
+            
+            .channel-users-header,
+            .channel-user-name {
+                display: none;
+            }
+            
+            .channel-user-avatar {
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <div id="header-container"></div>
+    <div class="chat-container">
+        <!-- 左侧边栏 -->
+        <div class="sidebar">
+            <div class="team-header">
+                <i class="fas fa-code"></i>
+                <span class="section-header-text">PureCpp 社区</span>
+            </div>
+            
+            <div class="user-profile">
+                <div class="user-avatar" style="background-color: #4a6fa5;">Y</div>
+                <div class="user-info">
+                    <div class="user-name">You (您)</div>
+                    <div class="user-status">在线</div>
+                </div>
+            </div>
+            
+            <div class="channels-section">
+                <div class="section-header">
+                    <span class="section-header-text">频道</span>
+                    <button class="add-channel" id="add-channel-btn" title="创建新频道">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <ul class="channel-list" id="channel-list">
+                    <!-- 频道将通过JS动态添加 -->
+                </ul>
+            </div>
+            
+            <div class="direct-messages-section">
+                <div class="section-header">
+                    <span class="section-header-text">在线成员</span>
+                </div>
+                <ul class="user-list" id="user-list">
+                    <!-- 用户将通过JS动态添加 -->
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 主聊天区域 -->
+        <div class="main-chat">
+            <div class="chat-header">
+                <div class="channel-info">
+                    <div class="channel-name" id="current-channel-name"># 通用聊天</div>
+                    <div class="channel-topic" id="current-channel-topic">欢迎来到PureCpp社区聊天室！</div>
+                </div>
+            </div>
+            
+            <div class="chat-content">
+                <div class="chat-messages" id="chat-messages">
+                    <!-- 消息将通过JS动态添加 -->
+                </div>
+                
+                <!-- 右侧在线用户列表 -->
+                <div class="channel-users">
+                    <div class="channel-users-header">
+                        <i class="fas fa-users"></i> 在线成员
+                    </div>
+                    <div class="channel-users-list" id="channel-users-list">
+                        <!-- 当前频道的在线用户将通过JS动态添加 -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <textarea class="chat-input" id="chat-input" placeholder="输入消息... 使用@提及用户"></textarea>
+                    <div class="user-suggestions" id="user-suggestions"></div>
+                    <div class="emoji-picker" id="emoji-picker"></div>
+                </div>
+                <div class="input-actions">
+                    <div class="action-buttons">
+                        <button class="action-button" id="emoji-btn" title="表情">
+                            <i class="far fa-smile"></i>
+                        </button>
+                        <button class="action-button" id="image-btn" title="上传图片">
+                            <i class="fas fa-image"></i>
+                        </button>
+                    </div>
+                    <button class="send-button" id="send-btn">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="footer-container"></div>
+    </div>
+    <script src="script/layout.js"></script>
+
+    <script>
+        // 初始化数据
+        const initialUsers = [
+            { id: 1, name: "You (您)", avatar: "Y", color: "#4a6fa5", online: true, mentions: 0, joinedChannels: [1, 2] },
+            { id: 2, name: "Alex Johnson", avatar: "A", color: "#d1453b", online: true, mentions: 0, joinedChannels: [1, 2] },
+            { id: 3, name: "Sam Wilson", avatar: "S", color: "#2e8540", online: true, mentions: 0, joinedChannels: [1, 2] },
+            { id: 4, name: "Taylor Smith", avatar: "T", color: "#6f42c1", online: false, mentions: 0, joinedChannels: [1] },
+            { id: 5, name: "Jordan Lee", avatar: "J", color: "#e36209", online: true, mentions: 0, joinedChannels: [1, 2] },
+            { id: 6, name: "Chris Brown", avatar: "C", color: "#0086b3", online: true, mentions: 0, joinedChannels: [1, 3] },
+            { id: 7, name: "Casey Miller", avatar: "C", color: "#795548", online: false, mentions: 0, joinedChannels: [1] }
+        ];
+        
+        const initialChannels = [
+            { id: 1, name: "通用聊天", topic: "欢迎来到PureCpp 社区聊天室！", unread: 0, joined: true },
+            { id: 2, name: "项目讨论", topic: "讨论项目相关事宜", unread: 3, joined: true },
+            { id: 3, name: "技术问题", topic: "技术问题求助与解答", unread: 0, joined: false },
+            { id: 4, name: "内部测试", topic: "仅供测试使用", unread: 0, joined: false } // 新增一个未加入的频道
+        ];
+        
+        // 初始消息
+        const initialMessages = {
+            1: [
+                { id: 1, userId: 2, userName: "Alex Johnson", text: "大家好！欢迎来到PureCpp聊天室！", time: "09:30", reactions: [] },
+                { id: 2, userId: 3, userName: "Sam Wilson", text: "嗨 @You (您)，今天代码审核完成了吗？", time: "09:32", reactions: [{emoji: "👍", count: 2}] },
+                { id: 3, userId: 1, userName: "You (您)", text: "还没呢，@Sam Wilson。大概还需要一个小时。", time: "09:35", reactions: [] },
+                { id: 4, userId: 5, userName: "Jordan Lee", text: "有人看过最新提交的PR吗？", time: "09:40", reactions: [] },
+                { id: 5, userId: 2, userName: "Alex Johnson", text: "我刚看了，@Jordan Lee。有一些小问题需要修改。", time: "09:42", reactions: [{emoji: "👀", count: 1}] },
+                { id: 6, userId: 3, userName: "Sam Wilson", text: "我上传了新的设计图，请大家看一下：https://example.com/design.png", time: "10:15", reactions: [] },
+                { id: 7, userId: 5, userName: "Jordan Lee", text: "看起来不错！", time: "10:20", reactions: [{emoji: "❤️", count: 3}] },
+                { id: 8, userId: 1, userName: "You (您)", text: "我同意 @Jordan Lee，设计很好。@Alex Johnson 你觉得呢？", time: "10:22", reactions: [] },
+                { id: 9, userId: 2, userName: "Alex Johnson", text: "我也喜欢这个设计。不过我们需要考虑响应式布局。", time: "10:25", reactions: [] },
+                { id: 10, userId: 3, userName: "Sam Wilson", text: "好建议，我会调整的。", time: "10:30", reactions: [{emoji: "✅", count: 1}] },
+                { id: 11, userId: 6, userName: "Chris Brown", text: "早上好各位！今天会议是下午3点吗？", time: "10:35", reactions: [] },
+                { id: 12, userId: 1, userName: "You (您)", text: "是的 @Chris Brown，下午3点在3号会议室。", time: "10:37", reactions: [] },
+                { id: 13, userId: 3, userName: "Sam Wilson", text: "@You (您) 别忘了检查我刚发的PR！", time: "10:40", reactions: [] },
+                { id: 14, userId: 5, userName: "Jordan Lee", text: "我刚修复了那个bug，可以测试了。", time: "10:45", reactions: [] },
+                { id: 15, userId: 2, userName: "Alex Johnson", text: "好的，我来测试一下。", time: "10:47", reactions: [] }
+            ],
+            2: [
+                { id: 16, userId: 5, userName: "Jordan Lee", text: "下一个sprint的计划大家有什么想法？", time: "昨天 14:20", reactions: [] },
+                { id: 17, userId: 2, userName: "Alex Johnson", text: "我认为应该先完成用户认证模块。@You (您) 你觉得呢？", time: "昨天 14:35", reactions: [] },
+                { id: 18, userId: 1, userName: "You (您)", text: "同意，认证模块优先级应该最高。", time: "昨天 14:40", reactions: [] }
+            ],
+            3: [
+                { id: 19, userId: 3, userName: "Sam Wilson", text: "有人遇到过这个编译错误吗？", time: "昨天 11:10", reactions: [] },
+                { id: 20, userId: 1, userName: "You (您)", text: "@Sam Wilson 我遇到过，你需要更新依赖库版本。", time: "昨天 11:15", reactions: [{emoji: "💡", count: 1}] }
+            ]
+        };
+        
+        // 常用表情
+        const commonEmojis = ["😀", "😁", "😂", "🤣", "😃", "😄", "😅", "😆", "😉", "😊", "😋", "😎", "😍", "😘", "🥰", "😗", "😙", "😚", "🙂", "🤗", "🤩", "🤔", "😐", "😑", "😶", "🙄", "😏", "😣", "😥", "😮", "🤐", "😯", "😪", "😫", "🥱", "😴", "😌", "😛", "😜", "😝", "🤤", "😒", "😓", "😔", "😕", "🙃", "🤑", "😲", "☹️", "🙁", "😖", "😞", "😟", "😤", "😢", "😭", "😦", "😧", "😨", "😩", "🤯", "😬", "😰", "😱", "🥵", "🥶", "😳", "🤪", "😵", "😠", "😡", "🤬", "😷", "🤒", "🤕", "🤢", "🤮", "🤧", "😇", "🥳", "🥺", "🤠", "🤡", "🤥", "🤫", "🤭", "🧐", "🤓", "💩", "👍", "👎", "👀", "❤️", "🔥", "🎉", "🚀", "💡"];
+        
+        // 应用状态
+        let currentUser = initialUsers[0];
+        let currentChannelId = 1;
+        let users = [...initialUsers];
+        let channels = [...initialChannels];
+        let messages = JSON.parse(JSON.stringify(initialMessages)); // 深度复制
+        let messageLoadCount = 12;
+        
+        // DOM元素
+        const channelList = document.getElementById('channel-list');
+        const userList = document.getElementById('user-list');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const emojiBtn = document.getElementById('emoji-btn');
+        const imageBtn = document.getElementById('image-btn');
+        const emojiPicker = document.getElementById('emoji-picker');
+        const userSuggestions = document.getElementById('user-suggestions');
+        const currentChannelName = document.getElementById('current-channel-name');
+        const currentChannelTopic = document.getElementById('current-channel-topic');
+        const addChannelBtn = document.getElementById('add-channel-btn');
+        const channelUsersList = document.getElementById('channel-users-list');
+        
+        // 初始化应用
+        function initApp() {
+            // 计算初始的@提及数量
+            calculateInitialMentions();
+            
+            renderChannels();
+            renderUsers();
+            renderChannelUsers();
+            renderMessages();
+            
+            // 设置当前频道信息
+            const currentChannel = channels.find(c => c.id === currentChannelId);
+            currentChannelName.textContent = `# ${currentChannel.name}`;
+            currentChannelTopic.textContent = currentChannel.topic;
+            
+            // 事件监听
+            setupEventListeners();
+        }
+        
+        // 计算初始的@提及数量
+        function calculateInitialMentions() {
+            // 遍历所有消息，查找@当前用户的消息
+            Object.values(messages).forEach(channelMessages => {
+                channelMessages.forEach(msg => {
+                    // 检查消息中是否@了当前用户
+                    const mentionRegex = /@You\s*\(\s*您\s*\)|@You/g;
+                    if (mentionRegex.test(msg.text) && msg.userId !== currentUser.id) {
+                        currentUser.mentions++;
+                    }
+                });
+            });
+        }
+        
+        // 渲染频道列表
+        function renderChannels() {
+            channelList.innerHTML = '';
+
+            channels.forEach(channel => {
+                const li = document.createElement('li');
+                li.className = `channel-item ${channel.id === currentChannelId ? 'active' : ''}`;
+                li.dataset.channelId = channel.id;
+
+                let actionBtn = '';
+                if (channel.joined) {
+                    actionBtn = `<button class="channel-action" data-action="leave" data-channel-id="${channel.id}">×</button>`;
+                } else {
+                    actionBtn = `<button class="channel-action" data-action="join" data-channel-id="${channel.id}">+</button>`;
+                }
+
+                li.innerHTML = `
+                    <i class="fas fa-hashtag"></i>
+                    <span class="channel-item-text">${channel.name}</span>
+                    ${channel.unread > 0 && channel.joined ? `<span class="mention-badge">${channel.unread}</span>` : ''}
+                    ${actionBtn}
+                `;
+
+                li.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('channel-action')) return; // 不触发切换
+                    switchChannel(channel.id);
+                });
+
+                channelList.appendChild(li);
+            });
+        }
+        
+        // 渲染用户列表
+        function renderUsers() {
+            userList.innerHTML = '';
+            
+            // 显示所有在线用户（包括自己）
+            const onlineUsers = users.filter(user => user.online);
+            
+            onlineUsers.forEach(user => {
+                const li = document.createElement('li');
+                li.className = 'user-item';
+                li.dataset.userId = user.id;
+                
+                // 如果是当前用户，显示特殊的@提及数量
+                const mentionCount = user.id === currentUser.id ? user.mentions : 0;
+                
+                li.innerHTML = `
+                    <div class="user-avatar" style="background-color: ${user.color};">${user.avatar}</div>
+                    <div class="user-item-text">${user.name}</div>
+                    ${mentionCount > 0 ? `<span class="mention-badge">${mentionCount}</span>` : ''}
+                `;
+                
+                li.addEventListener('click', () => {
+                    if (user.id === currentUser.id) {
+                        // 点击自己，清除@提及数量
+                        user.mentions = 0;
+                        renderUsers();
+                    } else {
+                        startDirectMessage(user.id);
+                    }
+                });
+                
+                userList.appendChild(li);
+            });
+        }
+        
+        // 渲染当前频道的在线用户列表
+        function renderChannelUsers() {
+            channelUsersList.innerHTML = '';
+            
+            // 只显示当前频道的在线成员
+            const currentChannelMembers = users.filter(user => 
+                user.online && user.joinedChannels.includes(currentChannelId)
+            );
+            
+            currentChannelMembers.forEach(user => {
+                const div = document.createElement('div');
+                div.className = 'channel-user-item';
+                div.dataset.userId = user.id;
+                
+                div.innerHTML = `
+                    <div class="channel-user-avatar" style="background-color: ${user.color};">${user.avatar}</div>
+                    <div class="channel-user-name">${user.name}</div>
+                `;
+                
+                div.addEventListener('click', () => {
+                    if (user.id === currentUser.id) {
+                        // 点击自己，清除@提及数量
+                        user.mentions = 0;
+                        renderUsers();
+                    } else {
+                        startDirectMessage(user.id);
+                    }
+                });
+                
+                channelUsersList.appendChild(div);
+            });
+        }
+
+        // 渲染消息
+        function renderMessages() {
+            chatMessages.innerHTML = '';
+            
+            const channelMessages = messages[currentChannelId] || [];
+            const startIndex = Math.max(0, channelMessages.length - messageLoadCount);
+            const messagesToShow = channelMessages.slice(startIndex);
+            
+            // 添加"阅读更多消息"按钮（在顶部显示旧消息）
+            if (startIndex > 0) {
+                const loadMoreDiv = document.createElement('div');
+                loadMoreDiv.className = 'load-more';
+                // 修改计数逻辑，确保新消息不影响计数
+                const remainingMessages = Math.max(0, channelMessages.length - messageLoadCount);
+                loadMoreDiv.textContent = `阅读更多消息 (${remainingMessages} 条)`;
+                loadMoreDiv.addEventListener('click', loadMoreMessages);
+                chatMessages.appendChild(loadMoreDiv);
+            }
+            
+            // 渲染每条消息
+            messagesToShow.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${msg.userId === currentUser.id ? 'own-message' : ''}`;
+                
+                const user = users.find(u => u.id === msg.userId);
+                
+                messageDiv.innerHTML = `
+                    <div class="message-avatar" style="background-color: ${user?.color || '#ddd'};">${user?.avatar || '?'}</div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <div class="message-user">${msg.userName}</div>
+                            <div class="message-time">${msg.time}</div>
+                        </div>
+                        <div class="message-text">${formatMessageText(msg.text)}</div>
+                        ${msg.reactions && msg.reactions.length > 0 ? 
+                            `<div class="reactions-container">
+                                ${msg.reactions.map(r => `
+                                    <span class="emoji-reaction ${r.users && r.users.includes(currentUser.id) ? 'reacted' : ''}" 
+                                        data-message-id="${msg.id}" 
+                                        data-emoji="${r.emoji}">
+                                        ${r.emoji} ${r.count}
+                                    </span>
+                                `).join('')}
+                            </div>` : ''
+                        }
+                        <div class="message-actions">
+                            <button class="message-action react-btn" data-message-id="${msg.id}">
+                                <i class="far fa-smile"></i> 表情
+                            </button>
+                            <button class="message-action" data-action="reply" data-message-id="${msg.id}">回复</button>
+                        </div>
+                    </div>
+                `;
+                                        
+                chatMessages.appendChild(messageDiv);
+            });
+            
+            // 滚动到底部（最新消息位置）
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function loadMoreMessages() {
+            messageLoadCount += 12; // 每次最多加载12条
+            renderMessages();
+
+            chatMessages.scrollTop = 0;
+        }
+        
+        // 格式化消息文本，处理@提及和URL
+        function formatMessageText(text) {
+            let formatted = text;
+            
+            // 处理@当前用户（自己）的提及 - 用绿色
+            formatted = formatted.replace(/@You\s*\(\s*您\s*\)/g, '<span class="mention-self">@You (您)</span>');
+            
+            // 处理@其他用户的提及 - 用浅黄色
+            // 先匹配全名（如 "Alex Johnson"）
+            formatted = formatted.replace(/@(\w+\s+\w+)/g, function(match, userName) {
+                // 检查是否提到当前用户
+                if (userName.includes("You") || userName.includes("您")) {
+                    return '<span class="mention-self">@' + userName + '</span>';
+                }
+                return '<span class="mention-other">@' + userName + '</span>';
+            });
+            
+            // 再匹配单名（如 "Alex"）
+            formatted = formatted.replace(/@(\w+)/g, function(match, userName) {
+                // 检查是否提到当前用户
+                if (userName === "You") {
+                    return '<span class="mention-self">@' + userName + '</span>';
+                }
+                return '<span class="mention-other">@' + userName + '</span>';
+            });
+            
+            // 处理URL（简单版本）
+            formatted = formatted.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+            
+            return formatted;
+        }
+        
+        // 切换频道
+        function switchChannel(channelId) {
+            // const targetChannel = channels.find(c => c.id === channelId);
+            // if (!targetChannel || !targetChannel.joined) {
+            //     alert("你尚未加入该频道！");
+            //     return;
+            // }
+            currentChannelId = channelId;
+            messageLoadCount = 12;
+            
+            // 更新频道列表的活跃状态
+            document.querySelectorAll('.channel-item').forEach(item => {
+                item.classList.remove('active');
+                if (parseInt(item.dataset.channelId) === channelId) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // 更新当前频道信息
+            const channel = channels.find(c => c.id === channelId);
+            currentChannelName.textContent = `# ${channel.name}`;
+            currentChannelTopic.textContent = channel.topic;
+            
+            // 重置频道的未读消息数
+            channel.unread = 0;
+            
+            // 重新渲染消息和右侧用户列表
+            renderMessages();
+            renderChannelUsers();
+            renderChannels();
+        }
+        
+        // 开始私信
+        function startDirectMessage(userId) {
+            const user = users.find(u => u.id === userId);
+            alert(`开始与 ${user.name} 的私信（此功能为演示）`);
+        }
+        
+        // 发送消息
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            // 检查当前用户是否加入了当前频道
+            if (!currentUser.joinedChannels.includes(currentChannelId)) {
+                alert("您尚未加入该频道，无法发送消息！");
+                return;
+            }
+            
+            // 创建新消息
+            const newMessage = {
+                id: Date.now(), // 简单ID生成
+                userId: currentUser.id,
+                userName: currentUser.name,
+                text: text,
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                reactions: []
+            };
+            
+            // 添加到当前频道的消息列表
+            if (!messages[currentChannelId]) {
+                messages[currentChannelId] = [];
+            }
+            messages[currentChannelId].push(newMessage);
+            messageLoadCount += 1;
+            
+            // 检查是否有@提及
+            checkMentions(text);
+            
+            // 清空输入框
+            chatInput.value = '';
+            
+            // 重新渲染消息
+            renderMessages();
+            
+            // 如果有@其他用户，增加频道的未读数
+            const mentionedUsers = extractMentionedUsers(text);
+            if (mentionedUsers.length > 0) {
+                const channel = channels.find(c => c.id === currentChannelId);
+                channel.unread++;
+                renderChannels();
+            }
+        }
+        
+        // 提取消息中提到的用户
+        function extractMentionedUsers(text) {
+            const mentionedUsers = [];
+            const mentionRegex = /@(\w+\s+\w+)|@(\w+)/g;
+            let match;
+            
+            while ((match = mentionRegex.exec(text)) !== null) {
+                const mentionedName = match[1] || match[2];
+                if (mentionedName && mentionedName !== 'You' && !mentionedName.includes('您')) {
+                    mentionedUsers.push(mentionedName);
+                }
+            }
+            
+            return mentionedUsers;
+        }
+        
+        // 检查消息中的@提及
+        function checkMentions(text) {
+            // 检查是否@了当前用户
+            const mentionRegex = /@You\s*\(\s*您\s*\)|@You/g;
+            if (mentionRegex.test(text)) {
+                currentUser.mentions++;
+                renderUsers();
+            }
+        }
+        
+        // 显示用户建议（当输入@时）
+        function showUserSuggestions() {
+            const cursorPos = chatInput.selectionStart;
+            const textBeforeCursor = chatInput.value.substring(0, cursorPos);
+            const lastAtPos = textBeforeCursor.lastIndexOf('@');
+            
+            // 如果光标前有@符号
+            if (lastAtPos !== -1 && !textBeforeCursor.substring(lastAtPos).includes(' ')) {
+                const query = textBeforeCursor.substring(lastAtPos + 1).toLowerCase();
+                
+                // 过滤匹配的用户（不包括自己）
+                const matchedUsers = users.filter(user => 
+                    user.name.toLowerCase().includes(query) && user.id !== currentUser.id
+                );
+                
+                if (matchedUsers.length > 0) {
+                    userSuggestions.innerHTML = '';
+                    matchedUsers.forEach(user => {
+                        const div = document.createElement('div');
+                        div.className = 'user-suggestion';
+                        div.dataset.userId = user.id;
+                        div.dataset.userName = user.name;
+                        
+                        div.innerHTML = `
+                            <div class="user-avatar" style="background-color: ${user.color}; margin-right: 10px;">${user.avatar}</div>
+                            <div>${user.name}</div>
+                        `;
+                        
+                        div.addEventListener('click', () => {
+                            const beforeAt = chatInput.value.substring(0, lastAtPos + 1);
+                            const afterCursor = chatInput.value.substring(cursorPos);
+                            chatInput.value = beforeAt + user.name + ' ' + afterCursor;
+                            chatInput.focus();
+                            chatInput.selectionStart = chatInput.selectionEnd = beforeAt.length + user.name.length + 1;
+                            hideUserSuggestions();
+                        });
+                        
+                        userSuggestions.appendChild(div);
+                    });
+                    
+                    userSuggestions.style.display = 'block';
+                    return;
+                }
+            }
+            
+            // 如果没有匹配或不需要显示，则隐藏
+            hideUserSuggestions();
+        }
+        
+        // 隐藏用户建议
+        function hideUserSuggestions() {
+            userSuggestions.style.display = 'none';
+        }
+        
+        // 显示表情选择器
+        function showEmojiPicker() {
+            if (emojiPicker.style.display === 'grid') {
+                emojiPicker.style.display = 'none';
+                return;
+            }
+            
+            emojiPicker.innerHTML = '';
+            
+            // 添加常用表情
+            commonEmojis.forEach(emoji => {
+                const span = document.createElement('span');
+                span.className = 'emoji-item';
+                span.textContent = emoji;
+                span.addEventListener('click', () => {
+                    insertAtCursor(emoji);
+                    emojiPicker.style.display = 'none';
+                });
+                emojiPicker.appendChild(span);
+            });
+            
+            // 设置表情框的位置在表情按钮下方
+            const rect = emojiBtn.getBoundingClientRect();
+            const containerRect = document.querySelector('.chat-input-container').getBoundingClientRect();
+            
+            // 设置表情框的位置
+            emojiPicker.style.position = 'absolute';
+            emojiPicker.style.bottom = `${containerRect.bottom - rect.top}px`;
+            emojiPicker.style.right = `${containerRect.right - rect.right}px`;
+            
+            emojiPicker.style.display = 'grid';
+        }
+        
+        // 在光标位置插入文本
+        function insertAtCursor(text) {
+            const start = chatInput.selectionStart;
+            const end = chatInput.selectionEnd;
+            const before = chatInput.value.substring(0, start);
+            const after = chatInput.value.substring(end);
+            
+            chatInput.value = before + text + after;
+            chatInput.focus();
+            chatInput.selectionStart = chatInput.selectionEnd = start + text.length;
+        }
+        
+        // 创建新频道
+        function createNewChannel() {
+            const channelName = prompt('请输入新频道名称:');
+            if (!channelName) return;
+            
+            const channelTopic = prompt('请输入频道主题:');
+            
+            const newChannel = {
+                id: channels.length + 1,
+                name: channelName,
+                topic: channelTopic || '新创建的频道',
+                unread: 0
+            };
+            
+            channels.push(newChannel);
+            messages[newChannel.id] = [];
+            
+            renderChannels();
+            switchChannel(newChannel.id);
+        }
+
+        // 添加新的函数：显示表情选择器
+function showReactionPicker(messageId, buttonElement) {
+    // 先隐藏所有其他的表情选择器
+    document.querySelectorAll('.reaction-picker').forEach(picker => {
+        picker.style.display = 'none';
+    });
+    
+    // 创建或显示表情选择器
+    let picker = document.getElementById(`reaction-picker-${messageId}`);
+    
+    if (!picker) {
+        picker = document.createElement('div');
+        picker.className = 'reaction-picker';
+        picker.id = `reaction-picker-${messageId}`;
+        
+        // 常用表情列表
+        const commonReactions = ["👍", "❤️", "😂", "😮", "😢", "😡", "👏", "🙏", "🔥", "🎉", "🚀", "💡", "👀", "✅", "❌"];
+        
+        // 添加表情到选择器
+        commonReactions.forEach(emoji => {
+            const emojiSpan = document.createElement('span');
+            emojiSpan.className = 'reaction-emoji';
+            emojiSpan.textContent = emoji;
+            emojiSpan.dataset.messageId = messageId;
+            emojiSpan.dataset.emoji = emoji;
+            
+            // 直接为表情元素添加点击事件监听器
+            emojiSpan.addEventListener('click', () => {
+                addReaction(messageId, emoji);
+                // 隐藏表情选择器
+                picker.style.display = 'none';
+            });
+            
+            picker.appendChild(emojiSpan);
+        });
+        
+        // 将选择器添加到body
+        document.body.appendChild(picker);
+    }
+    
+    // 定位选择器到按钮旁边
+    const rect = buttonElement.getBoundingClientRect();
+    picker.style.position = 'fixed';
+    picker.style.top = `${rect.top - 120}px`;
+    picker.style.left = `${rect.left}px`;
+    
+    // 切换显示/隐藏
+    picker.style.display = picker.style.display === 'grid' ? 'none' : 'grid';
+    
+    // 点击其他地方时隐藏表情选择器
+    const hidePicker = (e) => {
+        if (!picker.contains(e.target) && !buttonElement.contains(e.target)) {
+            picker.style.display = 'none';
+            document.removeEventListener('click', hidePicker);
+        }
+    };
+    
+    setTimeout(() => {
+        document.addEventListener('click', hidePicker);
+    }, 0);
+}
+
+// 添加新的函数：添加反应
+function addReaction(messageId, emoji) {
+    const channelMsgs = messages[currentChannelId];
+    const msg = channelMsgs.find(m => m.id === messageId);
+    
+    if (!msg) return;
+    
+    if (!msg.reactions) {
+        msg.reactions = [];
+    }
+    
+    const existingReaction = msg.reactions.find(r => r.emoji === emoji);
+    
+    if (existingReaction) {
+        // 检查当前用户是否已经反应过
+        if (!existingReaction.users) {
+            existingReaction.users = [];
+        }
+        
+        if (!existingReaction.users.includes(currentUser.id)) {
+            existingReaction.count++;
+            existingReaction.users.push(currentUser.id);
+        }
+    } else {
+        // 创建新的反应
+        msg.reactions.push({
+            emoji: emoji,
+            count: 1,
+            users: [currentUser.id]
+        });
+    }
+    
+    renderMessages();
+}
+
+function toggleReaction(messageId, emoji) {
+    const channelMsgs = messages[currentChannelId];
+    const msg = channelMsgs.find(m => m.id === messageId);
+    
+    if (!msg) return;
+    
+    if (!msg.reactions) {
+        msg.reactions = [];
+    }
+    
+    const existingReaction = msg.reactions.find(r => r.emoji === emoji);
+    
+    if (existingReaction) {
+        // 检查当前用户是否已经反应过
+        if (!existingReaction.users) {
+            existingReaction.users = [];
+        }
+        
+        const userIndex = existingReaction.users.indexOf(currentUser.id);
+        if (userIndex > -1) {
+            // 用户已经反应过，取消反应
+            existingReaction.count--;
+            existingReaction.users.splice(userIndex, 1);
+            
+            if (existingReaction.count === 0) {
+                // 如果没有其他人反应了，移除这个反应
+                const reactionIndex = msg.reactions.indexOf(existingReaction);
+                msg.reactions.splice(reactionIndex, 1);
+            }
+        } else {
+            // 用户还没有反应过，添加反应
+            existingReaction.count++;
+            existingReaction.users.push(currentUser.id);
+        }
+    } else {
+        // 创建新的反应
+        msg.reactions.push({
+            emoji: emoji,
+            count: 1,
+            users: [currentUser.id]
+        });
+    }
+    
+    renderMessages();
+}
+        
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 发送消息
+            sendBtn.addEventListener('click', sendMessage);
+            
+            // 按Enter发送消息，Shift+Enter换行
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+                
+                // 当输入@时显示用户建议
+                if (e.key === '@') {
+                    setTimeout(showUserSuggestions, 10);
+                }
+            });
+            
+            // 输入时检查是否需要显示用户建议
+            chatInput.addEventListener('input', showUserSuggestions);
+            
+            // 点击其他地方时隐藏用户建议
+            document.addEventListener('click', (e) => {
+                if (!userSuggestions.contains(e.target) && e.target !== chatInput) {
+                    hideUserSuggestions();
+                }
+            });
+            
+            // 表情按钮
+            emojiBtn.addEventListener('click', showEmojiPicker);
+            
+            // 点击其他地方时隐藏表情选择器
+            document.addEventListener('click', (e) => {
+                if (!emojiPicker.contains(e.target) && !emojiBtn.contains(e.target)) {
+                    emojiPicker.style.display = 'none';
+                }
+            });
+            
+            // 图片上传按钮
+            imageBtn.addEventListener('click', () => {
+                alert('图片上传功能为演示用途');
+            });
+            
+            // 添加频道按钮
+            addChannelBtn.addEventListener('click', createNewChannel);
+            
+            // 消息操作（反应、回复）
+            chatMessages.addEventListener('click', (e) => {
+                const target = e.target;
+                
+                // 处理表情按钮
+                if (target.classList.contains('react-btn') || target.closest('.react-btn')) {
+                    const reactBtn = target.classList.contains('react-btn') ? target : target.closest('.react-btn');
+                    const messageId = parseInt(reactBtn.dataset.messageId);
+                    showReactionPicker(messageId, reactBtn);
+                }
+                
+                // 处理表情选择器中的表情
+                if (target.classList.contains('reaction-emoji')) {
+                    const messageId = parseInt(target.dataset.messageId);
+                    const emoji = target.dataset.emoji;
+                    addReaction(messageId, emoji);
+                    // 隐藏表情选择器
+                    const picker = document.getElementById(`reaction-picker-${messageId}`);
+                    if (picker) picker.style.display = 'none';
+                }
+                
+                // 处理已有的表情反应
+                if (target.classList.contains('emoji-reaction')) {
+                    const messageId = parseInt(target.dataset.messageId);
+                    const emoji = target.dataset.emoji;
+                    toggleReaction(messageId, emoji);
+                }
+                
+                // 处理回复按钮
+                if (target.dataset.action === 'reply') {
+                    const messageId = parseInt(target.dataset.messageId);
+                    const channelMsgs = messages[currentChannelId];
+                    const msg = channelMsgs.find(m => m.id === messageId);
+                    
+                    if (msg) {
+                        chatInput.value = `@${msg.userName} `;
+                        chatInput.focus();
+                    }
+                }
+            });
+
+            channelList.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('channel-action')) return;
+                
+                const action = e.target.dataset.action;
+                const channelId = parseInt(e.target.dataset.channelId);
+                const channel = channels.find(c => c.id === channelId);
+                
+                if (!channel) return;
+
+                if (action === 'join') {
+                    channel.joined = true;
+                    // 更新当前用户的joinedChannels属性
+                    currentUser.joinedChannels.push(channelId);
+                    // 可选：发送一条系统消息或提示
+                    alert(`已加入频道 #${channel.name}`);
+                } else if (action === 'leave') {
+                    if (confirm(`确定要退出频道 #${channel.name}？`)) {
+                        channel.joined = false;
+                        // 更新当前用户的joinedChannels属性
+                        currentUser.joinedChannels = currentUser.joinedChannels.filter(id => id !== channelId);
+                        // 移除自动切换频道的逻辑，让用户保持在当前频道
+                        /*
+                        if (currentChannelId === channelId) {
+                            const firstJoined = channels.find(c => c.joined);
+                            if (firstJoined) {
+                                switchChannel(firstJoined.id);
+                            }
+                        }
+                        */
+                    }
+                }
+
+                renderChannels();
+                renderChannelUsers(); // 确保退出频道后重新渲染频道用户列表
+            });
+        }
+        
+        // 初始化应用
+        initApp();
+    </script>
+</body>
+</html>
