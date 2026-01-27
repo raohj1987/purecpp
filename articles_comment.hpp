@@ -18,8 +18,7 @@ public:
   void get_article_comment(coro_http_request &req, coro_http_response &resp) {
     auto request = std::any_cast<get_comments_request>(req.get_user_data());
 
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       set_server_internel_error(resp);
       return;
@@ -66,8 +65,7 @@ public:
   void add_article_comment(coro_http_request &req, coro_http_response &resp) {
     auto request = std::any_cast<add_comment_request>(req.get_user_data());
 
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       set_server_internel_error(resp);
       return;

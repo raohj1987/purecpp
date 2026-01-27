@@ -9,8 +9,7 @@ public:
   // 创建邮箱验证token并存储到数据库
   static std::pair<bool, std::string>
   create_verify_token(uint64_t user_id, const std::string &email) {
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       CINATRA_LOG_ERROR << "获取数据库连接失败";
       return std::make_pair(false, "获取数据库连接失败");
@@ -48,8 +47,7 @@ public:
 
   // 验证token有效性
   static bool verify_email_token(const std::string &token) {
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       CINATRA_LOG_ERROR << "获取数据库连接失败";
       return false;

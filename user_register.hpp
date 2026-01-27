@@ -59,8 +59,7 @@ public:
                 user_tmp.email.begin());
     user_tmp.email[user_tmp.email.size() - 1] = '\0';
 
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       set_server_internel_error(resp);
       co_return;

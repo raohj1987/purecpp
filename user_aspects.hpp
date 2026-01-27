@@ -204,8 +204,7 @@ struct check_user_exists {
   bool before(coro_http_request &req, coro_http_response &res) {
     register_info info = std::any_cast<register_info>(req.get_user_data());
 
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       res.set_status_and_content(status_type::internal_server_error,
                                  make_error("获取数据库连接失败"));
