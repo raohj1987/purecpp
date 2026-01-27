@@ -7,6 +7,7 @@
 #include <cinatra/smtp_client.hpp>
 #include <openssl/sha.h>
 #include <regex>
+#include "md5.hpp"
 
 using namespace cinatra;
 
@@ -33,6 +34,10 @@ inline std::string sha256_simple(std::string_view input) {
   return hex;
 }
 
+inline std::string password_encrypt(std::string_view password) {
+  return sha256_simple(md5::md5_string(password.data()));
+}
+
 class user_register_t {
 public:
   // 处理用户注册请求（改为异步方法）
@@ -45,7 +50,7 @@ public:
     users_tmp_t user_tmp{.id = generate_user_id(),
                          .is_verifyed = EmailVerifyStatus::UNVERIFIED,
                          .created_at = get_timestamp_milliseconds()};
-    std::string pwd_sha = sha256_simple(info.password);
+    std::string pwd_sha = password_encrypt(info.password);
     user_tmp.pwd_hash = pwd_sha;
     // 安全地复制用户名，确保不超过缓冲区大小
     std::copy_n(info.username.begin(),

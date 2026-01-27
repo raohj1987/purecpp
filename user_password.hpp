@@ -46,14 +46,14 @@ public:
     users_t user = users[0];
 
     // 验证旧密码
-    if (user.pwd_hash != sha256_simple(info.old_password)) {
+    if (user.pwd_hash != password_encrypt(info.old_password)) {
       resp.set_status_and_content(status_type::bad_request,
                                   make_error("旧密码错误"));
       return;
     }
 
     // 更新新密码
-    std::string pwd_sha = sha256_simple(info.new_password);
+    std::string pwd_sha = password_encrypt(info.new_password);
     users_t update_user;
     update_user.pwd_hash = pwd_sha;
     if (conn->update_some<&users_t::pwd_hash>(
@@ -189,7 +189,7 @@ public:
     users_t user = users[0];
 
     // 更新用户密码
-    std::string pwd_hash = purecpp::sha256_simple(info.new_password);
+    std::string pwd_hash = purecpp::password_encrypt(info.new_password);
     users_t update_user;
     update_user.pwd_hash = pwd_hash;
     update_user.login_attempts = 0;

@@ -82,7 +82,7 @@ public:
     }
 
     // 验证密码
-    if (user.pwd_hash != purecpp::sha256_simple(info.password)) {
+    if (user.pwd_hash != purecpp::password_encrypt(info.password)) {
       // 密码错误，更新失败次数和最后失败时间
       users_t update_user;
       update_user.login_attempts = user.login_attempts + 1;
