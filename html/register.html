@@ -453,7 +453,7 @@
 
                         if (response.success) {
                             // 注册成功
-                            this.showMessage('注册成功！请在24小时内前往邮箱验证账号。' + response.data.email, false);
+                            this.showMessage('注册成功！验证邮箱后才可以登录，请在24小时内前往邮箱验证账号。' + response.data.email, false);
                             // 延迟跳转，让用户看到成功消息
                             setTimeout(() => {
                                 window.location.href = '/login.html';
