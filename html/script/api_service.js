@@ -381,10 +381,10 @@ class APIService {
     }
 
     // 获取文章列表
-    async getArticles(page = 1, perPage = 10) {
+    async getArticles(page = 1, perPage = 10, tagId = 0) {
         return this.request('/api/v1/get_articles', {
             method: 'POST',
-            body: JSON.stringify({current_page: page, per_page: perPage})
+            body: JSON.stringify({current_page: page, per_page: perPage, tag_id: tagId})
         });
     }
 

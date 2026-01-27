@@ -418,7 +418,8 @@
 
                     <!-- 标签列表循环 -->
                     <div class="article-tags">
-                        <a :href="'/tag/' + article.slug" class="tag" x-text="article.tag_name"></a>
+                        <a href="#" class="tag" x-text="article.tag_name"
+                           @click.prevent="filterByTag(article.tag_name)"></a>
                     </div>
 
                     <!-- 元信息绑定 -->
@@ -501,20 +502,57 @@
                 totalArticles: 0,
                 loading: true,
                 currentPage: 1,
+                currentTag: null,
+                tags: [],
 
                 // 初始化
-                init() {
-                    this.fetchArticles();
+                async init() {
+                    await this.fetchTags();
+
+                    // 从URL中解析tag_id参数
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const tagId = parseInt(urlParams.get('tag_id')) || 0;
+                    const page = parseInt(urlParams.get('page')) || 1;
+
+                    // 根据tag_id查找标签名称
+                    let tag = null;
+                    if (tagId > 0) {
+                        const tagObj = this.tags.find(t => t.tag_id === tagId);
+                        if (tagObj) {
+                            tag = tagObj.name;
+                        }
+                    }
+
+                    this.fetchArticles(page, tag);
                 },
 
-                async fetchArticles(page = 1) {
+                async fetchTags() {
+                    try {
+                        const response = await apiService.getTags();
+                        this.tags = response.data;
+                    } catch (error) {
+                        console.log("获取标签列表失败", error);
+                    }
+                },
+
+                async fetchArticles(page = 1, tag = null) {
                     this.currentPage = page;
+                    this.currentTag = tag;
                     // 使用apiService获取用户信息
                     this.currentUser = apiService.getUserInfo();
 
                     try {
+                        // 根据标签名称查找标签ID
+                        let tagId = 0;
+                        if (tag) {
+                            const tagObj = this.tags.find(t => t.name === tag);
+                            if (tagObj) {
+                                tagId = tagObj.tag_id;
+                            }
+                        }
+
                         // 使用apiService获取文章列表
-                        const response = await apiService.getArticles(page);
+                        const response = await apiService.getArticles(page, 10, tagId);
                         this.articles = response.data;
                         // 从响应中获取总记录数
                         this.totalArticles = response.total_count || 0;
@@ -527,6 +565,21 @@
                         console.log("请求服务器失败", error);
                     }
                 },
+
+                filterByTag(tag) {
+                    // 根据标签名称查找标签ID
+                    const tagObj = this.tags.find(t => t.name === tag);
+                    const tagId = tagObj ? tagObj.tag_id : 0;
+
+                    // 更新URL参数
+                    const urlParams = new URLSearchParams(window.location.search);
+                    urlParams.set('tag_id', tagId);
+                    urlParams.set('page', 1); // 重置为第一页
+                    window.history.pushState({}, '', `?${urlParams.toString()}`);
+
+                    this.fetchArticles(1, tag);
+                },
+                
                 formatDate(timestamp) {
                     if (!timestamp) return '';
                     return formatTimestamp(timestamp);
@@ -611,13 +664,15 @@
                         // 更新 URL 参数
                         const urlParams = new URLSearchParams(window.location.search);
                         urlParams.set('page', page);
+                        // 保留tag_id参数
                         window.history.pushState({}, '', `?${urlParams.toString()}`);
                         // 触发文章列表的刷新
                         console.log("Navigating to page:", page);
                         // 调用 articleComponent 的 fetchArticles 方法
                         const articleComponent = document.querySelector('.articles-list')._x_dataStack[0];
                         if (articleComponent) {
-                            articleComponent.fetchArticles(page);
+                            // 传递当前标签
+                            articleComponent.fetchArticles(page, articleComponent.currentTag);
                         }
                     }
                 }
