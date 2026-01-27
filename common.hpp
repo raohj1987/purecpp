@@ -365,8 +365,8 @@ inline uint64_t generate_user_id() {
 
   // 格式化为6位纳秒，确保只输出6位
   char mill_buf[10];
-  std::snprintf(mill_buf, sizeof(mill_buf), "%03d",
-                millisenconds.count() - seconds.count() * 1000);
+  std::snprintf(mill_buf, sizeof(mill_buf), "%03ld",
+                std::abs(millisenconds.count() - seconds.count() * 1000));
   // 组合时间和纳秒部分
   std::string id = time_buf;
   id += mill_buf;
