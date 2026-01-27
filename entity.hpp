@@ -77,11 +77,11 @@ struct db_config {
 
 struct users_t {
   uint64_t id;
-  std::array<char, 21> user_name; // unique, not null
-  std::array<char, 254> email;    // unique, not null
-  std::string_view pwd_hash;      // not null
-  std::string status;             // 在线状态Online, Offline, Away
-  EmailVerifyStatus is_verifyed;  // 邮箱是否已验证(0:未验证, 1:已验证)
+  std::array<char, 254> user_name; // unique, not null
+  std::array<char, 254> email;     // unique, not null
+  std::string_view pwd_hash;       // not null
+  std::string status;              // 在线状态Online, Offline, Away
+  EmailVerifyStatus is_verifyed;   // 邮箱是否已验证(0:未验证, 1:已验证)
   uint64_t created_at;
   uint64_t last_active_at; // 最后活跃时间
 
@@ -109,10 +109,10 @@ inline constexpr std::string_view get_alias_struct_name(users_t *) {
 // 用户信息临时表
 struct users_tmp_t {
   uint64_t id;
-  std::array<char, 21> user_name; // unique, not null
-  std::array<char, 254> email;    // unique, not null
-  std::string_view pwd_hash;      // not null
-  EmailVerifyStatus is_verifyed;  // 邮箱是否已验证(0:未验证, 1:已验证)
+  std::array<char, 254> user_name; // unique, not null
+  std::array<char, 254> email;     // unique, not null
+  std::string_view pwd_hash;       // not null
+  EmailVerifyStatus is_verifyed;   // 邮箱是否已验证(0:未验证, 1:已验证)
   uint64_t created_at;
 };
 // 注册users_t的主键
@@ -175,8 +175,8 @@ struct article_comments_t {
   std::string content;
   uint64_t parent_comment_id; // 指向父评论
   uint64_t parent_user_id;
-  std::array<char, 21> parent_user_name; // unique, not null
-  std::array<char, 16> ip;               // 评论者IP地址
+  std::array<char, 254> parent_user_name; // unique, not null
+  std::array<char, 16> ip;                // 评论者IP地址
   uint64_t created_at;
   uint64_t updated_at;
 };
@@ -275,5 +275,6 @@ template <typename T> struct rest_response {
   std::optional<T> data;
   std::string timestamp;
   int code = 200;
+  int total_count = 0; // 总记录数，用于分页
 };
 } // namespace purecpp
