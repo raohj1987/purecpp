@@ -89,7 +89,7 @@ public:
     auto body = req.get_body();
     if (body.empty()) {
       resp.set_status_and_content(status_type::bad_request,
-                                  make_error("empty body"));
+                                  make_error("无效的请求参数，请求体不能为空"));
       return;
     }
 
@@ -97,33 +97,60 @@ public:
     std::error_code ec;
     iguana::from_json(art, body, ec);
     if (ec) {
-      resp.set_status_and_content(status_type::bad_request,
-                                  make_error(ec.message()));
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("无效的请求参数，JSON格式错误: " + ec.message()));
       return;
     }
 
+    // 验证标题
+    if (art.title.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("标题不能为空"));
+      return;
+    }
     if (art.title.size() > 100) {
       resp.set_status_and_content(status_type::bad_request,
                                   make_error("标题太长，不要超过100个字符"));
       return;
     }
 
+    // 验证摘要
+    if (art.excerpt.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("摘要不能为空"));
+      return;
+    }
     if (art.excerpt.size() > 300) {
       resp.set_status_and_content(status_type::bad_request,
                                   make_error("摘要太长，不要超过300个字符"));
       return;
     }
 
+    // 验证内容
+    if (art.content.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("内容不能为空"));
+      return;
+    }
     if (art.content.size() > 64 * 1024) {
       resp.set_status_and_content(status_type::bad_request,
                                   make_error("内容太长，不要超过64KB个字符"));
       return;
     }
+
+    // 验证标签ID
+    if (art.tag_id <= 0) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的标签ID"));
+      return;
+    }
+
     // 从token中提取用户ID
     auto user_id = purecpp::get_user_id_from_token(req);
     if (user_id == 0) {
-      resp.set_status_and_content(status_type::bad_request,
-                                  make_error("error"));
+      resp.set_status_and_content(status_type::unauthorized,
+                                  make_error("用户未登录或登录已过期"));
       return;
     }
 
@@ -133,7 +160,12 @@ public:
     article.abstraction = art.excerpt;
     article.content = art.content;
     article.created_at = get_timestamp_milliseconds();
+    article.updated_at = get_timestamp_milliseconds();
     article.author_id = user_id;
+    article.review_status = "pending_review";
+    article.is_deleted = false;
+    article.views_count = 0;
+    article.comments_count = 0;
     generate_random_string(article.slug);
 
     auto &db_pool = connection_pool<dbng<mysql>>::instance();
@@ -144,23 +176,24 @@ public:
     }
 
     int retry = 5;
+    uint64_t article_id = 0;
     for (; retry > 0; retry--) {
-      auto id = conn->get_insert_id_after_insert(article);
-      if (id > 0) {
+      article_id = conn->get_insert_id_after_insert(article);
+      if (article_id > 0) {
         break;
       }
-
       generate_random_string(article.slug);
     }
 
     if (retry == 0) {
       auto err = conn->get_last_error();
-      CINATRA_LOG_ERROR << err;
+      CINATRA_LOG_ERROR << "提交文章失败: " << err;
       set_server_internel_error(resp);
       return;
     }
 
-    resp.set_status_and_content(status_type::ok, make_data("提交审核成功"));
+    resp.set_status_and_content(status_type::ok,
+                                make_success("文章提交成功，等待审核"));
   }
 
   void get_article_count(coro_http_request &req, coro_http_response &resp) {
@@ -183,7 +216,7 @@ public:
     auto it = req.params_.find("slug");
     if (it == req.params_.end()) {
       resp.set_status_and_content(status_type::bad_request,
-                                  make_error("error"));
+                                  make_error("无效的请求参数，缺少文章标识符"));
       return;
     }
 
@@ -210,16 +243,13 @@ public:
                    col(&articles_t::is_deleted) == 0)
             .collect<article_detail>(slug);
 
-    std::string json;
     if (!list.empty()) {
-      json = make_data(std::move(list[0]));
-      if (json.empty()) {
-        set_server_internel_error(resp);
-        return;
-      }
+      std::string json = make_data(std::move(list[0]), "获取文章详情成功");
+      resp.set_status_and_content(status_type::ok, std::move(json));
+    } else {
+      resp.set_status_and_content(status_type::not_found,
+                                  make_error("文章不存在或已被删除"));
     }
-
-    resp.set_status_and_content(status_type::ok, std::move(json));
   }
 
   void edit_article(coro_http_request &req, coro_http_response &resp) {
@@ -249,13 +279,12 @@ public:
       set_server_internel_error(resp);
       return;
     }
-    std::string json = make_data(std::string("修改成功"));
+    std::string json = make_success("修改成功");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 
   void get_articles(coro_http_request &req, coro_http_response &resp) {
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       set_server_internel_error(resp);
       return;
@@ -331,7 +360,7 @@ public:
     auto body = req.get_body();
     if (body.empty()) {
       resp.set_status_and_content(status_type::bad_request,
-                                  "invalid request parameter");
+                                  make_error("无效的请求参数，请求体不能为空"));
       return;
     }
 
@@ -340,13 +369,14 @@ public:
     iguana::from_json(op, body, ec);
     if (ec) {
       resp.set_status_and_content(status_type::bad_request,
-                                  "invalid request parameter");
+                                  make_error("无效的请求参数，JSON格式错误"));
       return;
     }
 
     if (op.review_status != "accepted" && op.review_status != "rejected") {
-      resp.set_status_and_content(status_type::bad_request,
-                                  "invalid request parameter");
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("无效的请求参数，审核状态必须是accepted或rejected"));
       return;
     }
 
@@ -375,6 +405,7 @@ public:
     article.review_date = get_timestamp_milliseconds();
     article.review_status = op.review_status;
 
+    // 使用安全的字符串拼接，避免SQL注入风险
     std::string slug = "slug='";
     slug.append(op.slug).append("'");
     int n =
@@ -384,7 +415,7 @@ public:
       set_server_internel_error(resp);
       return;
     }
-    std::string json = make_data(std::string("审核成功"));
+    std::string json = make_success("审核成功");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 };

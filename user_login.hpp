@@ -32,29 +32,20 @@ public:
       return;
     }
 
-    // 先尝试通过用户名查找
-    auto users_by_name = conn->select(ormpp::all)
-                             .from<users_t>()
-                             .where(col(&users_t::user_name).param())
-                             .collect(info.username);
+    // 一次查询用户名和邮箱，减少数据库连接次数
+    auto users = conn->select(ormpp::all)
+                     .from<users_t>()
+                     .where(col(&users_t::user_name).param() ||
+                            col(&users_t::email).param())
+                     .collect(info.username, info.username);
 
     users_t user{};
     bool found = false;
 
-    // 如果用户名存在
-    if (!users_by_name.empty()) {
-      user = users_by_name[0];
+    // 如果找到用户
+    if (!users.empty()) {
+      user = users[0];
       found = true;
-    } else {
-      // 尝试通过邮箱查找
-      auto users_by_email = conn->select(ormpp::all)
-                                .from<users_t>()
-                                .where(col(&users_t::email).param())
-                                .collect(info.username);
-      if (!users_by_email.empty()) {
-        user = users_by_email[0];
-        found = true;
-      }
     }
 
     if (!found) {
@@ -117,13 +108,12 @@ public:
       return;
     }
 
-    // 登录成功，重置失败次数
-    user.login_attempts = 0;
-    user.status = std::string(STATUS_OF_ONLINE);
-
-    // 将std::array转换为std::string
-    std::string user_name_str(user.user_name.data());
-    std::string email_str(user.email.data());
+    // 安全地将std::array转换为std::string
+    std::string user_name_str(
+        user.user_name.data(),
+        std::find(user.user_name.begin(), user.user_name.end(), '\0'));
+    std::string email_str(user.email.data(), std::find(user.email.begin(),
+                                                       user.email.end(), '\0'));
 
     // 生成JWT token和refresh token
     token_response token_resp =
@@ -221,9 +211,8 @@ public:
 
     // 如果没有令牌，直接返回成功
     if (token.empty()) {
-      resp.set_status_and_content(
-          cinatra::status_type::ok,
-          make_data(rest_response<std::string>{true, "退出登录成功"}));
+      resp.set_status_and_content(cinatra::status_type::ok,
+                                  make_success("退出登录成功"));
       return;
     }
 
@@ -233,6 +222,10 @@ public:
     // 修改用户状态为登出
     // 从数据库中查询用户
     auto conn = connection_pool<dbng<mysql>>::instance().get();
+    if (conn == nullptr) {
+      set_server_internel_error(resp);
+      return;
+    }
 
     auto users_by_id = conn->select(ormpp::all)
                            .from<users_t>()
@@ -256,9 +249,8 @@ public:
     }
 
     // 返回成功响应
-    resp.set_status_and_content(
-        cinatra::status_type::ok,
-        make_data(rest_response<std::string>{true, "退出登录成功"}));
+    resp.set_status_and_content(cinatra::status_type::ok,
+                                make_success("退出登录成功"));
   }
 };
 } // namespace purecpp

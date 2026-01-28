@@ -660,8 +660,7 @@ public:
     // 查询经验值交易记录
     auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
-      resp.set_status_and_content(status_type::internal_server_error,
-                                  make_error("数据库连接失败"));
+      set_server_internel_error(resp);
       return;
     }
 
@@ -745,8 +744,7 @@ public:
       return;
     }
 
-    resp.set_status_and_content(status_type::ok,
-                                make_data(empty_data{}, "购买特权成功"));
+    resp.set_status_and_content(status_type::ok, make_success("购买特权成功"));
   }
 
   /**
@@ -793,8 +791,7 @@ public:
       return;
     }
 
-    resp.set_status_and_content(status_type::ok,
-                                make_data(empty_data{}, "打赏成功"));
+    resp.set_status_and_content(status_type::ok, make_success("打赏成功"));
   }
 
   /**
@@ -806,8 +803,7 @@ public:
                                 coro_http_response &resp) {
     auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
-      resp.set_status_and_content(status_type::internal_server_error,
-                                  make_error("数据库连接失败"));
+      set_server_internel_error(resp);
       return;
     }
 
