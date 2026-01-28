@@ -56,8 +56,7 @@ public:
               user.user_name.begin());
     std::copy(info.email.begin(), info.email.end(), user.email.begin());
 
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       set_server_internel_error(resp);
       co_return;
@@ -175,7 +174,7 @@ public:
     // 检查是否已经验证（使用正确的字段名）
     if (user.is_verifyed) {
       resp.set_status_and_content(status_type::ok,
-                                  make_error("该邮箱已经验证"));
+                                  make_success("该邮箱已经验证"));
       co_return;
     }
 
@@ -202,8 +201,7 @@ public:
     }
 
     // 返回成功响应
-    std::string json =
-        make_data(empty_data{}, "验证邮件已发送，请检查您的邮箱");
+    std::string json = make_success("验证邮件已发送，请检查您的邮箱");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 };

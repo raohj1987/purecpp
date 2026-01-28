@@ -18,8 +18,7 @@ public:
   void get_article_comment(coro_http_request &req, coro_http_response &resp) {
     auto request = std::any_cast<get_comments_request>(req.get_user_data());
 
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       set_server_internel_error(resp);
       return;
@@ -66,8 +65,7 @@ public:
   void add_article_comment(coro_http_request &req, coro_http_response &resp) {
     auto request = std::any_cast<add_comment_request>(req.get_user_data());
 
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       set_server_internel_error(resp);
       return;
@@ -143,8 +141,8 @@ public:
         return;
       }
       auto &parent_user = user_vec.front();
-      std::copy(parent_user.user_name.begin(), parent_user.user_name.end(),
-                new_comment.parent_user_name.begin());
+      std::copy_n(parent_user.user_name.begin(), parent_user.user_name.size(),
+                  new_comment.parent_user_name.begin());
     }
     // 插入评论
     auto comment_id = conn->get_insert_id_after_insert(new_comment);

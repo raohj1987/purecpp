@@ -222,15 +222,10 @@ private:
       return 0;
     }
 
-    // 清理过期时间戳并计算有效请求数
-    size_t valid_count = 0;
-    for (auto ts : record_it->second.timestamps) {
-      if (now - ts <= window_ms) {
-        valid_count++;
-      }
-    }
-
-    return std::max(0, config.max_requests - static_cast<int>(valid_count));
+    // 直接使用已清理过的时间戳列表
+    auto &timestamps = record_it->second.timestamps;
+    return std::max(0,
+                    config.max_requests - static_cast<int>(timestamps.size()));
   }
 
   /**

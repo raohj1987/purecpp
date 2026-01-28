@@ -4,6 +4,7 @@
 
 #include "config.hpp"
 #include "entity.hpp"
+#include "user_dto.hpp"
 #include <cinatra.hpp>
 #include <cinatra/smtp_client.hpp>
 #include <iguana/json_reader.hpp>
@@ -27,8 +28,43 @@ inline uint64_t get_timestamp_seconds() {
   return static_cast<uint64_t>(seconds.count());
 }
 
-inline std::string make_error(std::string_view err_msg) {
+/**
+ * @brief 生成简单的成功响应
+ * @param msg 成功消息
+ * @return JSON格式的响应字符串
+ */
+inline std::string make_success(std::string msg = "") {
+  rest_response<empty_data> data{};
+  data.success = true;
+  data.message = std::move(msg);
+  data.data = empty_data{};
+  // 设置当前时间戳
+  auto now = get_timestamp_milliseconds();
+  data.timestamp = std::to_string(now);
+
+  std::string json;
+  try {
+    iguana::to_json(data, json);
+  } catch (std::exception &e) {
+    json = "";
+    CINATRA_LOG_ERROR << e.what();
+  }
+
+  return json;
+}
+
+/**
+ * @brief 生成错误响应
+ * @param err_msg 错误消息
+ * @param code 错误码，默认为400
+ * @return JSON格式的响应字符串
+ */
+inline std::string make_error(std::string_view err_msg, int code = 400) {
   rest_response<std::string_view> data{false, std::string(err_msg)};
+  data.code = code;
+  // 设置当前时间戳
+  auto now = get_timestamp_milliseconds();
+  data.timestamp = std::to_string(now);
   std::string json;
   iguana::to_json(data, json);
   return json;

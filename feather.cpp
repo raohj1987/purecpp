@@ -328,8 +328,7 @@ int main() {
         std::string file_name;
         file_name.append("html/").append(url);
         coro_io::coro_file in_file{};
-        in_file.open(file_name, std::ios::in);
-        if (!in_file.is_open()) {
+        if (!in_file.open(file_name, std::ios::in)) {
           resp.set_status(status_type::not_found);
           co_return;
         }
@@ -337,8 +336,9 @@ int main() {
         std::string_view mime = get_mime_type(extension);
         resp.add_header("Content-Type", std::string{mime});
         resp.set_format_type(format_type::chunked);
-        bool ok;
-        if (ok = co_await resp.get_conn()->begin_chunked(); !ok) {
+
+        // 开始chunked传输
+        if (!co_await resp.get_conn()->begin_chunked()) {
           co_return;
         }
         std::string content;

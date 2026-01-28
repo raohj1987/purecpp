@@ -74,8 +74,13 @@ public:
 
     // 构建响应
     get_profile_response profile;
-    profile.username = std::string(user.user_name.data());
-    profile.email = std::string(user.email.data());
+    // 使用安全的字符串转换，避免未终止字符串问题
+    profile.username = std::string(
+        user.user_name.data(),
+        std::find(user.user_name.begin(), user.user_name.end(), '\0'));
+    profile.email =
+        std::string(user.email.data(),
+                    std::find(user.email.begin(), user.email.end(), '\0'));
     profile.location = user.location;
     profile.bio = user.bio;
     profile.avatar = user.avatar;
@@ -247,8 +252,7 @@ public:
       // 更新用户的avatar字段
       auto conn = connection_pool<dbng<mysql>>::instance().get();
       if (conn == nullptr) {
-        resp.set_status_and_content(status_type::internal_server_error,
-                                    make_error("数据库连接失败"));
+        set_server_internel_error(resp);
         return;
       }
 
