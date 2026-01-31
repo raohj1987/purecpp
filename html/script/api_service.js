@@ -381,16 +381,14 @@ class APIService {
     }
 
     // 获取文章列表
-    async getArticles() {
+    async getArticles(page = 1, perPage = 10, tagId = 0, userId = 0) {
+        const requestData = {current_page: page, per_page: perPage, tag_id: tagId, user_id: userId};
+        if (userId > 0) {
+            requestData.user_id = userId;
+        }
         return this.request('/api/v1/get_articles', {
-            method: 'GET'
-        });
-    }
-
-    // 获取文章数量
-    async getArticleCount() {
-        return this.request('/api/v1/get_article_count', {
-            method: 'GET'
+            method: 'POST',
+            body: JSON.stringify(requestData)
         });
     }
 

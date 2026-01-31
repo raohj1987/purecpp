@@ -180,7 +180,7 @@ function checkUserLogin() {
         if (registerLink) registerLink.style.display = 'none';
         if (userInfoElement) userInfoElement.style.display = 'block';
         // 如果用户是管理员，显示审核管理链接
-        if (userInfo.role === 'admin') {
+        if (userInfo.role === 'admin' || userInfo.role === 'superadmin') {
             if (admin_review_link) admin_review_link.style.display = 'block';
         } else {
             if (admin_review_link) admin_review_link.style.display = 'none';

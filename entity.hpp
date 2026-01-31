@@ -87,7 +87,7 @@ struct users_t {
 
   // 用户身份信息
   UserTitle title;     // 头衔枚举
-  std::string role;    // 角色，如"user"、"admin"、"moderator"
+  std::string role;    // 角色，如"user"、"admin"、"superadmin"
   uint64_t experience; // 经验值
   UserLevel level;     // 用户等级枚举
 
@@ -138,9 +138,14 @@ struct users_token_t {
 // 注册users_token_t的主键
 REGISTER_AUTO_KEY(users_token_t, id);
 
-inline constexpr std::string_view get_alias_struct_name(users_token_t *) {
+constexpr std::string_view get_alias_struct_name(users_token_t *) {
   return "user_tokens"; // 表名
 }
+
+static std::string_view DRAFT = "draft";                   // 草稿
+static std::string_view PENDING_REVIEW = "pending_review"; // 待审核
+static std::string_view PUBLISHED = "published";           // 已发布
+static std::string_view REJECTED = "rejected";             // 已拒绝
 
 // 文章相关的表
 struct articles_t {
@@ -159,14 +164,19 @@ struct articles_t {
   std::string review_comment; // 审核意见
   int featured_weight;        // 置顶，精华
   uint64_t review_date;       // 审核完成时间
-  std::string review_status =
-      "pending_review"; // pending_review (待审核), rejected (已拒绝), accepted
-  std::string status;   // 状态：published, draft, archived
-  bool is_deleted;
+  std::string status;         // 状态：draft(草稿), pending_review (待审核),
+                              // published(已发布), rejected (已拒绝)
+  bool is_deleted = false;    // 0: 未删除, 1: 已删除
 };
-inline constexpr std::string_view get_alias_struct_name(articles_t *) {
+constexpr std::string_view get_alias_struct_name(articles_t *) {
   return "articles";
 }
+
+// 文章评论状态枚举
+enum class CommentStatus : int32_t {
+  TRASH = 0,   // 已删除
+  PUBLISH = 1, // 已发布
+};
 
 struct article_comments_t {
   uint64_t comment_id = 0;
@@ -175,14 +185,14 @@ struct article_comments_t {
   std::string content;
   uint64_t parent_comment_id; // 指向父评论
   uint64_t parent_user_id;
-  std::array<char, 21> parent_user_name; // unique, not null
-  std::array<char, 16> ip;               // 评论者IP地址
-  std::array<char, 16> comment_status;   // 评论状态：publish, trash
+  std::array<char, 254> parent_user_name; // unique, not null
+  std::array<char, 16> ip;                // 评论者IP地址
+  CommentStatus comment_status;           // 评论状态：CommentStatus
   uint64_t created_at;
   uint64_t updated_at;
 };
 REGISTER_AUTO_KEY(article_comments_t, comment_id);
-inline constexpr std::string_view get_alias_struct_name(article_comments_t *) {
+constexpr std::string_view get_alias_struct_name(article_comments_t *) {
   return "article_comments";
 }
 
@@ -207,7 +217,7 @@ struct privileges_t {
   bool is_active;               // 是否激活
 };
 REGISTER_AUTO_KEY(privileges_t, id);
-inline constexpr std::string_view get_alias_struct_name(privileges_t *) {
+constexpr std::string_view get_alias_struct_name(privileges_t *) {
   return "privileges";
 }
 
@@ -222,7 +232,7 @@ struct user_privileges_t {
   uint64_t created_at;   // 创建时间
 };
 REGISTER_AUTO_KEY(user_privileges_t, id);
-inline constexpr std::string_view get_alias_struct_name(user_privileges_t *) {
+constexpr std::string_view get_alias_struct_name(user_privileges_t *) {
   return "user_privileges";
 }
 
@@ -238,7 +248,7 @@ struct user_gifts_t {
   uint64_t created_at;                // 打赏时间
 };
 REGISTER_AUTO_KEY(user_gifts_t, id);
-inline constexpr std::string_view get_alias_struct_name(user_gifts_t *) {
+constexpr std::string_view get_alias_struct_name(user_gifts_t *) {
   return "user_gifts";
 }
 
@@ -256,8 +266,7 @@ struct user_experience_detail_t {
   uint64_t created_at;                    // 交易时间
 };
 REGISTER_AUTO_KEY(user_experience_detail_t, id);
-inline constexpr std::string_view
-get_alias_struct_name(user_experience_detail_t *) {
+constexpr std::string_view get_alias_struct_name(user_experience_detail_t *) {
   return "user_experience_detail";
 }
 
@@ -265,16 +274,15 @@ struct tags_t {
   int tag_id;
   std::array<char, 50> name;
 };
-inline constexpr std::string_view get_alias_struct_name(tags_t *) {
-  return "tags";
-}
+constexpr std::string_view get_alias_struct_name(tags_t *) { return "tags"; }
 
 template <typename T> struct rest_response {
   bool success = true;
   std::string message;
   std::optional<std::vector<std::string>> errors;
-  std::optional<T> data;
   std::string timestamp;
   int code = 200;
+  int total_count = 0; // 总记录数，用于分页
+  std::optional<T> data;
 };
 } // namespace purecpp

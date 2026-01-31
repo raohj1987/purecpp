@@ -418,18 +418,20 @@
 
                     <!-- 标签列表循环 -->
                     <div class="article-tags">
-                        <a :href="'/tag/' + article.slug" class="tag" x-text="article.tag_name"></a>
+                        <a href="#" class="tag" x-text="article.tag_name"
+                           @click.prevent="filterByTag(article.tag_name)"></a>
                     </div>
 
                     <!-- 元信息绑定 -->
                     <div class="article-meta">
                         <div class="meta-item">
                             <i class="fas fa-user"></i>
-                            <span x-text="article.author_name"></span>
+                            <a href="#" class="username-hover" x-text="article.author_name"
+                               @click.prevent="filterByAuthor(article.author_id, article.author_name)"></a>
                         </div>
                         <div class="meta-item">
                             <i class="fas fa-calendar"></i>
-                            <span x-text="formattedDate"></span>
+                            <span x-text="formatDate(article.created_at)"></span>
                         </div>
                         <div class="meta-item">
                             <i class="fas fa-eye"></i>
@@ -498,28 +500,105 @@
             return {
                 currentUser: null,
                 articles: [],
+                totalArticles: 0,
                 loading: true,
+                currentPage: 1,
+                currentTag: null,
+                currentUserId: 0,
+                tags: [],
 
                 // 初始化
-                init() {
-                    this.fetchArticles();
+                async init() {
+                    await this.fetchTags();
+
+                    // 从URL中解析参数
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const tagId = parseInt(urlParams.get('tag_id')) || 0;
+                    const userId = parseInt(urlParams.get('user_id')) || 0;
+                    const page = parseInt(urlParams.get('page')) || 1;
+
+                    // 根据tag_id查找标签名称
+                    let tag = null;
+                    if (tagId > 0) {
+                        const tagObj = this.tags.find(t => t.tag_id === tagId);
+                        if (tagObj) {
+                            tag = tagObj.name;
+                        }
+                    }
+
+                    this.fetchArticles(page, tag, userId);
                 },
 
-                async fetchArticles() {
+                async fetchTags() {
+                    try {
+                        const response = await apiService.getTags();
+                        this.tags = response.data;
+                    } catch (error) {
+                        console.log("获取标签列表失败", error);
+                    }
+                },
+
+                async fetchArticles(page = 1, tag = null, userId = 0) {
+                    this.currentPage = page;
+                    this.currentTag = tag;
+                    this.currentUserId = userId;
                     // 使用apiService获取用户信息
                     this.currentUser = apiService.getUserInfo();
 
                     try {
+                        // 根据标签名称查找标签ID
+                        let tagId = 0;
+                        if (tag) {
+                            const tagObj = this.tags.find(t => t.name === tag);
+                            if (tagObj) {
+                                tagId = tagObj.tag_id;
+                            }
+                        }
+
                         // 使用apiService获取文章列表
-                        const response = await apiService.getArticles();
+                        const response = await apiService.getArticles(page, 10, tagId, userId);
                         this.articles = response.data;
+                        // 从响应中获取总记录数
+                        this.totalArticles = response.total_count || 0;
+                        // 更新分页组件的总记录数
+                        const paginationComponent = document.querySelector('.pagination')._x_dataStack[0];
+                        if (paginationComponent) {
+                            paginationComponent.totalArticles = this.totalArticles;
+                        }
                     } catch (error) {
                         console.log("请求服务器失败", error);
                     }
                 },
-                get formattedDate() {
-                    if (!this.article.created_at) return '';
-                    return formatTimestamp(this.article.created_at);
+
+                filterByTag(tag) {
+                    // 根据标签名称查找标签ID
+                    const tagObj = this.tags.find(t => t.name === tag);
+                    const tagId = tagObj ? tagObj.tag_id : 0;
+
+                    // 更新URL参数
+                    const urlParams = new URLSearchParams(window.location.search);
+                    urlParams.set('tag_id', tagId);
+                    urlParams.set('page', 1); // 重置为第一页
+                    urlParams.delete('user_id'); // 清除用户筛选
+                    window.history.pushState({}, '', `?${urlParams.toString()}`);
+
+                    this.fetchArticles(1, tag);
+                },
+
+                filterByAuthor(userId, authorName) {
+                    // 更新URL参数
+                    const urlParams = new URLSearchParams(window.location.search);
+                    urlParams.set('user_id', userId);
+                    urlParams.set('page', 1); // 重置为第一页
+                    urlParams.delete('tag_id'); // 清除标签筛选
+                    window.history.pushState({}, '', `?${urlParams.toString()}`);
+
+                    this.fetchArticles(1, null, userId);
+                },
+
+                formatDate(timestamp) {
+                    if (!timestamp) return '';
+                    return formatTimestamp(timestamp);
                 },
             }
         }
@@ -529,7 +608,6 @@
                 totalArticles: 1, // 假设总数
                 perPage: 10,
                 currentPage: 1,
-                pageSize: 3,
                 maxVisiblePages: 5, // 控制中间最多显示多少个数字页码
 
                 get totalPages() {
@@ -541,34 +619,56 @@
                     const total = this.totalPages;
                     const max = this.maxVisiblePages;
                     const pages = [];
+                    const current = this.currentPage;
 
-                    console.log("Total Pages:", total, "Max Visible:", max);
+                    console.log("Total Pages:", total, "Max Visible:", max, "Current Page:", current);
 
-                    // 如果总页数小于等于最大可见数，或者我们不使用高级分页，全部显示
+                    // 如果总页数小于等于最大可见数，全部显示
                     if (total <= max) {
                         for (let i = 1; i <= total; i++) {
                             pages.push(i);
                         }
-
                         return pages;
                     }
 
-                    return [1, 2, '...', total];
+                    // 总是显示第一页
+                    pages.push(1);
+
+                    // 计算中间显示的页码范围
+                    const half = Math.floor(max / 2);
+                    let start = Math.max(2, current - half);
+                    let end = Math.min(total - 1, start + max - 3);
+
+                    // 调整范围以确保显示足够的页码
+                    if (end - start < max - 3) {
+                        start = Math.max(2, end - max + 3);
+                    }
+
+                    // 如果第一页和起始页之间有间隔，显示省略号
+                    if (start > 2) {
+                        pages.push('...');
+                    }
+
+                    // 添加中间的页码
+                    for (let i = start; i <= end; i++) {
+                        pages.push(i);
+                    }
+
+                    // 如果结束页和最后一页之间有间隔，显示省略号
+                    if (end < total - 1) {
+                        pages.push('...');
+                    }
+
+                    // 总是显示最后一页
+                    pages.push(total);
+
+                    return pages;
                 },
 
-                async init() {
+                init() {
                     // 从 URL 中解析当前页码
-                    // const urlParams = new URLSearchParams(window.location.search);
-                    // this.currentPage = parseInt(urlParams.get('page')) || 1;
-                    try {
-                        // 使用apiService获取文章数量
-                        const response = await apiService.getArticleCount();
-                        console.log("total: ", response.data);
-                        this.totalArticles = response.data;
-                    } catch (error) {
-                        console.log("请求服务器失败", error);
-                    }
-                    this.currentPage = 1;
+                    const urlParams = new URLSearchParams(window.location.search);
+                    this.currentPage = parseInt(urlParams.get('page')) || 1;
                 },
 
                 goToPage(page) {
@@ -577,9 +677,19 @@
 
                     if (page >= 1 && page <= this.totalPages) {
                         this.currentPage = page;
-                        // 在这里触发文章列表的刷新
+                        // 更新 URL 参数
+                        const urlParams = new URLSearchParams(window.location.search);
+                        urlParams.set('page', page);
+                        // 保留tag_id和user_id参数
+                        window.history.pushState({}, '', `?${urlParams.toString()}`);
+                        // 触发文章列表的刷新
                         console.log("Navigating to page:", page);
-                        // 实际操作：window.location.href = `/articles?page=${page}`;
+                        // 调用 articleComponent 的 fetchArticles 方法
+                        const articleComponent = document.querySelector('.articles-list')._x_dataStack[0];
+                        if (articleComponent) {
+                            // 传递当前标签和用户ID
+                            articleComponent.fetchArticles(page, articleComponent.currentTag, articleComponent.currentUserId);
+                        }
                     }
                 }
             }

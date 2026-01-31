@@ -9,8 +9,7 @@ namespace purecpp {
 class tags {
 public:
   void get_tags(coro_http_request &req, coro_http_response &resp) {
-    auto &db_pool = connection_pool<dbng<mysql>>::instance();
-    auto conn = db_pool.get();
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       set_server_internel_error(resp);
       return;
