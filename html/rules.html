@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>社区守则 - PureCpp.cn</title>
+    <meta name="description" content="Purecpp.cn 社区守则，规范社区行为，维护良好的技术交流环境。">
+
+    <!-- 本地 Pico CSS -->
+    <link rel="stylesheet" href="css/pico.min.css">
+
+    <!-- 本地 Font Awesome -->
+    <link rel="stylesheet" href="font-awesome/css/all.min.css">
+    <script defer src="script/alpine.js"></script>
+
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --border-color: #e2e8f0;
+            --muted-color: #6b7280;
+            /* 白天模式变量（默认） */
+            --bg-page: #ffffff;
+            --bg-hero: #d6def9;
+            --bg-announcement: #e6ebff;
+            --bg-card: #ffffff;
+            --bg-search: #ffffff;
+            --text-typing: #000000;
+            --text-main: #333;
+            --text-highlight: var(--primary);
+        }
+
+        /* 深色模式变量（统一合并，覆盖系统+手动切换） */
+        :root.dark {
+            --bg-page: #121212;
+            --bg-hero: #1e2238;
+            --bg-announcement: #2a2f4c;
+            --bg-card: #1e1e1e;
+            --bg-search: #2d2d2d;
+            --text-typing: #f3f4f6;
+            --text-main: #f3f4f6;
+            --text-highlight: #818cf8;
+            --logo-filter: invert(1) hue-rotate(180deg) brightness(1.8);
+            /* logo反转调亮 */
+        }
+
+        /* 浅色模式变量（手动切换时覆盖） */
+        :root.light {
+            --logo-filter: none;
+            /* 浅色模式不反转logo */
+        }
+
+        /* 核心布局：外层容器统一留白，内部模块满宽 */
+        .page-wrapper {
+            max-width: 1200px !important;
+            width: 100% !important;
+            padding: 0 1.5rem !important;
+            margin: 0 auto !important;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        /* 内部模块统一满宽无额外边距 */
+        nav.container-fluid,
+        .rules-section,
+        .guidelines-section,
+        .consequences-section {
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* 社区守则页面特定样式 */
+        .rules-hero {
+            background-color: var(--bg-hero);
+            padding: 3rem 1.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+        }
+
+        .rules-hero h1 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .rules-hero p {
+            font-size: 1.2rem;
+            color: var(--text-main);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .section-content {
+            background-color: var(--bg-card);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-content h2 {
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .section-content h3 {
+            color: var(--primary);
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-content p {
+            line-height: 1.8;
+            margin-bottom: 1rem;
+            color: var(--text-main);
+        }
+
+        .section-content ul {
+            margin-bottom: 1.5rem;
+            padding-left: 1.5rem;
+        }
+
+        .section-content li {
+            line-height: 1.8;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        .section-content li strong {
+            color: var(--primary);
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 992px) {
+            .rules-hero {
+                padding: 2rem 1rem;
+            }
+
+            .section-content {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 社区守则页面内容 -->
+    <div class="page-wrapper">
+        <!-- 导入头部 -->
+        <div id="header-container"></div>
+
+        <!-- Hero 区域 -->
+        <div class="rules-hero">
+            <h1>社区守则</h1>
+            <p>为了维护 PureCpp 社区的良好秩序和技术交流环境，我们制定了以下社区守则，请所有成员共同遵守。</p>
+        </div>
+
+        <!-- 总则 -->
+        <div class="section-content rules-section">
+            <h2>总则</h2>
+            <p>PureCpp.cn 是一个专注于 C++ 技术交流的社区，我们致力于打造一个纯粹、专业、友好的技术交流平台。所有社区成员在参与社区活动时，应当遵守以下基本原则：</p>
+            <ul>
+                <li><strong>尊重他人</strong>：尊重每位成员的观点和贡献，不进行人身攻击、歧视或骚扰。</li>
+                <li><strong>专业交流</strong>：保持技术讨论的专业性，避免无关内容和灌水行为。</li>
+                <li><strong>遵守法律</strong>：遵守中华人民共和国相关法律法规，不发布违法违规内容。</li>
+                <li><strong>保护隐私</strong>：尊重他人隐私，不泄露个人信息。</li>
+                <li><strong>友好互助</strong>：积极帮助他人，共同营造良好的社区氛围。</li>
+            </ul>
+        </div>
+
+        <!-- 具体规范 -->
+        <div class="section-content guidelines-section">
+            <h2>具体规范</h2>
+            <h3>1. 内容规范</h3>
+            <ul>
+                <li>发布内容应当与 C++ 技术相关，包括但不限于 C++ 语言特性、编程技巧、项目经验、行业动态等。</li>
+                <li>禁止发布与技术无关的内容，如广告、政治讨论、娱乐八卦等。</li>
+                <li>禁止发布重复内容或无意义的灌水信息。</li>
+                <li>禁止发布虚假信息、谣言或误导性内容。</li>
+                <li>禁止发布侵犯他人知识产权的内容，如未经授权的代码、文章等。</li>
+            </ul>
+
+            <h3>2. 交流规范</h3>
+            <ul>
+                <li>使用文明用语，避免使用粗俗、侮辱性或攻击性语言。</li>
+                <li>尊重不同观点，理性讨论，避免情绪化表达。</li>
+                <li>提问时应当清晰描述问题，提供足够的上下文信息。</li>
+                <li>回答问题时应当认真负责，提供有价值的解决方案。</li>
+                <li>避免过度争论或纠缠于无关细节。</li>
+            </ul>
+
+            <h3>3. 行为规范</h3>
+            <ul>
+                <li>禁止恶意刷屏、捣乱或破坏社区秩序。</li>
+                <li>禁止利用社区进行商业推广或营销活动。</li>
+                <li>禁止注册多个账号进行恶意操作。</li>
+                <li>禁止发布垃圾邮件、恶意链接或病毒等有害内容。</li>
+                <li>禁止模仿或冒充他人身份。</li>
+            </ul>
+
+            <h3>4. 知识产权规范</h3>
+            <ul>
+                <li>发布他人作品时应当注明出处，尊重原作者的知识产权。</li>
+                <li>在社区中分享的代码和文章，应当确保自己拥有相应的权利。</li>
+                <li>引用他人内容时应当遵守相关法律法规和许可协议。</li>
+                <li>禁止剽窃或抄袭他人作品。</li>
+            </ul>
+        </div>
+
+        <!-- 违规处理 -->
+        <div class="section-content consequences-section">
+            <h2>违规处理</h2>
+            <p>对于违反社区守则的行为，社区管理团队有权采取以下处理措施：</p>
+            <ul>
+                <li><strong>警告</strong>：对初次违规或情节较轻的成员进行口头或书面警告。</li>
+                <li><strong>内容删除</strong>：删除违规内容，包括帖子、评论、消息等。</li>
+                <li><strong>账号限制</strong>：限制违规账号的部分功能，如发帖、评论等。</li>
+                <li><strong>账号封禁</strong>：对严重违规或屡教不改的成员进行账号封禁。</li>
+                <li><strong>法律追究</strong>：对于违反法律法规的行为，将移交相关部门处理。</li>
+            </ul>
+            <p>社区管理团队将根据违规行为的性质和情节轻重，采取相应的处理措施。所有处理决定应当公平、公正、公开。</p>
+        </div>
+
+        <!-- 附则 -->
+        <div class="section-content">
+            <h2>附则</h2>
+            <p>1. 本社区守则适用于所有 Purecpp.cn 社区成员，包括注册用户、访客等。</p>
+            <p>2. 社区管理团队有权根据实际情况对本守则进行修改和完善，修改后的守则将在社区公告中发布。</p>
+            <p>3. 所有成员在注册账号或参与社区活动时，即表示同意遵守本社区守则。</p>
+            <p>4. 本守则的最终解释权归 Purecpp.cn 社区管理团队所有。</p>
+            <p>5. 本守则自发布之日起生效。</p>
+        </div>
+    </div>
+
+    <!-- 导入页脚 -->
+    <div id="footer-container"></div>
+
+    <!-- JavaScript 代码 -->
+    <script>
+        // 加载头部和页脚
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载头部
+            fetch('header.html')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('header-container').innerHTML = data;
+                    // 初始化头部的JavaScript功能
+                    initHeader();
+                });
+
+            // 加载页脚
+            fetch('footer.html')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('footer-container').innerHTML = data;
+                    // 初始化页脚的JavaScript功能
+                    initFooter();
+                });
+        });
+
+        // 初始化头部功能
+        function initHeader() {
+            // 移动端菜单切换
+            window.toggleMenu = function() {
+                const navLinks = document.querySelector('.nav-links');
+                navLinks.classList.toggle('active');
+            };
+
+            // 这里可以添加更多头部相关的初始化代码
+        }
+
+        // 初始化页脚功能
+        function initFooter() {
+            // 这里可以添加页脚相关的初始化代码
+        }
+    </script>
+</body>
+
+</html>
