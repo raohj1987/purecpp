@@ -548,10 +548,11 @@ struct log_request_response {
                      << req.full_url();
     // 记录请求体
     auto body = req.get_body();
-    if (!body.empty()) {
+    if (!body.empty() &&
+        req.full_url().find("/login") == std::string_view::npos) {
       CINATRA_LOG_INFO << "[REQUEST BODY]: "
-                       << (body.size() > 1000
-                               ? std::string(body.substr(0, 1000)) + "..."
+                       << (body.size() > 150
+                               ? std::string(body.substr(0, 150)) + "..."
                                : std::string(body));
     }
 
@@ -563,17 +564,15 @@ struct log_request_response {
     // 记录响应信息
     CINATRA_LOG_INFO << "[REQUEST ]" << req.get_method() << " "
                      << req.full_url() << " "
-                     << "Status: " << static_cast<int>(res.status())
-                     << "----------------------------------------";
+                     << "Status: " << static_cast<int>(res.status());
 
     // 记录响应体（只记录前1000个字符以避免日志过长）
     auto body = res.content();
     if (!body.empty()) {
       CINATRA_LOG_INFO << "[RESPONSE BODY]: "
-                       << (body.size() > 1000
-                               ? std::string(body.substr(0, 1000)) + "..."
-                               : std::string(body))
-                       << "----------------------------------------";
+                       << (body.size() > 150
+                               ? std::string(body.substr(0, 150)) + "..."
+                               : std::string(body));
     }
 
     return true; // 继续处理后续操作

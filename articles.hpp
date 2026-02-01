@@ -221,11 +221,9 @@ public:
     }
 
     // 先更新浏览量
-    articles_t article;
-    article.views_count = 1;
-    conn->update_some<&articles_t::views_count>(
-        article, "slug='" + std::string(slug) + "'",
-        "views_count = views_count + 1");
+    conn->execute(
+        "UPDATE `articles` SET views_count = views_count + 1 WHERE slug = '" +
+        std::string(slug) + "'");
 
     // 再获取文章详情
     auto list =

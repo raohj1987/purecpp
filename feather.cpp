@@ -101,11 +101,6 @@ bool init_db() {
 
   conn->create_datatable<tags_t>(ormpp_auto_key{"tag_id"},
                                  ormpp_unique{{"name"}});
-  // std::vector<tags_t> tags{{0, "开源项目"}, {0, "社区活动"}, {0, "元编程"},
-  //                          {0, "代码精粹"}, {0, "技术探讨"}, {0, "语言特性"},
-  //                          {0, "程序人生"}, {0, "并发编程"}, {0,
-  //                          "开发心得"}};
-  // conn->insert(tags);
   conn->create_datatable<article_comments_t>(ormpp_auto_key{"comment_id"});
   conn->create_datatable<articles_t>(ormpp_auto_key{"article_id"},
                                      ormpp_unique{{"slug"}});
@@ -185,6 +180,10 @@ struct question_resp {
 };
 
 int main() {
+  std::shared_ptr<int> log_flush_guard(nullptr, [](auto) { easylog::flush(); });
+  easylog::init_log(easylog::Severity::INFO, "purecpp.log", false, false,
+                    50 * 1024 * 1024, 3);
+
   if (!init_db()) {
     return -1;
   }
