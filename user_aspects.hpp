@@ -89,7 +89,7 @@ std::string cleanup_markdown(const std::string &markdown_text) {
 
   // 3. 清理代码块和行内代码 (```code``` or `code`)
   text = std::regex_replace(text, std::regex("```[\\s\\S]*?```"),
-                            "");                                // 移除代码块
+                            ""); // 移除代码块
   text = std::regex_replace(text, std::regex("`(.*?)`"), "$1"); // 行内代码
 
   // 4. 清理标题 (# H1, ## H2, etc.)
@@ -544,33 +544,16 @@ struct log_request_response {
   // 在请求处理前记录请求信息
   bool before(coro_http_request &req, coro_http_response &res) {
     // 记录请求信息
-    std::ostringstream log_stream;
-
-    // 格式化时间戳
-    auto now = std::chrono::system_clock::now();
-    auto now_c = std::chrono::system_clock::to_time_t(now);
-    auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        now.time_since_epoch() % std::chrono::seconds(1));
-
-    std::tm now_tm = *std::localtime(&now_c);
-
-    log_stream << "[" << std::put_time(&now_tm, "%Y-%m-%d %H:%M:%S") << "."
-               << std::setfill('0') << std::setw(3) << now_ms.count() << "] "
-               << "[REQUEST] " << req.get_method() << " " << req.full_url()
-               << " " << std::endl;
-
+    CINATRA_LOG_INFO << "[REQUEST ]" << req.get_method() << " "
+                     << req.full_url();
     // 记录请求体
     auto body = req.get_body();
     if (!body.empty()) {
-      log_stream << "[REQUEST BODY]: "
-                 << (body.size() > 1000
-                         ? std::string(body.substr(0, 1000)) + "..."
-                         : std::string(body))
-                 << std::endl;
+      CINATRA_LOG_INFO << "[REQUEST BODY]: "
+                       << (body.size() > 1000
+                               ? std::string(body.substr(0, 1000)) + "..."
+                               : std::string(body));
     }
-
-    // 输出日志
-    CINATRA_LOG_INFO << log_stream.str();
 
     return true; // 继续处理请求
   }
@@ -578,36 +561,20 @@ struct log_request_response {
   // 在请求处理后记录响应信息
   bool after(coro_http_request &req, coro_http_response &res) {
     // 记录响应信息
-    std::ostringstream log_stream;
-
-    // 格式化时间戳
-    auto now = std::chrono::system_clock::now();
-    auto now_c = std::chrono::system_clock::to_time_t(now);
-    auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        now.time_since_epoch() % std::chrono::seconds(1));
-
-    std::tm now_tm = *std::localtime(&now_c);
-
-    log_stream << "[" << std::put_time(&now_tm, "%Y-%m-%d %H:%M:%S") << "."
-               << std::setfill('0') << std::setw(3) << now_ms.count() << "] "
-               << "[RESPONSE] " << req.get_method() << " " << req.full_url()
-               << " " << "Status: " << static_cast<int>(res.status())
-               << std::endl;
+    CINATRA_LOG_INFO << "[REQUEST ]" << req.get_method() << " "
+                     << req.full_url() << " "
+                     << "Status: " << static_cast<int>(res.status())
+                     << "----------------------------------------";
 
     // 记录响应体（只记录前1000个字符以避免日志过长）
     auto body = res.content();
     if (!body.empty()) {
-      log_stream << "[RESPONSE BODY]: "
-                 << (body.size() > 1000
-                         ? std::string(body.substr(0, 1000)) + "..."
-                         : std::string(body))
-                 << std::endl;
+      CINATRA_LOG_INFO << "[RESPONSE BODY]: "
+                       << (body.size() > 1000
+                               ? std::string(body.substr(0, 1000)) + "..."
+                               : std::string(body))
+                       << "----------------------------------------";
     }
-
-    log_stream << "----------------------------------------" << std::endl;
-
-    // 输出日志
-    CINATRA_LOG_INFO << log_stream.str();
 
     return true; // 继续处理后续操作
   }

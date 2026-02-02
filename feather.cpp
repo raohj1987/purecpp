@@ -1,3 +1,10 @@
+#include "easylog/easylog.hpp"
+#define CINATRA_LOG_TRACE ELOG_TRACE
+#define CINATRA_LOG_DEBUG ELOG_DEBUG
+#define CINATRA_LOG_INFO ELOG_INFO
+#define CINATRA_LOG_WARNING ELOG_WARN
+#define CINATRA_LOG_ERROR ELOG_ERROR
+
 #include <cinatra.hpp>
 
 #include <algorithm>
