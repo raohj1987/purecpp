@@ -517,5 +517,189 @@ public:
     std::string json = make_success("审核成功");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
+
+  // 获取用户的文章列表
+  void get_my_articles(coro_http_request &req, coro_http_response &resp) {
+    auto body = req.get_body();
+    if (body.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，请求体不能为空"));
+      return;
+    }
+
+    // 解析请求参数
+    struct user_articles_request {
+      uint64_t user_id;
+    };
+
+    user_articles_request request;
+    std::error_code ec;
+    iguana::from_json(request, body, ec);
+    if (ec) {
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("无效的请求参数，JSON格式错误: " + ec.message()));
+      return;
+    }
+
+    // 验证用户ID
+    if (request.user_id == 0) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，用户ID不能为空"));
+      return;
+    }
+
+    // 检查当前用户是否有权限查看
+    auto current_user_id = purecpp::get_user_id_from_token(req);
+    if (current_user_id == 0) {
+      resp.set_status_and_content(status_type::unauthorized,
+                                  make_error("用户未登录或登录已过期"));
+      return;
+    }
+
+    // 只有自己可以查看自己的文章列表
+    if (current_user_id != request.user_id) {
+      resp.set_status_and_content(status_type::forbidden,
+                                  make_error("没有权限查看其他用户的文章"));
+      return;
+    }
+
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
+    if (conn == nullptr) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    // 获取用户的文章列表
+    auto articles_list =
+        conn->select(col(&articles_t::article_id), col(&articles_t::title),
+                     col(&articles_t::abstraction), col(&articles_t::content),
+                     col(&articles_t::slug), col(&articles_t::status),
+                     col(&articles_t::created_at), col(&articles_t::updated_at),
+                     col(&articles_t::views_count),
+                     col(&articles_t::comments_count))
+            .from<articles_t>()
+            .where(col(&articles_t::author_id) == request.user_id &&
+                   col(&articles_t::is_deleted) == 0)
+            .order_by(col(&articles_t::created_at).desc())
+            .collect();
+
+    // 构建响应数据
+    struct user_article_item {
+      uint64_t article_id;
+      std::string title;
+      std::string abstraction;
+      std::string content;
+      std::string slug;
+      std::string status;
+      uint64_t created_at;
+      uint64_t updated_at;
+      uint32_t views_count;
+      uint32_t comments_count;
+    };
+
+    std::vector<user_article_item> response_items;
+    for (const auto &article : articles_list) {
+      user_article_item item{std::get<0>(article),
+                             std::get<1>(article),
+                             std::get<2>(article),
+                             std::get<3>(article),
+                             std::string(std::get<4>(article).data()),
+                             std::get<5>(article),
+                             std::get<6>(article),
+                             std::get<7>(article),
+                             std::get<8>(article),
+                             std::get<9>(article)};
+      response_items.push_back(item);
+    }
+
+    std::string json = make_data(response_items, "获取用户文章列表成功");
+    resp.set_status_and_content(status_type::ok, std::move(json));
+  }
+
+  // 删除文章
+  void delete_my_article(coro_http_request &req, coro_http_response &resp) {
+    auto body = req.get_body();
+    if (body.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，请求体不能为空"));
+      return;
+    }
+
+    // 解析请求参数
+    struct delete_article_request {
+      uint64_t article_id;
+    };
+
+    delete_article_request request;
+    std::error_code ec;
+    iguana::from_json(request, body, ec);
+    if (ec) {
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("无效的请求参数，JSON格式错误: " + ec.message()));
+      return;
+    }
+
+    // 验证文章ID
+    if (request.article_id == 0) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，文章ID不能为空"));
+      return;
+    }
+
+    // 获取当前用户ID
+    auto current_user_id = purecpp::get_user_id_from_token(req);
+    if (current_user_id == 0) {
+      resp.set_status_and_content(status_type::unauthorized,
+                                  make_error("用户未登录或登录已过期"));
+      return;
+    }
+
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
+    if (conn == nullptr) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    // 检查文章是否存在，并且是否是当前用户的文章
+    auto articles =
+        conn->select(col(&articles_t::author_id))
+            .from<articles_t>()
+            .where(col(&articles_t::article_id) == request.article_id &&
+                   col(&articles_t::is_deleted) == 0)
+            .collect();
+
+    if (articles.empty()) {
+      resp.set_status_and_content(status_type::not_found,
+                                  make_error("文章不存在或已被删除"));
+      return;
+    }
+
+    uint64_t article_author_id = std::get<0>(articles.front());
+
+    // 检查当前用户是否是文章作者
+    if (current_user_id != article_author_id) {
+      resp.set_status_and_content(status_type::forbidden,
+                                  make_error("没有权限删除其他用户的文章"));
+      return;
+    }
+
+    // 标记文章为已删除
+    articles_t article;
+    article.is_deleted = true;
+    article.updated_at = get_timestamp_milliseconds();
+
+    int n = conn->update_some<&articles_t::is_deleted, &articles_t::updated_at>(
+        article, "article_id=" + std::to_string(request.article_id));
+
+    if (n == 0) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    std::string json = make_success("文章删除成功");
+    resp.set_status_and_content(status_type::ok, std::move(json));
+  }
 };
 } // namespace purecpp

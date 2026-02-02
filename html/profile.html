@@ -198,10 +198,277 @@
             animation: spin 0.8s linear infinite;
         }
 
+        /* 个人中心布局 */
+        .profile-container {
+            display: flex;
+            flex: 1;
+            gap: 2rem;
+            padding: 2rem 0;
+        }
+
+        /* 左侧菜单栏 */
+        .profile-sidebar {
+            width: 250px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-card);
+            border-radius: 10px 10px 0 0;
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            color: var(--text-main);
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            overflow: hidden;
+        }
+
+        .sidebar-menu li {
+            margin: 0;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 1rem 1.5rem;
+            color: var(--text-main);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .menu-item:hover {
+            background-color: rgba(79, 70, 229, 0.05);
+            color: var(--primary);
+        }
+
+        .menu-item.active {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--primary);
+            border-left-color: var(--primary);
+        }
+
+        .menu-item i {
+            font-size: 1.1rem;
+        }
+
+        /* 右侧内容区域 */
+        .profile-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        /* 文章卡片样式（参考articles.html） */
+        .articles-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .article-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.6rem;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .article-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .article-title {
+            font-size: 1.6rem !important;
+            font-weight: 600;
+            line-height: 1.4;
+            color: var(--text-main);
+            margin-bottom: 0.8rem;
+            color: #4f46e5;
+        }
+
+        .article-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .article-title a:hover {
+            color: var(--primary);
+        }
+
+        .article-excerpt {
+            color: var(--muted-color);
+            line-height: 1.6;
+            margin-bottom: 0.8rem;
+            font-size: 1.0rem;
+        }
+
+        /* 标签 */
+        .article-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            background: var(--primary);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            text-decoration: none;
+        }
+
+        .tag:hover {
+            opacity: 0.9;
+            color: white;
+        }
+
+        /* 文章元信息 */
+        .article-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: var(--muted-color);
+            align-items: center;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .meta-item i {
+            width: 16px;
+        }
+
+        .read-more {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .read-more:hover {
+            text-decoration: underline;
+        }
+
+        /* 评论列表样式 */
+        .comment-item {
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background-color: var(--bg-card);
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .comment-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .comment-meta {
+            font-size: 0.8rem;
+            color: var(--muted-color);
+        }
+
+        .comment-content {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .article-actions,
+        .comment-actions {
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .action-btn {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--input-bg);
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .action-btn.delete {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .action-btn.delete:hover {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .loading-message {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted-color);
+        }
+
+        .empty-message {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted-color);
+        }
+
         /* 响应式适配 */
         @media (max-width: 768px) {
-            .main-container {
-                padding: 1rem;
+            .profile-container {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem 0;
+            }
+
+            .profile-sidebar {
+                width: 100%;
             }
 
             .main-card {
@@ -220,75 +487,122 @@
     <!-- 统一页头占位符 -->
     <div id="header-container"></div>
 
-    <!-- 个人资料容器 -->
-    <div class="main-container">
-        <div class="main-card">
-            <form x-data="profileFormLogic()" @submit.prevent="handleUpdateProfile">
-                <h2>个人资料</h2>
+    <!-- 个人中心容器 -->
+    <div class="profile-container">
+        <!-- 左侧菜单栏 -->
+        <div class="profile-sidebar">
+            <ul class="sidebar-menu">
+                <li>
+                    <a href="#" class="menu-item" data-target="profile-section">
+                        <i class="fas fa-user"></i>
+                        <span>个人资料</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="menu-item" data-target="articles-section">
+                        <i class="fas fa-file-alt"></i>
+                        <span>我的文章</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="menu-item" data-target="comments-section">
+                        <i class="fas fa-comment"></i>
+                        <span>我的评论</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
 
-                <!-- 提示信息 -->
-                <div x-show="message" x-text="message"
-                     :class="messageColor === '#10b981' ? 'success-message' : 'error-message'"
-                     style="margin-bottom: 1rem; text-align: center;">
-                </div>
-
-
-                <!-- 头像上传 -->
-                <div class="form-group">
-                    <label for="avatar-upload">头像</label>
-                    <div style="margin-bottom: 0.5rem; align-items: center;">
-                        <div style="display: flex; align-items: center; gap: 1rem;">
-                            <!-- 头像预览 -->
-                            <div style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 2px solid var(--border-color); cursor: pointer;"
-                                 @click="document.getElementById('avatar-upload').click()" title="修改我的头像">
-                                <img :src="previewAvatar"
-                                     alt="修改我的头像"
-                                     style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;">
-                            </div>
-                            <!-- 隐藏的文件输入 -->
-                            <input type="file" id="avatar-upload" accept="image/*" style="display: none;"
-                                   @change="handleFileUpload">
+        <!-- 右侧内容区域 -->
+        <div class="profile-content">
+            <!-- 个人资料部分 -->
+            <div id="profile-section" class="content-section active">
+                <div class="main-card">
+                    <form x-data="profileFormLogic()" @submit.prevent="handleUpdateProfile">
+                        <!-- 提示信息 -->
+                        <div x-show="message" x-text="message"
+                             :class="messageColor === '#10b981' ? 'success-message' : 'error-message'"
+                             style="margin-bottom: 1rem; text-align: center;">
                         </div>
+
+                        <!-- 头像上传 -->
+                        <div class="form-group">
+                            <label for="avatar-upload">头像</label>
+                            <div style="margin-bottom: 0.5rem; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <!-- 头像预览 -->
+                                    <div style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 2px solid var(--border-color); cursor: pointer;"
+                                         @click="document.getElementById('avatar-upload').click()" title="修改我的头像">
+                                        <img :src="previewAvatar"
+                                             alt="修改我的头像"
+                                             style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;">
+                                    </div>
+                                    <!-- 隐藏的文件输入 -->
+                                    <input type="file" id="avatar-upload" accept="image/*" style="display: none;"
+                                           @change="handleFileUpload">
+                                </div>
+                            </div>
+
+                        </div>
+                        <!-- 个人简介 -->
+                        <div class="form-group">
+                            <label for="bio">个人简介</label>
+                            <textarea id="bio" x-model="profileData.bio" class="form-control"
+                                      placeholder="介绍一下自己..."></textarea>
+                            <div x-show="errors.bio" x-text="errors.bio" class="error-message"></div>
+                        </div>
+
+                        <!-- 所在地 -->
+                        <div class="form-group">
+                            <label for="location">所在地</label>
+                            <input type="text" id="location" x-model="profileData.location" class="form-control"
+                                   placeholder="城市, 国家">
+                            <div x-show="errors.location" x-text="errors.location" class="error-message"></div>
+                        </div>
+
+                        <!-- 技能标签 -->
+                        <div class="form-group">
+                            <label for="skills">技能标签</label>
+                            <input type="text" id="skills" x-model="profileData.skills" class="form-control"
+                                   placeholder="C++, Python, 算法, 分布式系统">
+                            <div x-show="errors.skills" x-text="errors.skills" class="error-message"></div>
+                            <div style="font-size: 0.8rem; color: var(--muted-color); margin-top: 0.3rem;">多个技能用逗号分隔
+                            </div>
+                        </div>
+
+                        <!-- 按钮组 -->
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary" :disabled="loading">
+                                <span x-show="!loading">保存更改</span>
+                                <span x-show="loading" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                                        <span class="loading-spinner"></span>
+                                        <span>保存中...</span>
+                                    </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 我的文章部分 -->
+            <div id="articles-section" class="content-section">
+                <div class="main-card">
+                    <div id="articles-list">
+                        <!-- 文章列表将通过JavaScript动态生成 -->
+                        <div class="loading-message">加载中...</div>
                     </div>
-
                 </div>
-                <!-- 个人简介 -->
-                <div class="form-group">
-                    <label for="bio">个人简介</label>
-                    <textarea id="bio" x-model="profileData.bio" class="form-control"
-                              placeholder="介绍一下自己..."></textarea>
-                    <div x-show="errors.bio" x-text="errors.bio" class="error-message"></div>
-                </div>
+            </div>
 
-                <!-- 所在地 -->
-                <div class="form-group">
-                    <label for="location">所在地</label>
-                    <input type="text" id="location" x-model="profileData.location" class="form-control"
-                           placeholder="城市, 国家">
-                    <div x-show="errors.location" x-text="errors.location" class="error-message"></div>
-                </div>
-
-                <!-- 技能标签 -->
-                <div class="form-group">
-                    <label for="skills">技能标签</label>
-                    <input type="text" id="skills" x-model="profileData.skills" class="form-control"
-                           placeholder="C++, Python, 算法, 分布式系统">
-                    <div x-show="errors.skills" x-text="errors.skills" class="error-message"></div>
-                    <div style="font-size: 0.8rem; color: var(--muted-color); margin-top: 0.3rem;">多个技能用逗号分隔
+            <!-- 我的评论部分 -->
+            <div id="comments-section" class="content-section">
+                <div class="main-card">
+                    <div id="comments-list">
+                        <!-- 评论列表将通过JavaScript动态生成 -->
+                        <div class="loading-message">加载中...</div>
                     </div>
                 </div>
-
-                <!-- 按钮组 -->
-                <div class="btn-group">
-                    <button type="submit" class="btn btn-primary" :disabled="loading">
-                        <span x-show="!loading">保存更改</span>
-                        <span x-show="loading" style="display: inline-flex; align-items: center; gap: 0.5rem;">
-                                <span class="loading-spinner"></span>
-                                <span>保存中...</span>
-                            </span>
-                    </button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
     <!-- 统一页脚占位符 -->
@@ -497,7 +811,218 @@
         // 初始化表单
         const formLogic = profileFormLogic();
         formLogic.init();
+
+        // 初始化菜单切换
+        initMenuToggle();
+
+        // 初始化我的文章
+        loadMyArticles();
+
+        // 初始化我的评论
+        loadMyComments();
     });
+
+    // 菜单切换逻辑
+    function initMenuToggle() {
+        const menuItems = document.querySelectorAll('.menu-item');
+        const contentSections = document.querySelectorAll('.content-section');
+
+        menuItems.forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                // 移除所有菜单项的active类
+                menuItems.forEach(menuItem => menuItem.classList.remove('active'));
+
+                // 添加当前菜单项的active类
+                this.classList.add('active');
+
+                // 隐藏所有内容区域
+                contentSections.forEach(section => section.classList.remove('active'));
+
+                // 显示目标内容区域
+                const targetId = this.getAttribute('data-target');
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) {
+                    targetSection.classList.add('active');
+                }
+            });
+        });
+
+        // 默认激活第一个菜单项
+        if (menuItems.length > 0) {
+            menuItems[0].classList.add('active');
+        }
+    }
+
+    // 加载我的文章
+    async function loadMyArticles() {
+        const articlesList = document.getElementById('articles-list');
+        if (!articlesList) return;
+
+        try {
+            const userInfo = apiService.getUserInfo();
+            const response = await apiService.getMyArticles(userInfo.id);
+
+            if (response.success && response.data) {
+                renderArticlesList(response.data);
+            } else {
+                articlesList.innerHTML = '<div class="empty-message">暂无文章</div>';
+            }
+        } catch (error) {
+            console.error('加载文章失败:', error);
+            articlesList.innerHTML = '<div class="empty-message">加载失败，请稍后重试</div>';
+        }
+    }
+
+    // 渲染文章列表
+    function renderArticlesList(articles) {
+        const articlesList = document.getElementById('articles-list');
+        if (!articlesList) return;
+
+        if (articles.length === 0) {
+            articlesList.innerHTML = '<div class="empty-message">暂无文章</div>';
+            return;
+        }
+
+        const articlesHTML = articles.map(article => `
+            <div class="article-card">
+                <h2 class="article-title">
+                    <a href="/article.html?slug=${article.slug}">${article.title}</a>
+                </h2>
+                <p class="article-excerpt">${article.abstraction || article.content.substring(0, 150)}${(article.abstraction || article.content).length > 150 ? '...' : ''}</p>
+                
+                <!-- 标签列表 -->
+                <div class="article-tags">
+                    ${article.tag_ids ? article.tag_ids.split(',').map(tagId => `<a href="#" class="tag">${tagId}</a>`).join('') : ''}
+                </div>
+
+                <!-- 元信息 -->
+                <div class="article-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-calendar"></i>
+                        <span>${formatDate(article.created_at)}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-eye"></i>
+                        <span>${article.views_count || 0} 阅读</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-comment"></i>
+                        <span>${article.comments_count || 0} 评论</span>
+                    </div>
+                    <a href="/article.html?slug=${article.slug}" class="read-more">阅读全文 →</a>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="article-actions" style="margin-top: 1rem;">
+                    <a href="edit_article.html?id=${article.id}" class="action-btn">编辑</a>
+                    <button class="action-btn delete" onclick="deleteArticle(${article.id})">删除</button>
+                </div>
+            </div>
+        `).join('');
+
+        articlesList.innerHTML = articlesHTML;
+    }
+
+    // 删除文章
+    async function deleteArticle(articleId) {
+        if (!confirm('确定要删除这篇文章吗？')) return;
+
+        try {
+            const response = await apiService.deleteMyArticle(articleId);
+            if (response.success) {
+                // 重新加载文章列表
+                loadMyArticles();
+                alert('文章删除成功');
+            } else {
+                alert('删除失败: ' + (response.message || '未知错误'));
+            }
+        } catch (error) {
+            console.error('删除文章失败:', error);
+            alert('删除失败，请稍后重试');
+        }
+    }
+
+    // 加载我的评论
+    async function loadMyComments() {
+        const commentsList = document.getElementById('comments-list');
+        if (!commentsList) return;
+
+        try {
+            const userInfo = apiService.getUserInfo();
+            const response = await apiService.getMyComments(userInfo.id);
+
+            if (response.success && response.data) {
+                renderCommentsList(response.data);
+            } else {
+                commentsList.innerHTML = '<div class="empty-message">暂无评论</div>';
+            }
+        } catch (error) {
+            console.error('加载评论失败:', error);
+            commentsList.innerHTML = '<div class="empty-message">加载失败，请稍后重试</div>';
+        }
+    }
+
+    // 渲染评论列表
+    function renderCommentsList(comments) {
+        const commentsList = document.getElementById('comments-list');
+        if (!commentsList) return;
+
+        if (comments.length === 0) {
+            commentsList.innerHTML = '<div class="empty-message">暂无评论</div>';
+            return;
+        }
+
+        const commentsHTML = comments.map(comment => `
+            <div class="comment-item">
+                <div class="comment-header">
+                    <div class="comment-meta">
+                        <span>文章: ${comment.article_title}</span>
+                        <span> | </span>
+                        <span>${formatDate(comment.created_at)}</span>
+                    </div>
+                </div>
+                <div class="comment-content">${comment.content}</div>
+                <div class="comment-actions">
+                    <button class="action-btn delete" onclick="deleteComment(${comment.id})">删除</button>
+                </div>
+            </div>
+        `).join('');
+
+        commentsList.innerHTML = commentsHTML;
+    }
+
+    // 删除评论
+    async function deleteComment(commentId) {
+        if (!confirm('确定要删除这条评论吗？')) return;
+
+        try {
+            const response = await apiService.deleteMyComment(commentId);
+            if (response.success) {
+                // 重新加载评论列表
+                loadMyComments();
+                alert('评论删除成功');
+            } else {
+                alert('删除失败: ' + (response.message || '未知错误'));
+            }
+        } catch (error) {
+            console.error('删除评论失败:', error);
+            alert('删除失败，请稍后重试');
+        }
+    }
+
+    // 格式化日期
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
 </script>
 </body>
 </html>

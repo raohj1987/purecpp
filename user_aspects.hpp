@@ -89,7 +89,7 @@ std::string cleanup_markdown(const std::string &markdown_text) {
 
   // 3. 清理代码块和行内代码 (```code``` or `code`)
   text = std::regex_replace(text, std::regex("```[\\s\\S]*?```"),
-                            ""); // 移除代码块
+                            "");                                // 移除代码块
   text = std::regex_replace(text, std::regex("`(.*?)`"), "$1"); // 行内代码
 
   // 4. 清理标题 (# H1, ## H2, etc.)
@@ -544,38 +544,25 @@ struct log_request_response {
   // 在请求处理前记录请求信息
   bool before(coro_http_request &req, coro_http_response &res) {
     // 记录请求信息
-    CINATRA_LOG_INFO << "[REQUEST ]" << req.get_method() << " "
-                     << req.full_url();
-    // 记录请求体
     auto body = req.get_body();
-    if (!body.empty()) {
-      CINATRA_LOG_INFO << "[REQUEST BODY]: "
-                       << (body.size() > 1000
-                               ? std::string(body.substr(0, 1000)) + "..."
-                               : std::string(body));
-    }
-
+    CINATRA_LOG_INFO << "[REQUEST ]" << req.get_method() << req.full_url()
+                     << " Body:"
+                     << (body.size() > 1000
+                             ? std::string(body.substr(0, 1000)) + "..."
+                             : std::string(body));
     return true; // 继续处理请求
   }
 
   // 在请求处理后记录响应信息
   bool after(coro_http_request &req, coro_http_response &res) {
-    // 记录响应信息
-    CINATRA_LOG_INFO << "[REQUEST ]" << req.get_method() << " "
-                     << req.full_url() << " "
-                     << "Status: " << static_cast<int>(res.status())
-                     << "----------------------------------------";
-
-    // 记录响应体（只记录前1000个字符以避免日志过长）
+    // 记录响应信息（只记录前1000个字符以避免日志过长）
     auto body = res.content();
-    if (!body.empty()) {
-      CINATRA_LOG_INFO << "[RESPONSE BODY]: "
-                       << (body.size() > 1000
-                               ? std::string(body.substr(0, 1000)) + "..."
-                               : std::string(body))
-                       << "----------------------------------------";
-    }
-
+    CINATRA_LOG_INFO << "[ RESPONSE ]" << req.get_method() << req.full_url()
+                     << " Status: " << static_cast<int>(res.status())
+                     << " Body:"
+                     << (body.size() > 1000
+                             ? std::string(body.substr(0, 1000)) + "..."
+                             : std::string(body));
     return true; // 继续处理后续操作
   }
 };

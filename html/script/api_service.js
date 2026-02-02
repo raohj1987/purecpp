@@ -559,6 +559,38 @@ class APIService {
         };
         return levelMap[level] || '新手';
     }
+
+    // 获取用户的文章列表
+    async getMyArticles(userId) {
+        return this.request('/api/v1/get_myarticles', {
+            method: 'POST',
+            body: JSON.stringify({user_id: userId})
+        });
+    }
+
+    // 获取用户的评论列表
+    async getMyComments(userId) {
+        return this.request('/api/v1/get_mycomments', {
+            method: 'POST',
+            body: JSON.stringify({user_id: userId})
+        });
+    }
+
+    // 删除文章
+    async deleteMyArticle(articleId) {
+        return this.request('/api/v1/delete_myarticle', {
+            method: 'POST',
+            body: JSON.stringify({article_id: articleId})
+        });
+    }
+
+    // 删除评论
+    async deleteMyComment(commentId) {
+        return this.request('/api/v1/delete_mycomment', {
+            method: 'POST',
+            body: JSON.stringify({comment_id: commentId})
+        });
+    }
 }
 
 // 创建单例实例

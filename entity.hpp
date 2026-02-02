@@ -174,7 +174,7 @@ constexpr std::string_view get_alias_struct_name(articles_t *) {
 
 // 文章评论状态枚举
 enum class CommentStatus : int32_t {
-  TRASH = 0,   // 已删除
+  DELETED = 0, // 已删除
   PUBLISH = 1, // 已发布
 };
 

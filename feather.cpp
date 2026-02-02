@@ -357,7 +357,7 @@ int main() {
         std::string content;
         cinatra::detail::resize(content, 10240);
         while (true) {
-          auto [ec, size] =
+          auto [ec, size] = 
               co_await in_file.async_read(content.data(), content.size());
           if (ec) {
             resp.set_status(status_type::no_content);
@@ -377,5 +377,25 @@ int main() {
           }
         }
       });
+
+  // 用户文章相关路由
+  server.set_http_handler<POST>("/api/v1/get_myarticles",
+                                &articles::get_my_articles, article,
+                                log_request_response{}, check_token{});
+
+  // 用户评论相关路由
+  server.set_http_handler<POST>("/api/v1/get_mycomments",
+                                &articles_comment::get_my_comments, comment,
+                                log_request_response{}, check_token{});
+
+  // 删除文章路由
+  server.set_http_handler<POST>("/api/v1/delete_myarticle",
+                                &articles::delete_my_article, article,
+                                log_request_response{}, check_token{});
+
+  // 删除评论路由
+  server.set_http_handler<POST>("/api/v1/delete_mycomment",
+                                &articles_comment::delete_my_comment, comment,
+                                log_request_response{}, check_token{});
   server.sync_start();
 }
