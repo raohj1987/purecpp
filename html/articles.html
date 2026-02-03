@@ -480,9 +480,6 @@
                 <!-- 单篇文章卡片 -->
                 <article class="article-card">
                     <h2 class="article-title" style="display: flex; align-items: center;">
-                        <span x-show="article.featured_weight === 1" style="margin-right: 10px;" class="elite-title">
-                            【精华】
-                        </span>
                         <!-- 使用 :href 动态绑定链接 -->
                         <a :href="'/article.html?slug=' + article.slug" x-text="article.title"></a>
                     </h2>

@@ -324,12 +324,12 @@
                 <div x-show="currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin')"
                      @click="toggleFeatured()"
                      style="position: fixed; right: 100px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 100;">
-                    <img :src="article.featured_weight === 1 ? 'images/recommend.png' : 'images/recommend.png'"
-                         :style="article.featured_weight === 1 ? 'width: 64px; height: 64px; opacity: 1;' : 'width: 64px; height: 64px; opacity: 0.6;'"
-                         :title="article.featured_weight === 1 ? '取消精华' : '加精华'">
+                    <img :src="article.tag_ids.includes('108') ? 'images/recommend.png' : 'images/recommend.png'"
+                         :style="article.tag_ids.includes('108') ? 'width: 64px; height: 64px; opacity: 1;' : 'width: 64px; height: 64px; opacity: 0.6;'"
+                         :title="article.tag_ids.includes('108') ? '取消精华' : '加精华'">
                 </div>
                 <h1 class="article-title" style="display: flex; align-items: center; justify-content: space-between;">
-                    <span x-text="article.featured_weight === 1 ? '【精华】' + article.title : article.title"></span>
+                    <span x-text="article.title"></span>
                 </h1>
 
                 <div class="article-meta">
@@ -1029,7 +1029,7 @@
 
                 async toggleFeatured() {
                     // 显示确认弹窗
-                    const action = this.article.featured_weight === 1 ? '取消精华' : '加精华';
+                    const action = this.article.tag_ids.includes('108') ? '取消精华' : '加精华';
                     if (!(await showConfirm(`确定要【${action}】这篇文章吗？`))) {
                         return; // 用户取消操作
                     }
@@ -1038,7 +1038,7 @@
                         const response = await apiService.toggleFeatured(this.slug);
                         if (response.success) {
                             // 更新本地文章的featured_weight值
-                            this.article.featured_weight = this.article.featured_weight === 1 ? 0 : 1;
+                            this.article.tag_ids.includes('108') ? this.article.tag_ids.replace('108', '') : this.article.tag_ids += '|108';
                             await showAlert(response.message);
                         }
                     } catch (error) {

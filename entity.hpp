@@ -162,7 +162,7 @@ struct articles_t {
   uint32_t comments_count;
   uint64_t reviewer_id;       // 审核人id 外键
   std::string review_comment; // 审核意见
-  int featured_weight;        // 置顶，精华
+  int featured_weight;        // 置顶
   uint64_t review_date;       // 审核完成时间
   std::string status;         // 状态：draft(草稿), pending_review (待审核),
                               // published(已发布), rejected (已拒绝)

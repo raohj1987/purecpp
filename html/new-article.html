@@ -364,10 +364,10 @@
 
                     if (isAdmin) {
                         // 管理员可以看到所有标签
-                        this.filteredTags = this.tags;
+                        this.filteredTags = this.tags.filter(tag => tag.tag_id !== 108);
                     } else {
                         // 非管理员只能看到tag_group不为2的标签
-                        this.filteredTags = this.tags.filter(tag => tag.tag_group !== 2);
+                        this.filteredTags = this.tags.filter(tag => tag.tag_group !== 2).filter(tag => tag.tag_id !== 108);
                     }
                 },
 

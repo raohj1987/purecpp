@@ -226,11 +226,9 @@ public:
     }
 
     // 先更新浏览量
-    articles_t article;
-    article.views_count = 1;
-    conn->update_some<&articles_t::views_count>(
-        article, "slug='" + std::string(slug) + "'",
-        "views_count = views_count + 1");
+    conn->execute(
+        "UPDATE `articles` SET views_count = views_count + 1 WHERE slug = '" +
+        std::string(slug) + "'");
 
     // 再获取文章详情
     auto list =
@@ -395,9 +393,7 @@ public:
             .where(where_cond);
     size_t limit = per_page;
     size_t offset = (page - 1) * per_page;
-    auto list = select_cond
-                    .order_by(col(&articles_t::featured_weight).desc(),
-                              col(&articles_t::created_at).desc())
+    auto list = select_cond.order_by(col(&articles_t::created_at).desc())
                     .limit(ormpp::token)
                     .offset(ormpp::token)
                     .collect<article_list>(limit, offset);
@@ -469,8 +465,7 @@ public:
             .from<articles_t>()
             .inner_join(col(&articles_t::author_id), col(&users_t::id))
             .where(where_cond)
-            .order_by(col(&articles_t::featured_weight).desc(),
-                      col(&articles_t::created_at).desc())
+            .order_by(col(&articles_t::created_at).desc())
             .limit(ormpp::token)
             .offset(ormpp::token)
             .collect<pending_article_list>(limit, offset);
@@ -654,8 +649,7 @@ public:
                      col(&articles_t::review_comment))
             .from<articles_t>()
             .where(where_cond)
-            .order_by(col(&articles_t::featured_weight).desc(),
-                      col(&articles_t::created_at).desc())
+            .order_by(col(&articles_t::created_at).desc())
             .limit(ormpp::token)
             .offset(ormpp::token)
             .collect<user_article_item>(limit, offset);
@@ -839,8 +833,7 @@ public:
             .from<articles_t>()
             .inner_join(col(&articles_t::author_id), col(&users_t::id))
             .where(where_cond)
-            .order_by(col(&articles_t::featured_weight).desc(),
-                      col(&articles_t::created_at).desc())
+            .order_by(col(&articles_t::created_at).desc())
             .limit(ormpp::token)
             .offset(ormpp::token)
             .collect<article_list>(limit, offset);
@@ -941,8 +934,7 @@ public:
             .from<articles_t>()
             .inner_join(col(&articles_t::author_id), col(&users_t::id))
             .where(where_cond)
-            .order_by(col(&articles_t::featured_weight).desc(),
-                      col(&articles_t::created_at).desc())
+            .order_by(col(&articles_t::created_at).desc())
             .limit(ormpp::token)
             .offset(ormpp::token)
             .collect<article_list>(limit, offset);
@@ -1012,7 +1004,7 @@ public:
     }
 
     // 获取当前文章的featured_weight值
-    auto article_vect = conn->select(col(&articles_t::featured_weight))
+    auto article_vect = conn->select(col(&articles_t::tag_ids))
                             .from<articles_t>()
                             .where(col(&articles_t::slug) == request.slug &&
                                    col(&articles_t::is_deleted) == 0)
@@ -1023,16 +1015,30 @@ public:
       return;
     }
 
-    int current_weight = std::get<0>(article_vect.front());
-    int new_weight = (current_weight == 0) ? 1 : 0;
+    std::string current_tag_ids = std::get<0>(article_vect.front());
+    std::string new_tag_ids = current_tag_ids;
+    if (current_tag_ids.find("108") != std::string::npos) {
+      new_tag_ids.erase(new_tag_ids.find("108"), 3);
+    } else {
+      new_tag_ids += ((current_tag_ids.length() > 0 &&
+                       current_tag_ids.at(current_tag_ids.length() - 1) == '|')
+                          ? "108"
+                          : "|108");
+    }
 
-    // 更新featured_weight值
+    if (new_tag_ids.length() < 3) {
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("文章只有‘社区精华’标签，不能取消精华，文章标签不能为空"));
+      return;
+    }
+
+    // 更新tag_ids值
     articles_t article;
-    article.featured_weight = new_weight;
+    article.tag_ids = new_tag_ids;
     article.updated_at = get_timestamp_milliseconds();
 
-    int n = conn->update_some<&articles_t::featured_weight,
-                              &articles_t::updated_at>(
+    int n = conn->update_some<&articles_t::tag_ids, &articles_t::updated_at>(
         article, "slug='" + request.slug + "'");
 
     if (n == 0) {
@@ -1040,8 +1046,9 @@ public:
       return;
     }
 
-    std::string message =
-        (new_weight == 1) ? "文章已成功加精华" : "文章已取消精华";
+    std::string message = (new_tag_ids.find("108") != std::string::npos)
+                              ? "文章已成功加精华"
+                              : "文章已取消精华";
     std::string json = make_success(message);
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
