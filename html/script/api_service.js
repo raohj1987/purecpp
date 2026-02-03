@@ -381,10 +381,13 @@ class APIService {
     }
 
     // 获取文章列表
-    async getArticles(page = 1, perPage = 10, tagId = 0, userId = 0) {
+    async getArticles(page = 1, perPage = 10, tagId = 0, userId = 0, search = '') {
         const requestData = {current_page: page, per_page: perPage, tag_id: tagId, user_id: userId};
         if (userId > 0) {
             requestData.user_id = userId;
+        }
+        if (search) {
+            requestData.search = search;
         }
         return this.request('/api/v1/get_articles', {
             method: 'POST',
@@ -400,33 +403,35 @@ class APIService {
     }
 
     // 创建新文章
-    async createArticle(title, excerpt, content, tagId) {
+    async createArticle(title, excerpt, content, tagIds) {
         return this.request('/api/v1/new_article', {
             method: 'POST',
-            body: JSON.stringify({title, excerpt, content, tag_id: tagId})
+            body: JSON.stringify({title, excerpt, content, tag_ids: tagIds})
         });
     }
 
     // 编辑文章
-    async editArticle(slug, title, excerpt, content, tagId, username) {
+    async editArticle(slug, title, excerpt, content, tagIds, username) {
         return this.request('/api/v1/edit_article', {
             method: 'POST',
-            body: JSON.stringify({slug, title, excerpt, content, tag_id: tagId, username})
+            body: JSON.stringify({slug, title, excerpt, content, tag_ids: tagIds, username})
         });
     }
 
     // 获取待审核文章
-    async getPendingArticles() {
+    async getPendingArticles(search = '', page = 1, perPage = 10) {
+        const requestData = {search, current_page: page, per_page: perPage};
         return this.request('/api/v1/get_pending_articles', {
-            method: 'GET'
+            method: 'POST',
+            body: JSON.stringify(requestData)
         });
     }
 
     // 审核文章
-    async reviewArticle(reviewer_name, slug, review_status) {
+    async reviewArticle(reviewer_name, slug, review_status, review_comment = '') {
         return this.request('/api/v1/review_pending_article', {
             method: 'POST',
-            body: JSON.stringify({reviewer_name, slug, review_status})
+            body: JSON.stringify({reviewer_name, slug, review_status, review_comment})
         });
     }
 
@@ -554,6 +559,62 @@ class APIService {
             10: '不朽'
         };
         return levelMap[level] || '新手';
+    }
+
+    // 获取用户的文章列表
+    async getMyArticles(userId, page = 1, perPage = 10) {
+        return this.request('/api/v1/get_myarticles', {
+            method: 'POST',
+            body: JSON.stringify({user_id: userId, current_page: page, per_page: perPage})
+        });
+    }
+
+    // 获取用户的评论列表
+    async getMyComments(userId, page = 1, perPage = 10) {
+        return this.request('/api/v1/get_mycomments', {
+            method: 'POST',
+            body: JSON.stringify({user_id: userId, current_page: page, per_page: perPage})
+        });
+    }
+
+    // 删除文章
+    async deleteMyArticle(articleId) {
+        return this.request('/api/v1/delete_myarticle', {
+            method: 'POST',
+            body: JSON.stringify({article_id: articleId})
+        });
+    }
+
+    // 删除评论
+    async deleteMyComment(commentId) {
+        return this.request('/api/v1/delete_mycomment', {
+            method: 'POST',
+            body: JSON.stringify({comment_id: commentId})
+        });
+    }
+
+    // 文章加精华/取消精华
+    async toggleFeatured(slug) {
+        return this.request('/api/v1/toggle_featured', {
+            method: 'POST',
+            body: JSON.stringify({slug})
+        });
+    }
+
+    // 获取社区服务文章列表
+    async getCommunityServiceArticles(page = 1, perPage = 10) {
+        return this.request('/api/v1/get_community_service_articles', {
+            method: 'POST',
+            body: JSON.stringify({current_page: page, per_page: perPage})
+        });
+    }
+
+    // 获取purecpp大会文章列表
+    async getPurecppConferenceArticles(page = 1, perPage = 10) {
+        return this.request('/api/v1/get_purecpp_conference_articles', {
+            method: 'POST',
+            body: JSON.stringify({current_page: page, per_page: perPage})
+        });
     }
 }
 

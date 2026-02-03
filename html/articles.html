@@ -20,6 +20,7 @@
             --muted-color: #6b7280;
             --bg-page: #ffffff;
             --bg-card: #ffffff;
+            --bg-search: #ffffff;
             --text-main: #333;
             --text-highlight: var(--primary);
         }
@@ -29,6 +30,7 @@
             :root {
                 --bg-page: #121212;
                 --bg-card: #1e1e1e;
+                --bg-search: #2d2d2d;
                 --text-main: #f3f4f6;
                 --text-highlight: #818cf8;
                 --border-color: #374151;
@@ -385,6 +387,66 @@
             margin-bottom: 0;
             color: var(--text-highlight);
         }
+
+        /* 搜索框样式 */
+        .search-box {
+            position: relative;
+            min-width: 300px;
+            height: 36px;
+        }
+
+        .search-box input {
+            border: 1px solid var(--border-color) !important;
+            border-radius: 4px !important;
+            margin: 0 !important;
+            padding: 0.375rem 2rem 0.375rem 0.5rem !important;
+            font-size: 0.85rem !important;
+            background: var(--bg-search) !important;
+            width: 100% !important;
+            height: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted-color);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 0.25rem;
+            border-radius: 3px;
+        }
+
+        .search-icon:hover {
+            color: var(--primary);
+            background: rgba(79, 70, 229, 0.1);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        /* 移动端搜索框调整 */
+        @media (max-width: 768px) {
+            .search-box {
+                min-width: 100% !important;
+                width: 100% !important;
+                height: 38px;
+            }
+
+            .search-box input {
+                font-size: 16px !important;
+            }
+        }
+
+        /* 精华文章标题样式 */
+        .elite-title {
+            font-size: 24px;
+            font-weight: 600;
+            /* color: #FFC107; */
+            /* 超小模糊半径，仅轻微提亮，几乎不显眼但能区分普通标题 */
+            text-shadow: 0 0 2px rgba(255, 215, 0, 0.4), 0 0 4px rgba(255, 193, 7, 0.2);
+        }
     </style>
 </head>
 
@@ -406,20 +468,32 @@
                 </div>
 
                 <p class="page-description">分享现代C++、系统编程、性能优化等前沿技术</p>
+
+                <!-- 搜索框 -->
+                <div class="search-box" style="margin-top: 1rem;">
+                    <input type="text" placeholder="搜索文章标题和内容..." x-model="searchKeyword"
+                           @keyup.enter="performSearch">
+                    <i class="fas fa-search search-icon" @click="performSearch"></i>
+                </div>
             </div>
             <template x-for="article in articles" :key="article.slug">
                 <!-- 单篇文章卡片 -->
                 <article class="article-card">
-                    <h2 class="article-title">
+                    <h2 class="article-title" style="display: flex; align-items: center;">
                         <!-- 使用 :href 动态绑定链接 -->
                         <a :href="'/article.html?slug=' + article.slug" x-text="article.title"></a>
                     </h2>
                     <p class="article-excerpt" x-text="article.summary"></p>
-
                     <!-- 标签列表循环 -->
                     <div class="article-tags">
-                        <a href="#" class="tag" x-text="article.tag_name"
-                           @click.prevent="filterByTag(article.tag_name)"></a>
+                        <template x-if="article.tag_ids">
+                            <template x-for="tagId in article.tag_ids.split('|')" :key="tagId">
+                                <template x-if="getTagName(tagId)">
+                                    <a href="#" class="tag" x-text="getTagName(tagId)"
+                                       @click.prevent="filterByTag(getTagName(tagId))"></a>
+                                </template>
+                            </template>
+                        </template>
                     </div>
 
                     <!-- 元信息绑定 -->
@@ -506,9 +580,14 @@
                 currentTag: null,
                 currentUserId: 0,
                 tags: [],
+                searchKeyword: '',
+                initialized: false,
 
                 // 初始化
                 async init() {
+                    if (this.initialized) {
+                        return;
+                    }
                     await this.fetchTags();
 
                     // 从URL中解析参数
@@ -516,6 +595,9 @@
                     const tagId = parseInt(urlParams.get('tag_id')) || 0;
                     const userId = parseInt(urlParams.get('user_id')) || 0;
                     const page = parseInt(urlParams.get('page')) || 1;
+                    const search = urlParams.get('search') || '';
+
+                    this.searchKeyword = search;
 
                     // 根据tag_id查找标签名称
                     let tag = null;
@@ -526,7 +608,8 @@
                         }
                     }
 
-                    this.fetchArticles(page, tag, userId);
+                    this.fetchArticles(page, tag, userId, search);
+                    this.initialized = true;
                 },
 
                 async fetchTags() {
@@ -538,7 +621,7 @@
                     }
                 },
 
-                async fetchArticles(page = 1, tag = null, userId = 0) {
+                async fetchArticles(page = 1, tag = null, userId = 0, search = '') {
                     this.currentPage = page;
                     this.currentTag = tag;
                     this.currentUserId = userId;
@@ -556,7 +639,7 @@
                         }
 
                         // 使用apiService获取文章列表
-                        const response = await apiService.getArticles(page, 10, tagId, userId);
+                        const response = await apiService.getArticles(page, 10, tagId, userId, search);
                         this.articles = response.data;
                         // 从响应中获取总记录数
                         this.totalArticles = response.total_count || 0;
@@ -570,6 +653,21 @@
                     }
                 },
 
+                performSearch() {
+                    const keyword = this.searchKeyword.trim();
+                    // 更新URL参数
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (keyword) {
+                        urlParams.set('search', keyword);
+                    } else {
+                        urlParams.delete('search');
+                    }
+                    urlParams.set('page', 1); // 重置为第一页
+                    window.history.pushState({}, '', `?${urlParams.toString()}`);
+
+                    this.fetchArticles(1, this.currentTag, this.currentUserId, keyword);
+                },
+
                 filterByTag(tag) {
                     // 根据标签名称查找标签ID
                     const tagObj = this.tags.find(t => t.name === tag);
@@ -580,9 +678,13 @@
                     urlParams.set('tag_id', tagId);
                     urlParams.set('page', 1); // 重置为第一页
                     urlParams.delete('user_id'); // 清除用户筛选
+                    // 保留搜索参数
+                    if (this.searchKeyword) {
+                        urlParams.set('search', this.searchKeyword);
+                    }
                     window.history.pushState({}, '', `?${urlParams.toString()}`);
 
-                    this.fetchArticles(1, tag);
+                    this.fetchArticles(1, tag, this.currentUserId, this.searchKeyword);
                 },
 
                 filterByAuthor(userId, authorName) {
@@ -591,14 +693,24 @@
                     urlParams.set('user_id', userId);
                     urlParams.set('page', 1); // 重置为第一页
                     urlParams.delete('tag_id'); // 清除标签筛选
+                    // 保留搜索参数
+                    if (this.searchKeyword) {
+                        urlParams.set('search', this.searchKeyword);
+                    }
                     window.history.pushState({}, '', `?${urlParams.toString()}`);
 
-                    this.fetchArticles(1, null, userId);
+                    this.fetchArticles(1, this.currentTag, userId, this.searchKeyword);
                 },
 
                 formatDate(timestamp) {
                     if (!timestamp) return '';
                     return formatTimestamp(timestamp);
+                },
+
+                // 根据标签ID获取标签名称
+                getTagName(tagId) {
+                    const tag = this.tags.find(t => t.tag_id == tagId);
+                    return tag ? tag.name : '';
                 },
             }
         }
@@ -680,15 +792,14 @@
                         // 更新 URL 参数
                         const urlParams = new URLSearchParams(window.location.search);
                         urlParams.set('page', page);
-                        // 保留tag_id和user_id参数
+                        // 保留tag_id、user_id和search参数
                         window.history.pushState({}, '', `?${urlParams.toString()}`);
                         // 触发文章列表的刷新
                         console.log("Navigating to page:", page);
-                        // 调用 articleComponent 的 fetchArticles 方法
                         const articleComponent = document.querySelector('.articles-list')._x_dataStack[0];
                         if (articleComponent) {
-                            // 传递当前标签和用户ID
-                            articleComponent.fetchArticles(page, articleComponent.currentTag, articleComponent.currentUserId);
+                            // 传递当前标签、用户ID和搜索关键词
+                            articleComponent.fetchArticles(page, articleComponent.currentTag, articleComponent.currentUserId, articleComponent.searchKeyword);
                         }
                     }
                 }

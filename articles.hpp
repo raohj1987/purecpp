@@ -1,5 +1,6 @@
 #pragma once
 
+#include "articles_dto.hpp"
 #include "common.hpp"
 #include "user_aspects.hpp"
 
@@ -12,7 +13,7 @@ struct client_artilce {
   std::string_view title;
   std::string_view excerpt;
   std::string_view content;
-  int tag_id;
+  std::string_view tag_ids;
 };
 
 struct article_page_request {
@@ -20,28 +21,30 @@ struct article_page_request {
   int user_id = 0; // 0表示所有用户
   int current_page;
   int per_page;
+  std::string search; // 搜索关键词
 };
 
 struct article_list {
   std::string title;
   std::string summary;
-  std::array<char, 8> slug;
-  std::array<char, 21> author_name;
+  std::string slug;
+  std::string author_name;
   int author_id;
-  std::array<char, 50> tag_name;
+  std::string tag_ids;
   uint64_t created_at;
   uint64_t updated_at;
   uint32_t views_count;
   uint32_t comments_count;
+  int featured_weight;
 };
 
 struct pending_article_list {
   std::string title;
   std::string summary;
   std::string content;
-  std::array<char, 8> slug;
-  std::array<char, 21> author_name;
-  std::array<char, 50> tag_name;
+  std::string slug;
+  std::string author_name;
+  std::string tag_ids;
   uint64_t created_at;
   uint64_t updated_at;
   uint32_t views_count;
@@ -55,23 +58,25 @@ struct review_opinion {
   std::string reviewer_name;
   std::string slug;
   std::string review_status;
+  std::string review_comment; // 审核内容
 };
 
 struct article_detail {
   std::string title;
   std::string summary;
   std::string content;
-  std::array<char, 21> author_name;
-  std::array<char, 50> tag_name;
+  std::string author_name;
+  std::string tag_ids;
   uint64_t created_at;
   uint64_t updated_at;
   uint32_t views_count;
   uint32_t comments_count;
+  int featured_weight;
 };
 
 struct comments {
-  std::array<char, 21> author_name;
-  std::array<char, 21> parant_name;
+  std::string author_name;
+  std::string parant_name;
   std::string_view content;
   uint64_t created_at;
   uint64_t updated_at;
@@ -150,9 +155,9 @@ public:
     }
 
     // 验证标签ID
-    if (art.tag_id <= 0) {
+    if (art.tag_ids.empty()) {
       resp.set_status_and_content(status_type::bad_request,
-                                  make_error("无效的标签ID"));
+                                  make_error("请至少选择一个标签"));
       return;
     }
 
@@ -165,7 +170,7 @@ public:
     }
 
     articles_t article{};
-    article.tag_id = art.tag_id;
+    article.tag_ids = art.tag_ids;
     article.title = art.title;
     article.abstraction = art.excerpt;
     article.content = art.content;
@@ -229,13 +234,13 @@ public:
     auto list =
         conn->select(col(&articles_t::title), col(&articles_t::abstraction),
                      col(&articles_t::content), col(&users_t::user_name),
-                     col(&tags_t::name), col(&articles_t::created_at),
+                     col(&articles_t::tag_ids), col(&articles_t::created_at),
                      col(&articles_t::updated_at),
                      col(&articles_t::views_count),
-                     col(&articles_t::comments_count))
+                     col(&articles_t::comments_count),
+                     col(&articles_t::featured_weight))
             .from<articles_t>()
             .inner_join(col(&articles_t::author_id), col(&users_t::id))
-            .inner_join(col(&articles_t::tag_id), col(&tags_t::tag_id))
             .where(col(&articles_t::slug).param() &&
                    col(&articles_t::is_deleted) == 0)
             .collect<article_detail>(slug);
@@ -258,21 +263,27 @@ public:
       return;
     }
 
+    // 文章编辑以后，上次审核结果也删掉
     articles_t article{};
-    article.tag_id = info.tag_id;
+    article.tag_ids = info.tag_ids;
     article.title = info.title;
     article.abstraction = info.excerpt;
     article.content = info.content;
     article.status = PENDING_REVIEW.data();
+    article.reviewer_id = 0;
+    article.review_comment = "";
+    article.review_date = 0;
     article.updated_at = get_timestamp_milliseconds();
 
     // 使用安全的字符串拼接，避免SQL注入风险
     std::string slug = "slug='";
     slug.append(info.slug).append("'");
-    int n = conn->update_some<&articles_t::tag_id, &articles_t::title,
-                              &articles_t::abstraction, &articles_t::content,
-                              &articles_t::status, &articles_t::updated_at>(
-        article, slug);
+    int n =
+        conn->update_some<&articles_t::tag_ids, &articles_t::title,
+                          &articles_t::abstraction, &articles_t::content,
+                          &articles_t::status, &articles_t::reviewer_id,
+                          &articles_t::review_comment, &articles_t::review_date,
+                          &articles_t::updated_at>(article, slug);
 
     if (n == 0) {
       set_server_internel_error(resp);
@@ -309,37 +320,77 @@ public:
     if (page_req.per_page > 0 && page_req.per_page <= 50) { // 限制每页最多50条
       per_page = page_req.per_page;
     }
-    // 获取文章列表
+
+    // 查询TECH_ARTICLES分组下的所有标签ID
+    auto tech_articles_tags =
+        conn->select(col(&tags_t::tag_id))
+            .from<tags_t>()
+            .where(col(&tags_t::tag_group) ==
+                   static_cast<int>(TagGroupType::TECH_ARTICLES))
+            .collect();
+
+    if (tech_articles_tags.empty()) {
+      // 如果没有TECH_ARTICLES分组的标签，则返回空列表
+      std::string json =
+          make_data(std::vector<article_list>(), "获取文章列表成功", 0);
+      resp.set_status_and_content(status_type::ok, std::move(json));
+      return;
+    }
+
+    // 构建查询条件：文章已发布且未删除，并且tag_ids包含至少一个TECH_ARTICLES分组的标签
     auto where_cond = col(&articles_t::is_deleted) == 0 &&
                       col(&articles_t::status) == PUBLISHED.data();
+
+    // 构建标签ID的OR条件
+    bool first = true;
+    for (const auto &tag : tech_articles_tags) {
+      int tag_id = std::get<0>(tag);
+      if (first) {
+        where_cond =
+            where_cond &&
+            col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
+        first = false;
+      } else {
+        where_cond =
+            where_cond ||
+            col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
+      }
+    }
+
+    // tag_ids字段存储多个标签
     if (page_req.tag_id > 0) {
-      where_cond = where_cond && (col(&articles_t::tag_id) == page_req.tag_id);
+      where_cond = where_cond &&
+                   (col(&articles_t::tag_ids)
+                        .like("%" + std::to_string(page_req.tag_id) + "%"));
     }
     if (page_req.user_id > 0) {
       where_cond =
           where_cond && (col(&articles_t::author_id) == page_req.user_id);
     }
-    auto select_cond =
-        conn->select(col(&articles_t::title), col(&articles_t::abstraction),
-                     col(&articles_t::slug), col(&users_t::user_name),
-                     col(&articles_t::author_id), col(&tags_t::name),
-                     col(&articles_t::created_at), col(&articles_t::updated_at),
-                     col(&articles_t::views_count),
-                     col(&articles_t::comments_count))
-            .from<articles_t>()
-            .inner_join(col(&articles_t::author_id), col(&users_t::id))
-            .inner_join(col(&articles_t::tag_id), col(&tags_t::tag_id))
-            .where(where_cond);
-
+    // 搜索功能
+    if (!page_req.search.empty()) {
+      std::string search_pattern = "%" + page_req.search + "%";
+      where_cond = where_cond && col(&articles_t::content).like(search_pattern);
+    }
     // 计算总记录数(根据查询条件)
     size_t total_count =
         conn->select(ormpp::count())
             .from<articles_t>()
             .inner_join(col(&articles_t::author_id), col(&users_t::id))
-            .inner_join(col(&articles_t::tag_id), col(&tags_t::tag_id))
             .where(where_cond)
             .collect();
 
+    auto select_cond =
+        conn->select(col(&articles_t::title), col(&articles_t::abstraction),
+                     col(&articles_t::slug), col(&users_t::user_name),
+                     col(&articles_t::author_id), col(&articles_t::tag_ids),
+                     col(&articles_t::created_at), col(&articles_t::updated_at),
+                     col(&articles_t::views_count),
+                     col(&articles_t::comments_count),
+                     col(&articles_t::featured_weight))
+            .from<articles_t>()
+            .inner_join(col(&articles_t::author_id), col(&users_t::id))
+            .where(where_cond);
     size_t limit = per_page;
     size_t offset = (page - 1) * per_page;
     auto list = select_cond.order_by(col(&articles_t::created_at).desc())
@@ -366,25 +417,61 @@ public:
 
     size_t limit = 20; // will update, it's from web front end.
     size_t offset = 0; // will update, it's from web front end.
+    std::string search;
+
+    // 从请求体中获取分页和搜索参数
+    auto body = req.get_body();
+    if (!body.empty()) {
+      article_page_request page_req{};
+      std::error_code ec;
+      iguana::from_json(page_req, body, ec);
+      if (!ec) {
+        if (page_req.per_page > 0 &&
+            page_req.per_page <= 50) { // 限制每页最多50条
+          limit = page_req.per_page;
+        }
+        if (page_req.current_page > 0) {
+          offset = (page_req.current_page - 1) * limit;
+        }
+        search = page_req.search;
+      }
+    }
+
+    // 构建查询条件
+    auto where_cond = col(&articles_t::is_deleted) == 0 &&
+                      col(&articles_t::status) == PENDING_REVIEW.data();
+
+    // 搜索功能
+    if (!search.empty()) {
+      std::string search_pattern = "%" + search + "%";
+      where_cond = where_cond && col(&articles_t::content).like(search_pattern);
+    }
+
+    // 计算总记录数
+    size_t total_count =
+        conn->select(ormpp::count())
+            .from<articles_t>()
+            .inner_join(col(&articles_t::author_id), col(&users_t::id))
+            .where(where_cond)
+            .collect();
 
     auto list =
         conn->select(col(&articles_t::title), col(&articles_t::abstraction),
                      col(&articles_t::content), col(&articles_t::slug),
-                     col(&users_t::user_name), col(&tags_t::name),
+                     col(&users_t::user_name), col(&articles_t::tag_ids),
                      col(&articles_t::created_at), col(&articles_t::updated_at),
                      col(&articles_t::views_count),
                      col(&articles_t::comments_count))
             .from<articles_t>()
             .inner_join(col(&articles_t::author_id), col(&users_t::id))
-            .inner_join(col(&articles_t::tag_id), col(&tags_t::tag_id))
-            .where(col(&articles_t::is_deleted) == 0 &&
-                   col(&articles_t::status) == PENDING_REVIEW.data())
+            .where(where_cond)
             .order_by(col(&articles_t::created_at).desc())
             .limit(ormpp::token)
             .offset(ormpp::token)
             .collect<pending_article_list>(limit, offset);
 
-    std::string json = make_data(std::move(list));
+    std::string json =
+        make_data(std::move(list), "获取待审核文章列表成功", total_count);
     if (json.empty()) {
       set_server_internel_error(resp);
       return;
@@ -401,9 +488,9 @@ public:
       return;
     }
 
-    review_opinion op{};
+    review_opinion request{};
     std::error_code ec;
-    iguana::from_json(op, body, ec);
+    iguana::from_json(request, body, ec);
     if (ec) {
       resp.set_status_and_content(status_type::bad_request,
                                   make_error("无效的请求参数，JSON格式错误"));
@@ -439,15 +526,16 @@ public:
       return;
     }
     // 检查审核人名称是否匹配
-    if (op.reviewer_name.empty() &&
-        strcmp(op.reviewer_name.data(), review_user.user_name.data()) != 0) {
+    if (request.reviewer_name.empty() &&
+        strcmp(request.reviewer_name.data(), review_user.user_name.data()) !=
+            0) {
       resp.set_status_and_content(status_type::bad_request,
                                   make_error("无效的请求参数，审核人不能为空"));
       return;
     }
     // 检查审核结论
-    if (op.review_status != REVIEW_ACCEPTED &&
-        op.review_status != REVIEW_REJECTED) {
+    if (request.review_status != REVIEW_ACCEPTED &&
+        request.review_status != REVIEW_REJECTED) {
       resp.set_status_and_content(status_type::bad_request,
                                   make_error("无效的请求参数，审核状态必须是" +
                                              std::string(REVIEW_ACCEPTED) +
@@ -456,22 +544,512 @@ public:
       return;
     }
 
+    // 更新最近一次审核状态及意见
     articles_t article{};
     article.reviewer_id = review_user.id;
     article.review_date = get_timestamp_milliseconds();
-    article.status = op.review_status == REVIEW_ACCEPTED ? PUBLISHED : REJECTED;
+    article.review_comment = request.review_comment;
+    article.status =
+        request.review_status == REVIEW_ACCEPTED ? PUBLISHED : REJECTED;
 
     // 使用安全的字符串拼接，避免SQL注入风险
     std::string slug = "slug='";
-    slug.append(op.slug).append("'");
+    slug.append(request.slug).append("'");
     int n =
         conn->update_some<&articles_t::reviewer_id, &articles_t::review_date,
-                          &articles_t::status>(article, slug);
+                          &articles_t::review_comment, &articles_t::status>(
+            article, slug);
     if (n == 0) {
       set_server_internel_error(resp);
       return;
     }
     std::string json = make_success("审核成功");
+    resp.set_status_and_content(status_type::ok, std::move(json));
+  }
+
+  // 获取用户的文章列表
+  void get_my_articles(coro_http_request &req, coro_http_response &resp) {
+    auto body = req.get_body();
+    if (body.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，请求体不能为空"));
+      return;
+    }
+
+    // 从请求体中获取分页信息
+    article_page_request page_req{};
+    std::error_code ec;
+    iguana::from_json(page_req, body, ec);
+    if (ec) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数"));
+      return;
+    }
+
+    int page = 1;
+    int per_page = 10;
+
+    if (page_req.current_page > 0) {
+      page = page_req.current_page;
+    }
+    if (page_req.per_page > 0 && page_req.per_page <= 50) { // 限制每页最多50条
+      per_page = page_req.per_page;
+    }
+
+    // 验证用户ID
+    if (page_req.user_id == 0) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，用户ID不能为空"));
+      return;
+    }
+
+    // 检查当前用户是否有权限查看
+    auto current_user_id = purecpp::get_user_id_from_token(req);
+    if (current_user_id == 0) {
+      resp.set_status_and_content(status_type::unauthorized,
+                                  make_error("用户未登录或登录已过期"));
+      return;
+    }
+
+    // 只有自己可以查看自己的文章列表
+    if (current_user_id != page_req.user_id) {
+      resp.set_status_and_content(status_type::forbidden,
+                                  make_error("没有权限查看其他用户的文章"));
+      return;
+    }
+
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
+    if (conn == nullptr) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    // 构建查询条件
+    auto where_cond = col(&articles_t::author_id) == page_req.user_id &&
+                      col(&articles_t::is_deleted) == 0;
+
+    // 计算总记录数
+    size_t total_count = conn->select(ormpp::count())
+                             .from<articles_t>()
+                             .where(where_cond)
+                             .collect();
+
+    // 计算分页参数
+    size_t limit = per_page;
+    size_t offset = (page - 1) * per_page;
+
+    // 获取用户的文章列表
+    auto articles_list =
+        conn->select(col(&articles_t::article_id), col(&articles_t::title),
+                     col(&articles_t::abstraction), col(&articles_t::content),
+                     col(&articles_t::slug), col(&articles_t::status),
+                     col(&articles_t::created_at), col(&articles_t::updated_at),
+                     col(&articles_t::views_count),
+                     col(&articles_t::comments_count),
+                     col(&articles_t::review_comment))
+            .from<articles_t>()
+            .where(where_cond)
+            .order_by(col(&articles_t::created_at).desc())
+            .limit(ormpp::token)
+            .offset(ormpp::token)
+            .collect<user_article_item>(limit, offset);
+
+    std::string json = make_data(std::move(articles_list),
+                                 "获取用户文章列表成功", total_count);
+    if (json.empty()) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    resp.set_status_and_content(status_type::ok, std::move(json));
+  }
+
+  // 删除文章
+  void delete_my_article(coro_http_request &req, coro_http_response &resp) {
+    auto body = req.get_body();
+    if (body.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，请求体不能为空"));
+      return;
+    }
+
+    // 解析请求参数
+    struct delete_article_request {
+      uint64_t article_id;
+    };
+
+    delete_article_request request;
+    std::error_code ec;
+    iguana::from_json(request, body, ec);
+    if (ec) {
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("无效的请求参数，JSON格式错误: " + ec.message()));
+      return;
+    }
+
+    // 验证文章ID
+    if (request.article_id == 0) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，文章ID不能为空"));
+      return;
+    }
+
+    // 获取当前用户ID
+    auto current_user_id = purecpp::get_user_id_from_token(req);
+    if (current_user_id == 0) {
+      resp.set_status_and_content(status_type::unauthorized,
+                                  make_error("用户未登录或登录已过期"));
+      return;
+    }
+
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
+    if (conn == nullptr) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    // 检查文章是否存在，并且是否是当前用户的文章
+    auto articles =
+        conn->select(col(&articles_t::author_id))
+            .from<articles_t>()
+            .where(col(&articles_t::article_id) == request.article_id &&
+                   col(&articles_t::is_deleted) == 0)
+            .collect();
+
+    if (articles.empty()) {
+      resp.set_status_and_content(status_type::not_found,
+                                  make_error("文章不存在或已被删除"));
+      return;
+    }
+
+    uint64_t article_author_id = std::get<0>(articles.front());
+
+    // 检查当前用户是否是文章作者
+    if (current_user_id != article_author_id) {
+      resp.set_status_and_content(status_type::forbidden,
+                                  make_error("没有权限删除其他用户的文章"));
+      return;
+    }
+
+    // 标记文章为已删除
+    articles_t article;
+    article.is_deleted = true;
+    article.updated_at = get_timestamp_milliseconds();
+
+    int n = conn->update_some<&articles_t::is_deleted, &articles_t::updated_at>(
+        article, "article_id=" + std::to_string(request.article_id));
+
+    if (n == 0) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    std::string json = make_success("文章删除成功");
+    resp.set_status_and_content(status_type::ok, std::move(json));
+  }
+
+  // 获取社区服务文章
+  void get_community_service(coro_http_request &req, coro_http_response &resp) {
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
+    if (conn == nullptr) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    // 从请求体中获取分页信息
+    auto body = req.get_body();
+    article_page_request page_req{};
+    std::error_code ec;
+    if (!body.empty()) {
+      iguana::from_json(page_req, body, ec);
+    }
+
+    int page = 1;
+    int per_page = 10;
+
+    if (page_req.current_page > 0) {
+      page = page_req.current_page;
+    }
+    if (page_req.per_page > 0 && page_req.per_page <= 50) {
+      per_page = page_req.per_page;
+    }
+
+    // 查询SERVICES分组下的所有标签ID
+    auto services_tags = conn->select(col(&tags_t::tag_id))
+                             .from<tags_t>()
+                             .where(col(&tags_t::tag_group) ==
+                                    static_cast<int>(TagGroupType::SERVICES))
+                             .collect();
+
+    if (services_tags.empty()) {
+      // 如果没有SERVICES分组的标签，则返回空列表
+      std::string json =
+          make_data(std::vector<article_list>(), "获取社区服务文章列表成功", 0);
+      resp.set_status_and_content(status_type::ok, std::move(json));
+      return;
+    }
+
+    // 构建查询条件：文章已发布且未删除，并且tag_ids包含至少一个SERVICES分组的标签
+    auto where_cond = col(&articles_t::is_deleted) == 0 &&
+                      col(&articles_t::status) == PUBLISHED.data();
+
+    // 构建标签ID的OR条件
+    bool first = true;
+    for (const auto &tag : services_tags) {
+      int tag_id = std::get<0>(tag);
+      if (first) {
+        where_cond =
+            where_cond &&
+            col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
+        first = false;
+      } else {
+        where_cond =
+            where_cond ||
+            col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
+      }
+    }
+
+    // 计算总记录数
+    size_t total_count =
+        conn->select(ormpp::count())
+            .from<articles_t>()
+            .inner_join(col(&articles_t::author_id), col(&users_t::id))
+            .where(where_cond)
+            .collect();
+
+    // 计算分页参数
+    size_t limit = per_page;
+    size_t offset = (page - 1) * per_page;
+
+    // 获取社区服务文章列表
+    auto articles_list =
+        conn->select(col(&articles_t::title), col(&articles_t::abstraction),
+                     col(&articles_t::slug), col(&users_t::user_name),
+                     col(&articles_t::author_id), col(&articles_t::tag_ids),
+                     col(&articles_t::created_at), col(&articles_t::updated_at),
+                     col(&articles_t::views_count),
+                     col(&articles_t::comments_count))
+            .from<articles_t>()
+            .inner_join(col(&articles_t::author_id), col(&users_t::id))
+            .where(where_cond)
+            .order_by(col(&articles_t::created_at).desc())
+            .limit(ormpp::token)
+            .offset(ormpp::token)
+            .collect<article_list>(limit, offset);
+
+    std::string json = make_data(std::move(articles_list),
+                                 "获取社区服务文章列表成功", total_count);
+    if (json.empty()) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    resp.set_status_and_content(status_type::ok, std::move(json));
+  }
+
+  // 获取purecpp大会文章
+  void get_purecpp_conference(coro_http_request &req,
+                              coro_http_response &resp) {
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
+    if (conn == nullptr) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    // 从请求体中获取分页信息
+    auto body = req.get_body();
+    article_page_request page_req{};
+    std::error_code ec;
+    if (!body.empty()) {
+      iguana::from_json(page_req, body, ec);
+    }
+
+    int page = 1;
+    int per_page = 10;
+
+    if (page_req.current_page > 0) {
+      page = page_req.current_page;
+    }
+    if (page_req.per_page > 0 && page_req.per_page <= 50) {
+      per_page = page_req.per_page;
+    }
+
+    // 查询CPP_PARTY分组下的所有标签ID
+    auto cpp_party_tags = conn->select(col(&tags_t::tag_id))
+                              .from<tags_t>()
+                              .where(col(&tags_t::tag_group) ==
+                                     static_cast<int>(TagGroupType::CPP_PARTY))
+                              .collect();
+
+    if (cpp_party_tags.empty()) {
+      // 如果没有CPP_PARTY分组的标签，则返回空列表
+      std::string json = make_data(std::vector<article_list>(),
+                                   "获取purecpp大会文章列表成功", 0);
+      resp.set_status_and_content(status_type::ok, std::move(json));
+      return;
+    }
+
+    // 构建查询条件：文章已发布且未删除，并且tag_ids包含至少一个CPP_PARTY分组的标签
+    auto where_cond = col(&articles_t::is_deleted) == 0 &&
+                      col(&articles_t::status) == PUBLISHED.data();
+
+    // 构建标签ID的OR条件
+    bool first = true;
+    for (const auto &tag : cpp_party_tags) {
+      int tag_id = std::get<0>(tag);
+      if (first) {
+        where_cond =
+            where_cond &&
+            col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
+        first = false;
+      } else {
+        where_cond =
+            where_cond ||
+            col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
+      }
+    }
+
+    // 计算总记录数
+    size_t total_count =
+        conn->select(ormpp::count())
+            .from<articles_t>()
+            .inner_join(col(&articles_t::author_id), col(&users_t::id))
+            .where(where_cond)
+            .collect();
+
+    // 计算分页参数
+    size_t limit = per_page;
+    size_t offset = (page - 1) * per_page;
+
+    // 获取purecpp大会文章列表
+    auto articles_list =
+        conn->select(col(&articles_t::title), col(&articles_t::abstraction),
+                     col(&articles_t::slug), col(&users_t::user_name),
+                     col(&articles_t::author_id), col(&articles_t::tag_ids),
+                     col(&articles_t::created_at), col(&articles_t::updated_at),
+                     col(&articles_t::views_count),
+                     col(&articles_t::comments_count),
+                     col(&articles_t::featured_weight))
+            .from<articles_t>()
+            .inner_join(col(&articles_t::author_id), col(&users_t::id))
+            .where(where_cond)
+            .order_by(col(&articles_t::created_at).desc())
+            .limit(ormpp::token)
+            .offset(ormpp::token)
+            .collect<article_list>(limit, offset);
+
+    std::string json = make_data(std::move(articles_list),
+                                 "获取purecpp大会文章列表成功", total_count);
+    if (json.empty()) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    resp.set_status_and_content(status_type::ok, std::move(json));
+  }
+
+  // 处理文章加精华/取消精华
+  void toggle_featured(coro_http_request &req, coro_http_response &resp) {
+    auto body = req.get_body();
+    if (body.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，请求体不能为空"));
+      return;
+    }
+
+    struct toggle_featured_request {
+      std::string slug;
+    };
+
+    toggle_featured_request request{};
+    std::error_code ec;
+    iguana::from_json(request, body, ec);
+    if (ec) {
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("无效的请求参数，JSON格式错误: " + ec.message()));
+      return;
+    }
+
+    // 检查用户是否是管理员
+    auto user_id = get_user_id_from_token(req);
+    if (user_id == 0) {
+      resp.set_status_and_content(status_type::unauthorized,
+                                  make_error("用户未登录或登录已过期"));
+      return;
+    }
+
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
+    if (conn == nullptr) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    auto users_vect = conn->select(ormpp::all)
+                          .from<users_t>()
+                          .where(col(&users_t::id) == user_id)
+                          .collect();
+    if (users_vect.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数"));
+      return;
+    }
+
+    auto &user = users_vect.front();
+    if (user.role != "admin" && user.role != "superadmin") {
+      resp.set_status_and_content(status_type::forbidden,
+                                  make_error("权限不足，只有管理员可以加精华"));
+      return;
+    }
+
+    // 获取当前文章的featured_weight值
+    auto article_vect = conn->select(col(&articles_t::tag_ids))
+                            .from<articles_t>()
+                            .where(col(&articles_t::slug) == request.slug &&
+                                   col(&articles_t::is_deleted) == 0)
+                            .collect();
+    if (article_vect.empty()) {
+      resp.set_status_and_content(status_type::not_found,
+                                  make_error("文章不存在或已被删除"));
+      return;
+    }
+
+    std::string current_tag_ids = std::get<0>(article_vect.front());
+    std::string new_tag_ids = current_tag_ids;
+    if (current_tag_ids.find("108") != std::string::npos) {
+      new_tag_ids.erase(new_tag_ids.find("108"), 3);
+    } else {
+      new_tag_ids += ((current_tag_ids.length() > 0 &&
+                       current_tag_ids.at(current_tag_ids.length() - 1) == '|')
+                          ? "108"
+                          : "|108");
+    }
+
+    if (new_tag_ids.length() < 3) {
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("文章只有‘社区精华’标签，不能取消精华，文章标签不能为空"));
+      return;
+    }
+
+    // 更新tag_ids值
+    articles_t article;
+    article.tag_ids = new_tag_ids;
+    article.updated_at = get_timestamp_milliseconds();
+
+    int n = conn->update_some<&articles_t::tag_ids, &articles_t::updated_at>(
+        article, "slug='" + request.slug + "'");
+
+    if (n == 0) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    std::string message = (new_tag_ids.find("108") != std::string::npos)
+                              ? "文章已成功加精华"
+                              : "文章已取消精华";
+    std::string json = make_success(message);
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 };

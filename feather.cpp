@@ -282,9 +282,9 @@ int main() {
   server.set_http_handler<POST>("/api/v1/edit_article", &articles::edit_article,
                                 article, log_request_response{}, check_token{},
                                 check_edit_article{});
-  server.set_http_handler<GET>("/api/v1/get_pending_articles",
-                               &articles::get_pending_articles, article,
-                               log_request_response{}, check_token{});
+  server.set_http_handler<POST>("/api/v1/get_pending_articles",
+                                &articles::get_pending_articles, article,
+                                log_request_response{}, check_token{});
   server.set_http_handler<POST>("/api/v1/review_pending_article",
                                 &articles::handle_review_article, article,
                                 log_request_response{}, check_token{});
@@ -376,5 +376,40 @@ int main() {
           }
         }
       });
+
+  // 用户文章相关路由
+  server.set_http_handler<POST>("/api/v1/get_myarticles",
+                                &articles::get_my_articles, article,
+                                log_request_response{}, check_token{});
+
+  // 用户评论相关路由
+  server.set_http_handler<POST>("/api/v1/get_mycomments",
+                                &articles_comment::get_my_comments, comment,
+                                log_request_response{}, check_token{});
+
+  // 删除文章路由
+  server.set_http_handler<POST>("/api/v1/delete_myarticle",
+                                &articles::delete_my_article, article,
+                                log_request_response{}, check_token{});
+
+  // 删除评论路由
+  server.set_http_handler<POST>("/api/v1/delete_mycomment",
+                                &articles_comment::delete_my_comment, comment,
+                                log_request_response{}, check_token{});
+
+  // 获取社区服务文章路由
+  server.set_http_handler<POST>("/api/v1/get_community_service_articles",
+                                &articles::get_community_service, article,
+                                log_request_response{});
+
+  // 获取purecpp大会文章路由
+  server.set_http_handler<POST>("/api/v1/get_purecpp_conference_articles",
+                                &articles::get_purecpp_conference, article,
+                                log_request_response{});
+
+  // 文章加精华/取消精华路由
+  server.set_http_handler<POST>("/api/v1/toggle_featured",
+                                &articles::toggle_featured, article,
+                                log_request_response{}, check_token{});
   server.sync_start();
 }

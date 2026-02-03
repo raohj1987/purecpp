@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>社区服务 - Purecpp.cn 现代C++社区</title>
+    <meta name="description" content="Purecpp社区服务，包括招聘、内推、项目组队等，为C++开发者提供全方位支持">
+
+    <!-- 本地资源 -->
+    <link rel="stylesheet" href="css/pico.min.css">
+    <link rel="stylesheet" href="font-awesome/css/all.min.css">
+    <script defer src="script/alpine.js"></script>
+
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --border-color: #e2e8f0;
+            --muted-color: #6b7280;
+            --bg-page: #ffffff;
+            --bg-card: #ffffff;
+            --bg-search: #ffffff;
+            --text-main: #333;
+            --text-highlight: var(--primary);
+        }
+
+        /* 深色模式 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-page: #121212;
+                --bg-card: #1e1e1e;
+                --bg-search: #2d2d2d;
+                --text-main: #f3f4f6;
+                --text-highlight: #818cf8;
+                --border-color: #374151;
+            }
+        }
+
+        /* 全局样式 */
+        body {
+            background-color: var(--bg-page) !important;
+            color: var(--text-main) !important;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* 头部导航 */
+        .page-header {
+            max-width: 1200px;
+            width: 100%;
+            padding: 1rem 2rem;
+            margin: 0 auto;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none !important;
+        }
+
+        .logo img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .logo strong {
+            font-size: 18px !important;
+            color: var(--primary) !important;
+        }
+
+        /* 主要内容容器 */
+        .services-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        /* 页面标题区域 */
+        .page-header-area {
+            margin-bottom: 1rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-highlight);
+        }
+
+        .page-description {
+            color: var(--muted-color);
+            font-size: 0.9rem;
+        }
+
+        /* 服务列表 */
+        .services-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* 服务卡片 */
+        .service-card {
+            margin-top: 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .service-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .service-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            line-height: 1.4;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .service-description {
+            color: var(--muted-color);
+            line-height: 1.6;
+            margin-bottom: 0.8rem;
+            font-size: 0.9rem;
+        }
+
+        /* 服务详情 */
+        .service-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.85rem;
+        }
+
+        /* 操作按钮 */
+        .action-button {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--primary);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .action-button:hover {
+            background: var(--primary-hover);
+            color: white;
+        }
+
+        /* 服务项目列表 */
+        .service-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .service-item-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .service-item-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .service-item-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        .service-item-info {
+            color: var(--muted-color);
+            line-height: 1.5;
+            margin-bottom: 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .services-container {
+                padding: 1rem;
+            }
+
+            .page-title {
+                font-size: 1.5rem;
+            }
+
+            .service-card {
+                padding: 1rem;
+            }
+
+            .service-title {
+                font-size: 1.2rem;
+            }
+
+            .service-details {
+                font-size: 0.8rem;
+            }
+
+            .service-items {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 隐藏类：用于默认隐藏和JS控制 */
+        .hidden {
+            display: none !important;
+        }
+
+        /* 调整 page-title 避免其 margin 干扰 Flex 布局 */
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0;
+            color: var(--text-highlight);
+        }
+
+        .title-and-button {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+
+<body>
+<!-- 统一页头占位符 -->
+<div id="header-container"></div>
+
+<!-- 服务列表主体 -->
+<main class="services-container">
+    <!-- 服务列表 -->
+    <div class="services-list" x-data="serviceComponent()" x-init="init()">
+        <div class="page-header-area">
+            <div class="title-and-button">
+                <h5 class="page-title">社区服务</h5>
+            </div>
+
+            <p class="page-description">招聘、内推、项目组队，我们致力于推动C++技术生态发展</p>
+        </div>
+
+        <!-- 社区服务文章 -->
+        <section class="service-card">
+            <div class="service-items">
+                <!-- 文章列表 -->
+                <template x-if="communityArticles.length > 0 && !articlesLoading">
+                    <template x-for="article in communityArticles" :key="article.slug">
+                        <div class="service-item-card">
+                            <h3 class="service-item-title"><a :href="'article.html?slug=' + article.slug"
+                                                              style="text-decoration: none; color: var(--text-main);"><span
+                                    x-text="article.title"></span></a></h3>
+                            <div class="service-item-info">
+                                <p><strong>作者：</strong><span x-text="article.author_name"></span></p>
+                                <p><strong>发布时间：</strong><span x-text="formatDate(article.created_at)"></span></p>
+                                <p><strong>浏览量：</strong><span x-text="article.views_count"></span></p>
+                                <p><strong>评论数：</strong><span x-text="article.comments_count"></span></p>
+                                <p class="service-item-excerpt"><span x-text="article.summary"></span></p>
+                            </div>
+                            <a :href="'article.html?slug=' + article.slug" class="action-button">阅读全文</a>
+                        </div>
+                    </template>
+                </template>
+
+                <!-- 无文章提示 -->
+                <template x-if="communityArticles.length === 0 && !articlesLoading">
+                    <div class="service-item-card" style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-info-circle"
+                           style="font-size: 2rem; color: var(--muted-color); margin-bottom: 1rem;"></i>
+                        <p>暂无社区服务文章</p>
+                    </div>
+                </template>
+
+                <!-- 加载中 -->
+                <template x-if="articlesLoading">
+                    <div class="service-item-card" style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-spinner fa-spin"
+                           style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                        <p>加载中...</p>
+                    </div>
+                </template>
+            </div>
+        </section>
+    </div>
+</main>
+
+<!-- 统一页脚占位符 -->
+<div id="footer-container"></div>
+<!-- API服务脚本 -->
+<script src="script/api_service.js"></script>
+<!-- 统一布局脚本（包含用户信息管理功能） -->
+<script src="script/layout.js"></script>
+
+<script>
+    // 加载 header
+    document.addEventListener('DOMContentLoaded', async function () {
+
+    });
+
+    function serviceComponent() {
+        return {
+            currentUser: null,
+            services: [],
+            loading: true,
+            communityArticles: [],
+            articlesLoading: true,
+            articlesCurrentPage: 1,
+            articlesPerPage: 10,
+            articlesTotalCount: 0,
+
+            // 初始化
+            async init() {
+                // 从URL中解析参数
+                const urlParams = new URLSearchParams(window.location.search);
+
+                // 加载服务数据
+                this.loadServices();
+
+                // 加载社区服务文章
+                this.loadCommunityServiceArticles();
+            },
+
+            loadServices() {
+                // 清空服务数据，等待API动态加载
+                this.services = [];
+                this.loading = false;
+            },
+
+            // 加载社区服务文章
+            async loadCommunityServiceArticles() {
+                this.articlesLoading = true;
+                try {
+                    const response = await apiService.getCommunityServiceArticles(this.articlesCurrentPage, this.articlesPerPage);
+                    if (response.success) {
+                        this.communityArticles = response.data;
+                        this.articlesTotalCount = response.total_count || 0;
+                    } else {
+                        console.error('加载社区服务文章失败:', response.message);
+                    }
+                } catch (error) {
+                    console.error('加载社区服务文章出错:', error);
+                } finally {
+                    this.articlesLoading = false;
+                }
+            },
+
+            // 格式化时间戳
+            formatDate(timestamp) {
+                const date = new Date(timestamp);
+                return date.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        }
+    }
+</script>
+</body>
+
+</html>

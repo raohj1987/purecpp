@@ -184,5 +184,198 @@ public:
 
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
+
+  // 获取用户的评论列表
+  void get_my_comments(coro_http_request &req, coro_http_response &resp) {
+    auto body = req.get_body();
+    if (body.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，请求体不能为空"));
+      return;
+    }
+
+    // 解析请求参数
+    struct user_comments_request {
+      uint64_t user_id;
+      int current_page;
+      int per_page;
+    };
+
+    user_comments_request request;
+    std::error_code ec;
+    iguana::from_json(request, body, ec);
+    if (ec) {
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("无效的请求参数，JSON格式错误: " + ec.message()));
+      return;
+    }
+
+    // 验证用户ID
+    if (request.user_id == 0) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，用户ID不能为空"));
+      return;
+    }
+
+    // 检查当前用户是否有权限查看
+    auto current_user_id = purecpp::get_user_id_from_token(req);
+    if (current_user_id == 0) {
+      resp.set_status_and_content(status_type::unauthorized,
+                                  make_error("用户未登录或登录已过期"));
+      return;
+    }
+
+    // 只有自己可以查看自己的评论列表
+    if (current_user_id != request.user_id) {
+      resp.set_status_and_content(status_type::forbidden,
+                                  make_error("没有权限查看其他用户的评论"));
+      return;
+    }
+
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
+    if (conn == nullptr) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    // 设置默认分页参数
+    int current_page = request.current_page > 0 ? request.current_page : 1;
+    int per_page = request.per_page > 0 ? request.per_page : 10;
+    int offset = (current_page - 1) * per_page;
+    int limit = per_page;
+
+    // 计算总评论数
+    auto total_count =
+        conn->select(ormpp::count())
+            .from<article_comments_t>()
+            .where(col(&article_comments_t::user_id).param() &&
+                   col(&article_comments_t::comment_status).param())
+            .collect(request.user_id, CommentStatus::PUBLISH);
+
+    // 获取用户的评论列表，同时关联文章标题
+    auto comments_list =
+        conn->select(col(&article_comments_t::comment_id),
+                     col(&article_comments_t::article_id),
+                     col(&articles_t::title), col(&article_comments_t::content),
+                     col(&article_comments_t::parent_comment_id),
+                     col(&article_comments_t::parent_user_name),
+                     col(&article_comments_t::created_at),
+                     col(&article_comments_t::updated_at))
+            .from<article_comments_t>()
+            .inner_join(col(&article_comments_t::article_id),
+                        col(&articles_t::article_id))
+            .where(col(&article_comments_t::user_id).param() &&
+                   col(&article_comments_t::comment_status).param())
+            .order_by(col(&article_comments_t::created_at).desc())
+            .limit(ormpp::token)
+            .offset(ormpp::token)
+            .collect<user_comment_item>(request.user_id, CommentStatus::PUBLISH,
+                                        limit, offset);
+
+    std::string json = make_data(std::move(comments_list),
+                                 "获取用户评论列表成功", total_count);
+    resp.set_status_and_content(status_type::ok, std::move(json));
+  }
+
+  // 删除评论
+  void delete_my_comment(coro_http_request &req, coro_http_response &resp) {
+    auto body = req.get_body();
+    if (body.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，请求体不能为空"));
+      return;
+    }
+
+    // 解析请求参数
+    struct delete_comment_request {
+      uint64_t comment_id;
+    };
+
+    delete_comment_request request;
+    std::error_code ec;
+    iguana::from_json(request, body, ec);
+    if (ec) {
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("无效的请求参数，JSON格式错误: " + ec.message()));
+      return;
+    }
+
+    // 验证评论ID
+    if (request.comment_id == 0) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数，评论ID不能为空"));
+      return;
+    }
+
+    // 获取当前用户ID
+    auto current_user_id = purecpp::get_user_id_from_token(req);
+    if (current_user_id == 0) {
+      resp.set_status_and_content(status_type::unauthorized,
+                                  make_error("用户未登录或登录已过期"));
+      return;
+    }
+
+    auto conn = connection_pool<dbng<mysql>>::instance().get();
+    if (conn == nullptr) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    // 检查评论是否存在，并且是否是当前用户的评论
+    auto comments = conn->select(col(&article_comments_t::user_id),
+                                 col(&article_comments_t::article_id))
+                        .from<article_comments_t>()
+                        .where(col(&article_comments_t::comment_id).param() &&
+                               col(&article_comments_t::comment_status).param())
+                        .collect(request.comment_id, CommentStatus::PUBLISH);
+
+    if (comments.empty()) {
+      resp.set_status_and_content(status_type::not_found,
+                                  make_error("评论不存在或已被删除"));
+      return;
+    }
+
+    uint64_t comment_user_id = std::get<0>(comments.front());
+    uint64_t article_id = std::get<1>(comments.front());
+
+    // 检查当前用户是否是评论作者
+    if (current_user_id != comment_user_id) {
+      resp.set_status_and_content(status_type::forbidden,
+                                  make_error("没有权限删除其他用户的评论"));
+      return;
+    }
+
+    // 删除评论（标记为已删除或直接删除）
+    // 这里我们使用标记为已删除的方式
+    article_comments_t comment;
+    comment.comment_status = CommentStatus::DELETED;
+    comment.updated_at = get_timestamp_milliseconds();
+
+    int n = conn->update_some<&article_comments_t::comment_status,
+                              &article_comments_t::updated_at>(
+        comment, "comment_id=" + std::to_string(request.comment_id));
+
+    if (n == 0) {
+      set_server_internel_error(resp);
+      return;
+    }
+
+    // 更新文章评论计数
+    auto total_comment =
+        conn->select(ormpp::count())
+            .from<article_comments_t>()
+            .where(col(&article_comments_t::article_id).param() &&
+                   col(&article_comments_t::comment_status).param())
+            .collect(article_id, CommentStatus::PUBLISH);
+    articles_t update_article;
+    update_article.comments_count = total_comment;
+    std::string condition = "article_id=" + std::to_string(article_id);
+    conn->update_some<&articles_t::comments_count>(update_article, condition);
+
+    std::string json = make_success("评论删除成功");
+    resp.set_status_and_content(status_type::ok, std::move(json));
+  }
 };
 } // namespace purecpp

@@ -619,7 +619,8 @@
                 </div>
 
                 <div class="search-box">
-                    <input type="text" placeholder="搜索技术文章、问答...">
+                    <input type="text" placeholder="搜索技术文章、问答..."
+                           onkeyup="if(event.keyCode === 13) performSearch()">
                     <i class="fas fa-search search-icon" onclick="performSearch()"></i>
                 </div>
             </div>
@@ -686,6 +687,7 @@
                         <small><i class="fas fa-users"></i> 在线 1.2k 人</small>
                     </article>
 
+                    <a href="conference.html" style="text-decoration: none; color: inherit;">
                     <article class="card">
                         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem !important;">
                             <div class="feature-icon">
@@ -696,6 +698,7 @@
                         <p>定期举办线上/线下技术分享会，学习最新技术趋势。</p>
                         <small><i class="fas fa-edit"></i> 进行中</small>
                     </article>
+                    </a>
 
                     <article class="card">
                         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem !important;">
@@ -708,6 +711,7 @@
                         <small><i class="fas fa-chart-bar"></i> 127 次审查</small>
                     </article>
 
+                    <a href="services.html" style="text-decoration: none; color: inherit;">
                     <article class="card">
                         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem !important;">
                             <div class="feature-icon">
@@ -718,6 +722,7 @@
                         <p>招聘、内推、项目组队，我们致力于推动C++技术生态发展。</p>
                         <small><i class="fas fa-star"></i> 为程序员服务</small>
                     </article>
+                    </a>
                 </div>
             </section>
 
@@ -756,7 +761,11 @@
         function performSearch() {
             const input = document.querySelector('.search-box input');
             const keyword = input.value.trim();
-            keyword ? alert(`搜索关键词：${keyword}（实际项目中替换为搜索接口）`) : alert('请输入搜索关键词');
+            if (keyword) {
+                window.location.href = `articles.html?search=${encodeURIComponent(keyword)}`;
+            } else {
+                showAlert('请输入搜索关键词');
+            }
         }
     </script>
 </body>

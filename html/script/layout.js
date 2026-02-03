@@ -273,3 +273,220 @@ function initUserInfo() {
     addUserMenuHoverEffects();
     addUserButtonHoverEffect();
 }
+
+// 弹窗函数
+function showConfirm(content, title = "Purecpp确认框") {
+    return new Promise((resolve) => {
+        // 创建弹窗容器
+        const modalContainer = document.createElement('div');
+        modalContainer.id = 'modal-container';
+        modalContainer.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+
+        // 创建弹窗内容
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 500px;
+            overflow: hidden;
+        `;
+
+        // 创建弹窗头部
+        const modalHeader = document.createElement('div');
+        modalHeader.style.cssText = `
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        `;
+        modalHeader.textContent = title;
+
+        // 创建弹窗主体
+        const modalBody = document.createElement('div');
+        modalBody.style.cssText = `
+            padding: 20px;
+            color: #666;
+            line-height: 1.5;
+        `;
+        modalBody.innerHTML = content;
+
+        // 创建弹窗底部
+        const modalFooter = document.createElement('div');
+        modalFooter.style.cssText = `
+            padding: 16px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        `;
+
+        // 创建取消按钮
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = '取消';
+        cancelButton.style.cssText = `
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fff;
+            color: #333;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+
+        // 创建确认按钮
+        const confirmButton = document.createElement('button');
+        confirmButton.textContent = '确认';
+        confirmButton.style.cssText = `
+            padding: 8px 16px;
+            border: 1px solid #007bff;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+
+        // 添加按钮到底部
+        modalFooter.appendChild(cancelButton);
+        modalFooter.appendChild(confirmButton);
+
+        // 组装弹窗
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(modalBody);
+        modalContent.appendChild(modalFooter);
+        modalContainer.appendChild(modalContent);
+
+        // 添加到页面
+        document.body.appendChild(modalContainer);
+
+        // 点击取消按钮
+        cancelButton.addEventListener('click', function () {
+            document.body.removeChild(modalContainer);
+            resolve(false);
+        });
+
+        // 点击确认按钮
+        confirmButton.addEventListener('click', function () {
+            document.body.removeChild(modalContainer);
+            resolve(true);
+        });
+
+        // 点击遮罩层关闭弹窗
+        modalContainer.addEventListener('click', function (e) {
+            if (e.target === modalContainer) {
+                document.body.removeChild(modalContainer);
+                resolve(false);
+            }
+        });
+    });
+}
+
+// 消息提示弹窗函数（只有一个确认按钮）
+function showAlert(content, title = "Purecpp提示框") {
+    return new Promise((resolve) => {
+        // 创建弹窗容器
+        const modalContainer = document.createElement('div');
+        modalContainer.id = 'alert-container';
+        modalContainer.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+
+        // 创建弹窗内容
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 500px;
+            overflow: hidden;
+        `;
+
+        // 创建弹窗头部
+        const modalHeader = document.createElement('div');
+        modalHeader.style.cssText = `
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        `;
+        modalHeader.textContent = title;
+
+        // 创建弹窗主体
+        const modalBody = document.createElement('div');
+        modalBody.style.cssText = `
+            padding: 20px;
+            color: #666;
+            line-height: 1.5;
+        `;
+        modalBody.innerHTML = content;
+
+        // 创建弹窗底部
+        const modalFooter = document.createElement('div');
+        modalFooter.style.cssText = `
+            padding: 16px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        `;
+
+        // 创建确认按钮
+        const confirmButton = document.createElement('button');
+        confirmButton.textContent = '确认';
+        confirmButton.style.cssText = `
+            padding: 8px 16px;
+            border: 1px solid #007bff;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+
+        // 添加按钮到底部
+        modalFooter.appendChild(confirmButton);
+
+        // 组装弹窗
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(modalBody);
+        modalContent.appendChild(modalFooter);
+        modalContainer.appendChild(modalContent);
+
+        // 添加到页面
+        document.body.appendChild(modalContainer);
+
+        // 点击确认按钮
+        confirmButton.addEventListener('click', function () {
+            document.body.removeChild(modalContainer);
+            resolve();
+        });
+
+        // 点击遮罩层不关闭弹窗
+        // 消息提示需要用户明确点击确认按钮
+    });
+}

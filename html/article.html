@@ -186,6 +186,43 @@
             text-decoration: underline;
         }
 
+        /* 自定义下拉样式 */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+            width: 600px;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.25rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            max-height: 250px;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .dropdown-menu label {
+            display: flex;
+            align-items: center;
+            padding: 0.4rem;
+            cursor: pointer;
+        }
+
+        .dropdown-menu label:hover {
+            background: #f1f5f9;
+        }
+
+        .search-box {
+            margin-bottom: 0.5rem;
+        }
+
         /* 回复表单样式 */
         .reply-form {
             margin-top: 1rem;
@@ -257,6 +294,16 @@
             margin: 0 auto;
             border-bottom: 1px solid var(--border-color);
         }
+
+
+        /* 精华文章标题样式 */
+        .elite-title {
+            font-size: 24px;
+            font-weight: 600;
+            /* color: #FFC107; */
+            /* 超小模糊半径，仅轻微提亮，几乎不显眼但能区分普通标题 */
+            text-shadow: 0 0 2px rgba(255, 215, 0, 0.4), 0 0 4px rgba(255, 193, 7, 0.2);
+        }
     </style>
 </head>
 
@@ -264,7 +311,7 @@
     <!-- 统一页头占位符 -->
     <div id="header-container"></div>
 
-    <main class="container" x-data="articleDetailComponent()">
+    <main class="container" x-data="articleDetailComponent()" x-init="init()">
         <div x-show="isLoading" class="text-center py-4">
             <i class="fas fa-circle-o-notch fa-spin"></i> 正在加载文章...
         </div>
@@ -273,11 +320,32 @@
 
         <article x-show="!isLoading && !errorMessage && article.title" class="card">
             <div class="card-body">
-                <h1 class="article-title" x-text="article.title"></h1>
+                <!-- 加精华图标：仅管理员可见 -->
+                <div x-show="currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin')"
+                     @click="toggleFeatured()"
+                     style="position: fixed; right: 100px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 100;">
+                    <img :src="article.tag_ids.includes('108') ? 'images/recommend.png' : 'images/recommend.png'"
+                         :style="article.tag_ids.includes('108') ? 'width: 64px; height: 64px; opacity: 1;' : 'width: 64px; height: 64px; opacity: 0.6;'"
+                         :title="article.tag_ids.includes('108') ? '取消精华' : '加精华'">
+                </div>
+                <h1 class="article-title" style="display: flex; align-items: center; justify-content: space-between;">
+                    <span x-text="article.title"></span>
+                </h1>
 
                 <div class="article-meta">
                     <span><i class="fas fa-user"></i> <span x-text="article.author_name"></span></span>
-                    <span><i class="fas fa-tag"></i> <span x-text="article.tag_name"></span></span>
+                    <span><i class="fas fa-tag"></i> 
+                        <template x-if="article.tag_ids && article.tag_ids.includes('|')">
+                            <template x-for="tagId in article.tag_ids.split('|')" :key="tagId">
+                                <template x-if="getTagName(tagId)">
+                                    <span class="tag" style="margin-right: 5px;" x-text="getTagName(tagId)"></span>
+                                </template>
+                            </template>
+                        </template>
+                        <template x-else>
+                            <span x-text="article.tag_ids ? getTagName(article.tag_ids) : ''"></span>
+                        </template>
+                    </span>
                     <span><i class="fas fa-calendar"></i> <span x-text="formatDate(article.created_at)"></span></span>
                     <span><i class="fas fa-eye"></i> <span x-text="article.views_count"></span> 浏览</span>
 
@@ -298,13 +366,33 @@
                     <textarea id="markdown-editor" x-model="content" rows="20"
                               style="width: 100%; font-family: monospace;"></textarea>
 
-                    <select id="tag-select" name="tag_id" required x-model="selectedTagId">
-                        <option value="" disabled selected>请选择文章标签</option>
-                        <template x-for="tag in tags" :key="tag.tag_id">
-                            <option :value="tag.tag_id" x-text="tag.name"></option>
-                        </template>
-                    </select>
-                    <div style="margin-top: 1rem;">
+
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <label for="tag-select" style="margin: 0; white-space: nowrap;">选择标签</label>
+                        <!-- 新的多选组件 -->
+                        <div class="dropdown" @click.outside="open = false" style="flex: 1;">
+                            <!-- 触发按钮 -->
+                            <button type="button" @click="open = !open"
+                                    style="width: 100%; text-align: left; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-card); color: var(--text-main); padding: 0.5rem 0.8rem; height: 46px; box-sizing: border-box;">
+                                <template x-if="selectedTagIds.length === 0"><span style="color: var(--muted-color);">请选择选项</span>
+                                </template>
+                                <template x-if="selectedTagIds && selectedTagIds.length > 0">
+                                    <span x-text="getSelectedTagNames()"></span>
+                                </template>
+                            </button>
+                            <!-- 下拉菜单 -->
+                            <div class="dropdown-menu" x-show="open" x-transition style="width: 100%;">
+                                <template x-for="tag in tags" :key="tag.tag_id">
+                                    <label>
+                                        <input type="checkbox" :value="tag.tag_id" @change="toggleTag(tag.tag_id)"
+                                               :checked="selectedTagIds && selectedTagIds.some(id => id == tag.tag_id)">
+                                        <span x-text="tag.name"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem; display: flex; justify-content: center; gap: 1rem;">
                         <button @click="saveChanges()" class="primary">保存修改</button>
                         <button @click="cancelEdit()" class="secondary">取消</button>
                     </div>
@@ -610,7 +698,8 @@
                 currentUser: null,
                 isEditing: false,
                 tags: [],
-                selectedTagId: '',
+                selectedTagIds: [],
+                open: false,
                 simplemde: null,
                 slug: '',
                 title: '',
@@ -674,6 +763,12 @@
                     }
                 },
 
+                // 根据标签ID获取标签名称
+                getTagName(tagId) {
+                    const tag = this.tags.find(t => t.tag_id == tagId);
+                    return tag ? tag.name : '';
+                },
+
                 // 新增：修复重复高亮的核心函数
                 highlightCodeBlocks() {
                     const codeBlocks = document.querySelectorAll('#article-content pre code');
@@ -730,8 +825,20 @@
                     }
                 },
 
-                init() {
-                    this.fetchArticle();
+                async init() {
+                    await this.fetchTags();
+                    await this.fetchArticle();
+                },
+
+                async fetchTags() {
+                    try {
+                        // 使用apiService获取标签列表
+                        const response = await apiService.getTags();
+                        this.tags = response.data;
+                    } catch (error) {
+                        console.error('获取标签失败:', error);
+                        this.errorMessage = '无法加载标签数据，请稍后重试。';
+                    }
                 },
 
                 // 进入编辑状态
@@ -748,29 +855,37 @@
                         this.content = '';
                     }
 
+                    // 初始化选中的标签
+                    if (this.article.tag_ids) {
+                        this.selectedTagIds = this.article.tag_ids.split('|');
+                    } else {
+                        this.selectedTagIds = [];
+                    }
+
                     this.$nextTick(() => {
                         this.initializeSimpleMDE();
-                        this.fetchTags();
                     });
                 },
 
-                async fetchTags() {
-                    // this.isLoading = true;
-                    this.errorMessage = '';
-                    try {
-                        // 使用apiService获取标签列表
-                        const response = await apiService.getTags();
-                        this.tags = response.data;
-                        const targetTag = this.tags.find(t => t.name === this.article.tag_name);
-                        if (targetTag) {
-                            this.selectedTagId = targetTag.tag_id;
-                        }
-
-                    } catch (error) {
-                        console.error('获取标签失败:', error);
-                        this.errorMessage = '无法加载标签数据，请稍后重试。';
-                        // this.isLoading = false;
+                // 切换标签选择状态
+                toggleTag(tag_id) {
+                    const index = this.selectedTagIds.indexOf(tag_id);
+                    if (index === -1) {
+                        this.selectedTagIds.push(tag_id);
+                    } else {
+                        this.selectedTagIds.splice(index, 1);
                     }
+                },
+
+                // 获取选中的标签名称
+                getSelectedTagNames() {
+                    if (!this.selectedTagIds) {
+                        return '';
+                    }
+                    return this.selectedTagIds.map(tagId => {
+                        const tag = this.tags.find(t => t.tag_id == tagId);
+                        return tag ? tag.name : tagId;
+                    }).join(', ');
                 },
 
                 initializeSimpleMDE() {
@@ -798,13 +913,15 @@
 
                 async saveChanges() {
                     try {
+                        // 将选中的标签ID数组转换为以|分隔的字符串
+                        const tagIds = this.selectedTagIds.join('|');
                         // 使用apiService保存文章修改
                         const response = await apiService.editArticle(
                             this.slug,
                             this.title,
                             this.excerpt,
                             this.content,
-                            this.selectedTagId,
+                            tagIds,
                             this.currentUser.username
                         );
 
@@ -814,10 +931,10 @@
                         this.article.summary = this.excerpt;
                         this.renderMarkdown(this.article.content);
                         this.isEditing = false;
-                        alert('修改成功！');
+                        await showAlert('修改成功！');
                     } catch (error) {
                         console.error('保存修改失败:', error);
-                        alert('修改失败: ' + error.message);
+                        await showAlert('修改失败: ' + error.message);
                     }
                 },
 
@@ -853,7 +970,7 @@
                         }
                     } catch (error) {
                         console.error('提交评论失败:', error);
-                        alert('提交评论失败: ' + error.message);
+                        await showAlert('提交评论失败: ' + error.message);
                     }
                 },
 
@@ -888,7 +1005,7 @@
                         }
                     } catch (error) {
                         console.error('提交回复失败:', error);
-                        alert('提交回复失败: ' + error.message);
+                        await showAlert('提交回复失败: ' + error.message);
                     }
                 },
 
@@ -908,6 +1025,31 @@
 
                     // 按照创建时间排序，时间越大（越新）的评论展示越靠前
                     return childComments.sort((a, b) => b.created_at - a.created_at);
+                },
+
+                async toggleFeatured() {
+                    // 显示确认弹窗
+                    const action = this.article.tag_ids.includes('108') ? '取消精华' : '加精华';
+                    if (!(await showConfirm(`确定要【${action}】这篇文章吗？`))) {
+                        return; // 用户取消操作
+                    }
+
+                    try {
+                        const response = await apiService.toggleFeatured(this.slug);
+                        if (response.success) {
+                            // 更新本地文章的featured_weight值
+                            this.article.tag_ids.includes('108') ? this.article.tag_ids.replace('108', '') : this.article.tag_ids += '|108';
+                            await showAlert(response.message);
+                        }
+                    } catch (error) {
+                        console.error('操作失败:', error);
+                        await showAlert('操作失败: ' + error.message);
+                    }
+                },
+
+                // 检查用户是否是管理员
+                isAdmin() {
+                    return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'superadmin');
                 },
             };
         }

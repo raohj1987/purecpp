@@ -150,7 +150,7 @@ static std::string_view REJECTED = "rejected";             // 已拒绝
 // 文章相关的表
 struct articles_t {
   uint64_t article_id = 0;
-  int tag_id; // 外键
+  std::string tag_ids; // 多个标签ID，用竖线|分割
   std::string title;
   std::string abstraction; // 摘要
   std::string content;
@@ -162,7 +162,7 @@ struct articles_t {
   uint32_t comments_count;
   uint64_t reviewer_id;       // 审核人id 外键
   std::string review_comment; // 审核意见
-  int featured_weight;        // 置顶，精华
+  int featured_weight;        // 置顶
   uint64_t review_date;       // 审核完成时间
   std::string status;         // 状态：draft(草稿), pending_review (待审核),
                               // published(已发布), rejected (已拒绝)
@@ -174,7 +174,7 @@ constexpr std::string_view get_alias_struct_name(articles_t *) {
 
 // 文章评论状态枚举
 enum class CommentStatus : int32_t {
-  TRASH = 0,   // 已删除
+  DELETED = 0, // 已删除
   PUBLISH = 1, // 已发布
 };
 
@@ -270,9 +270,15 @@ constexpr std::string_view get_alias_struct_name(user_experience_detail_t *) {
   return "user_experience_detail";
 }
 
+enum class TagGroupType : int32_t {
+  TECH_ARTICLES = 1, // 技术文章标签组
+  CPP_PARTY = 2,     // 社区大会标签组
+  SERVICES = 3       // 社区服务标签组
+};
 struct tags_t {
   int tag_id;
   std::array<char, 50> name;
+  int tag_group;
 };
 constexpr std::string_view get_alias_struct_name(tags_t *) { return "tags"; }
 
