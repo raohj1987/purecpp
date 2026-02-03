@@ -197,6 +197,8 @@ public:
     // 解析请求参数
     struct user_comments_request {
       uint64_t user_id;
+      int current_page;
+      int per_page;
     };
 
     user_comments_request request;
@@ -237,38 +239,42 @@ public:
       return;
     }
 
-    // 定义响应数据结构
-    struct user_comment_item {
-      uint64_t comment_id;
-      uint64_t article_id;
-      std::string article_title;
-      std::string content;
-      uint64_t parent_comment_id;
-      std::string parent_user_name;
-      uint64_t created_at;
-      uint64_t updated_at;
-    };
+    // 设置默认分页参数
+    int current_page = request.current_page > 0 ? request.current_page : 1;
+    int per_page = request.per_page > 0 ? request.per_page : 10;
+    int offset = (current_page - 1) * per_page;
+    int limit = per_page;
+
+    // 计算总评论数
+    auto total_count =
+        conn->select(ormpp::count())
+            .from<article_comments_t>()
+            .where(col(&article_comments_t::user_id).param() &&
+                   col(&article_comments_t::comment_status).param())
+            .collect(request.user_id, CommentStatus::PUBLISH);
 
     // 获取用户的评论列表，同时关联文章标题
     auto comments_list =
         conn->select(col(&article_comments_t::comment_id),
                      col(&article_comments_t::article_id),
-                     col(&article_comments_t::content),
+                     col(&articles_t::title), col(&article_comments_t::content),
                      col(&article_comments_t::parent_comment_id),
                      col(&article_comments_t::parent_user_name),
                      col(&article_comments_t::created_at),
-                     col(&article_comments_t::updated_at),
-                     col(&articles_t::title))
+                     col(&article_comments_t::updated_at))
             .from<article_comments_t>()
             .inner_join(col(&article_comments_t::article_id),
                         col(&articles_t::article_id))
             .where(col(&article_comments_t::user_id).param() &&
                    col(&article_comments_t::comment_status).param())
             .order_by(col(&article_comments_t::created_at).desc())
-            .collect<user_comment_item>(request.user_id,
-                                        CommentStatus::PUBLISH);
+            .limit(ormpp::token)
+            .offset(ormpp::token)
+            .collect<user_comment_item>(request.user_id, CommentStatus::PUBLISH,
+                                        limit, offset);
 
-    std::string json = make_data(comments_list, "获取用户评论列表成功");
+    std::string json = make_data(std::move(comments_list),
+                                 "获取用户评论列表成功", total_count);
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 

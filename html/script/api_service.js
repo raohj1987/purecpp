@@ -419,10 +419,11 @@ class APIService {
     }
 
     // 获取待审核文章
-    async getPendingArticles(search = '') {
+    async getPendingArticles(search = '', page = 1, perPage = 10) {
+        const requestData = {search, current_page: page, per_page: perPage};
         return this.request('/api/v1/get_pending_articles', {
             method: 'POST',
-            body: JSON.stringify({search})
+            body: JSON.stringify(requestData)
         });
     }
 
@@ -561,18 +562,18 @@ class APIService {
     }
 
     // 获取用户的文章列表
-    async getMyArticles(userId) {
+    async getMyArticles(userId, page = 1, perPage = 10) {
         return this.request('/api/v1/get_myarticles', {
             method: 'POST',
-            body: JSON.stringify({user_id: userId})
+            body: JSON.stringify({user_id: userId, current_page: page, per_page: perPage})
         });
     }
 
     // 获取用户的评论列表
-    async getMyComments(userId) {
+    async getMyComments(userId, page = 1, perPage = 10) {
         return this.request('/api/v1/get_mycomments', {
             method: 'POST',
-            body: JSON.stringify({user_id: userId})
+            body: JSON.stringify({user_id: userId, current_page: page, per_page: perPage})
         });
     }
 

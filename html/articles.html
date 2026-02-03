@@ -448,7 +448,7 @@
     <!-- 文章列表主体 -->
     <main class="articles-container">
         <!-- 文章列表 -->
-        <div class="articles-list" x-data="articleComponent()" x-init="init()">
+        <div class="articles-list" x-data="articleComponent()">
             <div class="page-header-area">
                 <div class="title-and-button">
                     <h5 class="page-title">技术文章</h5>
@@ -464,7 +464,7 @@
                 <div class="search-box" style="margin-top: 1rem;">
                     <input type="text" placeholder="搜索文章标题和内容..." x-model="searchKeyword"
                            @keyup.enter="performSearch">
-                    <i class="fas fa-search search-icon" onclick="performSearch()"></i>
+                    <i class="fas fa-search search-icon" @click="performSearch"></i>
                 </div>
             </div>
             <template x-for="article in articles" :key="article.slug">
@@ -572,9 +572,13 @@
                 currentUserId: 0,
                 tags: [],
                 searchKeyword: '',
+                initialized: false,
 
                 // 初始化
                 async init() {
+                    if (this.initialized) {
+                        return;
+                    }
                     await this.fetchTags();
 
                     // 从URL中解析参数
@@ -596,6 +600,7 @@
                     }
 
                     this.fetchArticles(page, tag, userId, search);
+                    this.initialized = true;
                 },
 
                 async fetchTags() {
@@ -782,7 +787,6 @@
                         window.history.pushState({}, '', `?${urlParams.toString()}`);
                         // 触发文章列表的刷新
                         console.log("Navigating to page:", page);
-                        // 调用 articleComponent 的 fetchArticles 方法
                         const articleComponent = document.querySelector('.articles-list')._x_dataStack[0];
                         if (articleComponent) {
                             // 传递当前标签、用户ID和搜索关键词
@@ -790,14 +794,6 @@
                         }
                     }
                 }
-            }
-        }
-
-        // 全局搜索函数，调用Alpine.js组件的搜索方法
-        function performSearch() {
-            const articleComponent = document.querySelector('.articles-list')._x_dataStack[0];
-            if (articleComponent) {
-                articleComponent.performSearch();
             }
         }
 

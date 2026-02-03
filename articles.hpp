@@ -1,5 +1,6 @@
 #pragma once
 
+#include "articles_dto.hpp"
 #include "common.hpp"
 #include "user_aspects.hpp"
 
@@ -527,23 +528,28 @@ public:
       return;
     }
 
-    // 解析请求参数
-    struct user_articles_request {
-      uint64_t user_id;
-    };
-
-    user_articles_request request;
+    // 从请求体中获取分页信息
+    article_page_request page_req{};
     std::error_code ec;
-    iguana::from_json(request, body, ec);
+    iguana::from_json(page_req, body, ec);
     if (ec) {
-      resp.set_status_and_content(
-          status_type::bad_request,
-          make_error("无效的请求参数，JSON格式错误: " + ec.message()));
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数"));
       return;
     }
 
+    int page = 1;
+    int per_page = 10;
+
+    if (page_req.current_page > 0) {
+      page = page_req.current_page;
+    }
+    if (page_req.per_page > 0 && page_req.per_page <= 50) { // 限制每页最多50条
+      per_page = page_req.per_page;
+    }
+
     // 验证用户ID
-    if (request.user_id == 0) {
+    if (page_req.user_id == 0) {
       resp.set_status_and_content(status_type::bad_request,
                                   make_error("无效的请求参数，用户ID不能为空"));
       return;
@@ -558,7 +564,7 @@ public:
     }
 
     // 只有自己可以查看自己的文章列表
-    if (current_user_id != request.user_id) {
+    if (current_user_id != page_req.user_id) {
       resp.set_status_and_content(status_type::forbidden,
                                   make_error("没有权限查看其他用户的文章"));
       return;
@@ -570,6 +576,20 @@ public:
       return;
     }
 
+    // 构建查询条件
+    auto where_cond = col(&articles_t::author_id) == page_req.user_id &&
+                      col(&articles_t::is_deleted) == 0;
+
+    // 计算总记录数
+    size_t total_count = conn->select(ormpp::count())
+                             .from<articles_t>()
+                             .where(where_cond)
+                             .collect();
+
+    // 计算分页参数
+    size_t limit = per_page;
+    size_t offset = (page - 1) * per_page;
+
     // 获取用户的文章列表
     auto articles_list =
         conn->select(col(&articles_t::article_id), col(&articles_t::title),
@@ -579,41 +599,19 @@ public:
                      col(&articles_t::views_count),
                      col(&articles_t::comments_count))
             .from<articles_t>()
-            .where(col(&articles_t::author_id) == request.user_id &&
-                   col(&articles_t::is_deleted) == 0)
+            .where(where_cond)
             .order_by(col(&articles_t::created_at).desc())
-            .collect();
+            .limit(ormpp::token)
+            .offset(ormpp::token)
+            .collect<user_article_item>(limit, offset);
 
-    // 构建响应数据
-    struct user_article_item {
-      uint64_t article_id;
-      std::string title;
-      std::string abstraction;
-      std::string content;
-      std::string slug;
-      std::string status;
-      uint64_t created_at;
-      uint64_t updated_at;
-      uint32_t views_count;
-      uint32_t comments_count;
-    };
-
-    std::vector<user_article_item> response_items;
-    for (const auto &article : articles_list) {
-      user_article_item item{std::get<0>(article),
-                             std::get<1>(article),
-                             std::get<2>(article),
-                             std::get<3>(article),
-                             std::string(std::get<4>(article).data()),
-                             std::get<5>(article),
-                             std::get<6>(article),
-                             std::get<7>(article),
-                             std::get<8>(article),
-                             std::get<9>(article)};
-      response_items.push_back(item);
+    std::string json = make_data(std::move(articles_list),
+                                 "获取用户文章列表成功", total_count);
+    if (json.empty()) {
+      set_server_internel_error(resp);
+      return;
     }
 
-    std::string json = make_data(response_items, "获取用户文章列表成功");
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 
