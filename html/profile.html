@@ -963,20 +963,20 @@
 
     // 删除文章
     async function deleteArticle(articleId) {
-        if (!confirm('确定要删除这篇文章吗？')) return;
+        if (!await showConfirm('确定要删除这篇文章吗？')) return;
 
         try {
             const response = await apiService.deleteMyArticle(articleId);
             if (response.success) {
                 // 重新加载文章列表
                 loadMyArticles();
-                alert('文章删除成功');
+                await showAlert('文章删除成功');
             } else {
-                alert('删除失败: ' + (response.message || '未知错误'));
+                await showAlert('删除失败: ' + (response.message || '未知错误'));
             }
         } catch (error) {
             console.error('删除文章失败:', error);
-            alert('删除失败，请稍后重试');
+            await showAlert('删除失败，请稍后重试');
         }
     }
 
@@ -1046,20 +1046,20 @@
 
     // 删除评论
     async function deleteComment(commentId) {
-        if (!confirm('确定要删除这条评论吗？')) return;
+        if (!await showConfirm('确定要删除这条评论吗？')) return;
 
         try {
             const response = await apiService.deleteMyComment(commentId);
             if (response.success) {
                 // 重新加载当前页的评论列表
                 loadMyComments(currentCommentPage);
-                alert('评论删除成功');
+                await showAlert('评论删除成功');
             } else {
-                alert('删除失败: ' + (response.message || '未知错误'));
+                await showAlert('删除失败: ' + (response.message || '未知错误'));
             }
         } catch (error) {
             console.error('删除评论失败:', error);
-            alert('删除失败，请稍后重试');
+            await showAlert('删除失败，请稍后重试');
         }
     }
 

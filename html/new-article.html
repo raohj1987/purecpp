@@ -376,14 +376,14 @@
                     event.preventDefault(); // 阻止原生提交
 
                     if (this.selectedTags.length === 0) {
-                        alert('请至少选择一个文章标签');
+                        await showAlert('请至少选择一个文章标签');
                         return;
                     }
 
                     const content = this.simplemde.value()
 
                     if (!content || content.trim() === '') {
-                        alert('文章内容不能为空！');
+                        await showAlert('文章内容不能为空！');
                         return;
                     }
 
@@ -391,12 +391,12 @@
                         // 将选中的标签ID数组转换为以|分隔的字符串
                         const tagIds = this.selectedTags.join('|');
                         const response = await apiService.createArticle(this.title, this.excerpt, this.content, tagIds);
-                        alert('文章提交成功！请等待审核。');
+                        await showAlert('文章提交成功！请等待审核。');
                         window.location.href = '/articles.html';
                     } catch (error) {
                         console.error('Submit error:', error);
                         this.errorMessage = '提交失败：' + error.message;
-                        alert(this.errorMessage);
+                        await showAlert(this.errorMessage);
                     }
                 }
             }

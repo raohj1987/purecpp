@@ -931,10 +931,10 @@
                         this.article.summary = this.excerpt;
                         this.renderMarkdown(this.article.content);
                         this.isEditing = false;
-                        alert('修改成功！');
+                        await showAlert('修改成功！');
                     } catch (error) {
                         console.error('保存修改失败:', error);
-                        alert('修改失败: ' + error.message);
+                        await showAlert('修改失败: ' + error.message);
                     }
                 },
 
@@ -970,7 +970,7 @@
                         }
                     } catch (error) {
                         console.error('提交评论失败:', error);
-                        alert('提交评论失败: ' + error.message);
+                        await showAlert('提交评论失败: ' + error.message);
                     }
                 },
 
@@ -1005,7 +1005,7 @@
                         }
                     } catch (error) {
                         console.error('提交回复失败:', error);
-                        alert('提交回复失败: ' + error.message);
+                        await showAlert('提交回复失败: ' + error.message);
                     }
                 },
 
@@ -1030,7 +1030,7 @@
                 async toggleFeatured() {
                     // 显示确认弹窗
                     const action = this.article.featured_weight === 1 ? '取消精华' : '加精华';
-                    if (!confirm(`确定要【${action}】这篇文章吗？`)) {
+                    if (!(await showConfirm(`确定要【${action}】这篇文章吗？`))) {
                         return; // 用户取消操作
                     }
 
@@ -1039,11 +1039,11 @@
                         if (response.success) {
                             // 更新本地文章的featured_weight值
                             this.article.featured_weight = this.article.featured_weight === 1 ? 0 : 1;
-                            alert(response.message);
+                            await showAlert(response.message);
                         }
                     } catch (error) {
                         console.error('操作失败:', error);
-                        alert('操作失败: ' + error.message);
+                        await showAlert('操作失败: ' + error.message);
                     }
                 },
 

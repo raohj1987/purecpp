@@ -764,7 +764,7 @@
             if (keyword) {
                 window.location.href = `articles.html?search=${encodeURIComponent(keyword)}`;
             } else {
-                alert('请输入搜索关键词');
+                await showAlert('请输入搜索关键词');
             }
         }
     </script>

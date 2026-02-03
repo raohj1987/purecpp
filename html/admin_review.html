@@ -550,11 +550,11 @@
                 // 查找文章
                 const article = this.pendingArticles.find(a => a.slug === s);
                 if (!article) {
-                    alert('文章不存在');
+                    await showAlert('文章不存在');
                     return;
                 }
 
-                if (!confirm(`确定要${action === 'approve' ? '通过' : '拒绝'}这篇文章吗？`)) return;
+                if (!await showConfirm(`确定要${action === 'approve' ? '通过' : '拒绝'}这篇文章吗？`)) return;
 
                 try {
                     // 获取审核意见
@@ -564,10 +564,10 @@
                     const response = await apiService.reviewArticle(this.currentUser.username, article.slug, action === 'approve' ? 'accepted' : 'rejected', reviewComment);
                         // 从本地列表中移除
                         this.pendingArticles = this.pendingArticles.filter(a => a.slug !== s);
-                        alert('操作成功');
+                    await showAlert('操作成功');
                 } catch (e) {
                     console.error('审核操作失败', e);
-                    alert('审核操作失败');
+                    await showAlert('审核操作失败');
                 }
             },
 
@@ -587,14 +587,14 @@
             },
 
             async toggleFeatured(slug) {
-                if (!confirm('确定要为这篇文章加精华吗？')) return;
+                if (!await showConfirm('确定要为这篇文章加精华吗？')) return;
 
                 try {
                     const response = await apiService.toggleFeatured(slug);
-                    alert('操作成功');
+                    await showAlert('操作成功');
                 } catch (e) {
                     console.error('加精华操作失败', e);
-                    alert('加精华操作失败');
+                    await showAlert('加精华操作失败');
                 }
             }
         }
