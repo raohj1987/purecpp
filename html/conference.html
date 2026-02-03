@@ -235,14 +235,15 @@
         </div>
 
         <section>
-            <h3 style="color: var(--text-highlight); margin-bottom: 1rem;">即将到来的大会</h3>
             <div x-show="loading" class="loading-indicator">
                 <p>加载中...</p>
             </div>
             <div x-show="!loading" x-transition>
                 <template x-for="article in communityArticles" :key="article.slug">
                     <div class="conference-card">
-                        <h2 class="conference-title" x-text="article.title"></h2>
+                        <h2 class="conference-title"><a :href="'/article.html?slug=' + article.slug"
+                                                        style="color: var(--primary); text-decoration: none;"><span
+                                x-text="article.title"></span></a></h2>
                         <div class="conference-details">
                             <div class="detail-item">
                                 <i class="fas fa-user"></i>
