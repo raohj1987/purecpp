@@ -76,7 +76,7 @@ struct article_detail {
 
 struct comments {
   std::string author_name;
-  std::string parant_name;
+  std::string parent_name;
   std::string_view content;
   uint64_t created_at;
   uint64_t updated_at;
@@ -343,19 +343,19 @@ public:
 
     // 构建标签ID的OR条件
     bool first = true;
+    decltype(where_cond) col_tags;
     for (const auto &tag : tech_articles_tags) {
       int tag_id = std::get<0>(tag);
       if (first) {
-        where_cond =
-            where_cond &&
-            col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
+        col_tags = col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
         first = false;
       } else {
-        where_cond =
-            where_cond ||
+        col_tags =
+            col_tags ||
             col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
       }
     }
+    where_cond = where_cond && col_tags;
 
     // tag_ids字段存储多个标签
     if (page_req.tag_id > 0) {
@@ -796,19 +796,19 @@ public:
 
     // 构建标签ID的OR条件
     bool first = true;
+    decltype(where_cond) col_tags;
     for (const auto &tag : services_tags) {
       int tag_id = std::get<0>(tag);
       if (first) {
-        where_cond =
-            where_cond &&
-            col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
+        col_tags = col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
         first = false;
       } else {
-        where_cond =
-            where_cond ||
+        col_tags =
+            col_tags ||
             col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
       }
     }
+    where_cond = where_cond && col_tags;
 
     // 计算总记录数
     size_t total_count =
@@ -896,19 +896,19 @@ public:
 
     // 构建标签ID的OR条件
     bool first = true;
+    decltype(where_cond) col_tags;
     for (const auto &tag : cpp_party_tags) {
       int tag_id = std::get<0>(tag);
       if (first) {
-        where_cond =
-            where_cond &&
-            col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
+        col_tags = col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
         first = false;
       } else {
-        where_cond =
-            where_cond ||
+        col_tags =
+            col_tags ||
             col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
       }
     }
+    where_cond = where_cond && col_tags;
 
     // 计算总记录数
     size_t total_count =
