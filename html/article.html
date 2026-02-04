@@ -188,7 +188,7 @@
                                       x-text="comment.author_name"></span>
                             </div>
                             <div class="comment-content" style="margin-bottom: 0.5rem; line-height: 1.5;"
-                                 x-text="comment.content"></div>
+                                 x-html="comment.content"></div>
                             <div class="comment-footer"
                                  style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
                                 <div style="display: flex; gap: 1rem; font-size: 0.8rem; color: var(--muted-color);">
@@ -230,7 +230,7 @@
 
                                         <div class="comment-content"
                                              style="margin-bottom: 0.3rem; line-height: 1.4; font-size: 0.9rem;"
-                                             x-text="child.content"></div>
+                                             x-html="child.content"></div>
 
                                         <div class="comment-footer"
                                              style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
