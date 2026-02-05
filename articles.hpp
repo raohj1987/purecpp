@@ -568,6 +568,62 @@ public:
     resp.set_status_and_content(status_type::ok, std::move(json));
   }
 
+  void upload_file(coro_http_request &req, coro_http_response &resp) {
+    auto info = std::any_cast<upload_file_info>(req.get_user_data());
+
+    // 解码base64图片数据
+    auto file_data = cinatra::base64_decode(std::string(info.file_data));
+    if (!file_data.has_value()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("base64图片数据解码失败"));
+      return;
+    }
+
+    std::string &file_data_str = file_data.value();
+
+    if (file_data_str.size() > MAX_FILE_SIZE) {
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error(PURECPP_ERROR_UPLOAD_FILE_SIZE_EXCEED));
+      return;
+    }
+
+    std::filesystem::path upload_dir = "html/uploads/articles";
+    if (!std::filesystem::exists(upload_dir)) {
+      std::filesystem::create_directories(upload_dir);
+    }
+
+    auto ext = cinatra::get_extension(info.filename);
+
+    // 生成唯一文件名
+    std::string unique_filename =
+        std::to_string(get_timestamp_milliseconds()) + std::string(ext);
+    std::filesystem::path file_path = upload_dir / unique_filename;
+
+    // 保存文件
+    std::ofstream out_file(file_path, std::ios::binary);
+    if (!out_file) {
+      resp.set_status_and_content(status_type::internal_server_error,
+                                  make_error("保存文件失败"));
+      return;
+    }
+    out_file.write(reinterpret_cast<const char *>(file_data_str.data()),
+                   file_data_str.size());
+    out_file.close();
+
+    // 生成文件URL
+    std::string file_url = "/uploads/articles/" + unique_filename;
+    // 构建响应
+    struct upload_response {
+      std::string url;
+      std::string filename;
+    };
+
+    upload_response data{file_url, unique_filename};
+    std::string json = make_data(data, "文件上传成功");
+    resp.set_status_and_content(status_type::ok, std::move(json));
+  }
+
   // 获取用户的文章列表
   void get_my_articles(coro_http_request &req, coro_http_response &resp) {
     auto body = req.get_body();

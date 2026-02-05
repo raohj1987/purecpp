@@ -262,6 +262,11 @@
                     this.simplemde.codemirror.on("change", () => {
                         this.content = this.simplemde.value();
                     });
+
+                    // 监听粘贴事件
+                    this.simplemde.codemirror.on("paste", (cm, event) => {
+                        this.handlePaste(event);
+                    });
                 },
 
                 async handleSubmit(event) {
@@ -289,6 +294,63 @@
                         console.error('Submit error:', error);
                         this.errorMessage = '提交失败：' + error.message;
                         await showAlert(this.errorMessage);
+                    }
+                },
+
+                // 处理粘贴事件
+                async handlePaste(event) {
+                    const items = event.clipboardData?.items;
+                    if (!items) return;
+
+                    for (let i = 0; i < items.length; i++) {
+                        const file = items[i].getAsFile();
+                        if (file) {
+                            event.preventDefault(); // 阻止默认粘贴行为
+                            await this.uploadPastedFile(file);
+                        }
+                    }
+                },
+                async  generateQuarterWidthImageMarkdown(file, url) {
+                // 宽度设为容器宽度的35%
+                return `<img src="${url}" 
+                        alt="${file.name}" 
+                        style="width: 35%; height: auto; display: block; margin: 10px auto;"
+                        >`;
+                },
+                // 上传粘贴的文件
+                async uploadPastedFile(file) {
+                    try {
+                        if (file.size > 4 * 1024 * 1024) {
+                            this.showMessage('图片大小不能超过4MB', true);
+                            return;
+                        }
+                        const userInfo = this.userInfo || apiService.getUserInfo();
+                        const response = await apiService.uploadFile(userInfo.id, file);
+
+                        if (response.success && response.data) {
+                            // 获取当前光标位置
+                            const cursor = this.simplemde.codemirror.getCursor();
+                            
+                            // 根据文件类型生成不同的Markdown格式
+                            let markdownFormat = '';
+                            if (file.type.indexOf('image') !== -1) {
+                                // 图片文件
+                                markdownFormat = `<img src="${response.data.url}" style="width: 25%; height: auto; display: block; margin: 10px auto;">`;
+                            } else {
+                                // 其他文件
+                                markdownFormat = `[${file.name}](${response.data.url})`;
+                            }
+
+                            // 在光标位置插入Markdown
+                            this.simplemde.codemirror.replaceRange(markdownFormat, cursor);
+
+                            await showAlert('文件粘贴上传成功！');
+                        } else {
+                            await showAlert('文件粘贴上传失败：' + (response.message || '未知错误'));
+                        }
+                    } catch (error) {
+                        console.error('文件粘贴上传失败:', error);
+                        await showAlert('文件粘贴上传失败：' + error.message);
                     }
                 }
             }

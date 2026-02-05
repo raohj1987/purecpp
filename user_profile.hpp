@@ -214,8 +214,7 @@ public:
       }
 
       // 检查文件类型
-      std::string ext =
-          upload_req.filename.substr(upload_req.filename.find_last_of('.') + 1);
+      std::string ext(cinatra::get_extension(upload_req.filename));
       std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
       if (ext != "jpg" && ext != "jpeg" && ext != "png" && ext != "gif") {
         resp.set_status_and_content(

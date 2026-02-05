@@ -89,7 +89,7 @@ std::string cleanup_markdown(const std::string &markdown_text) {
 
   // 3. 清理代码块和行内代码 (```code``` or `code`)
   text = std::regex_replace(text, std::regex("```[\\s\\S]*?```"),
-                            "");                                // 移除代码块
+                            ""); // 移除代码块
   text = std::regex_replace(text, std::regex("`(.*?)`"), "$1"); // 行内代码
 
   // 4. 清理标题 (# H1, ## H2, etc.)
@@ -413,6 +413,93 @@ struct check_change_password_input {
 
     req.set_user_data(info);
     return true;
+  }
+};
+
+inline constexpr std::array<std::string_view, 6> ALLOWED_EXTENSIONS = {
+    ".jpg", ".jpeg", ".png", ".gif", ".pdf", ".txt"};
+
+inline size_t MAX_FILE_SIZE = 1024 * 1024 * 4;
+
+struct upload_file_info {
+  int user_id;
+  std::string_view file_data;
+  std::string_view filename;
+};
+
+struct check_upload_file {
+  bool before(coro_http_request &req, coro_http_response &res) {
+    auto body = req.get_body();
+    if (body.empty()) {
+      res.set_status_and_content(status_type::bad_request,
+                                 make_error(PURECPP_ERROR_UPLOAD_FILE_EMPTY));
+      return false;
+    }
+
+    upload_file_info info{};
+    std::error_code ec;
+    iguana::from_json(info, body, ec);
+    if (ec) {
+      res.set_status_and_content(
+          status_type::bad_request,
+          make_error(PURECPP_ERROR_UPLOAD_FILE_JSON_INVALID));
+      return false;
+    }
+
+    // if (info.file_data.size() > MAX_FILE_SIZE) {
+    //   res.set_status_and_content(
+    //       status_type::bad_request,
+    //       make_error(PURECPP_ERROR_UPLOAD_FILE_SIZE_EXCEED));
+    //   return false;
+    // }
+
+    std::string ext(cinatra::get_extension(info.filename));
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    if (std::find(ALLOWED_EXTENSIONS.begin(), ALLOWED_EXTENSIONS.end(), ext) ==
+        ALLOWED_EXTENSIONS.end()) {
+      res.set_status_and_content(
+          status_type::bad_request,
+          make_error(PURECPP_ERROR_UPLOAD_FILE_INVALID_EXTENSION));
+      return false;
+    }
+
+    if (contains_dangerous_content(info.file_data, ext)) {
+      res.set_status_and_content(
+          status_type::bad_request,
+          make_error(PURECPP_ERROR_UPLOAD_FILE_INVALID_CONTENT));
+      return false;
+    }
+
+    req.set_user_data(info);
+    return true;
+  }
+
+  bool contains_dangerous_content(std::string_view content,
+                                  std::string_view ext) {
+    // 对于文本文件，检查危险代码
+    if (ext == "txt" || ext == "pdf") {
+      // 防止 PHP 代码注入
+      if (content.find("<?php") != std::string::npos ||
+          content.find("<?=") != std::string::npos ||
+          content.find("eval(") != std::string::npos ||
+          content.find("base64_decode(") != std::string::npos) {
+        return true;
+      }
+    }
+
+    // 防止 Web Shell 特征
+    std::vector<std::string> dangerousPatterns = {
+        "system(", "exec(",     "popen(", "shell_exec(", "passthru(",
+        "`",       "&&",        "||",     ";",           "|",
+        "/bin/sh", "/bin/bash", "cmd.exe"};
+
+    for (const auto &pattern : dangerousPatterns) {
+      if (content.find(pattern) != std::string::npos) {
+        return true;
+      }
+    }
+
+    return false;
   }
 };
 

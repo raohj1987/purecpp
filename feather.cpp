@@ -288,6 +288,9 @@ int main() {
   server.set_http_handler<POST>("/api/v1/review_pending_article",
                                 &articles::handle_review_article, article,
                                 log_request_response{}, check_token{});
+  server.set_http_handler<POST>("/api/v1/upload_file", &articles::upload_file,
+                                article, log_request_response{}, check_token{},
+                                check_upload_file{});
 
   // 评论相关路由
   articles_comment comment{};
@@ -333,7 +336,7 @@ int main() {
                                 log_request_response{}, check_token{});
   // 处理上传到头像不能下载的问题
   server.set_http_handler<GET>(
-      "/uploads/avatars/(.*)",
+      "/uploads/(.*)",
       [](coro_http_request &req,
          coro_http_response &resp) -> async_simple::coro::Lazy<void> {
         auto url = req.get_url();

@@ -544,6 +544,39 @@ class APIService {
         }
     }
 
+    async uploadFile(userId, file) {
+        // 将图片转换为base64格式的辅助方法
+        const fileToBase64 = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        };
+
+        try {
+            // 将图片转换为base64格式
+            const base64Data = await fileToBase64(file);
+
+            // 构建JSON请求
+            const uploadData = {
+                user_id: userId,
+                file_data: base64Data,
+                filename: file.name
+            };
+
+            const response = await this.request('/api/v1/upload_file', {
+                method: 'POST',
+                body: JSON.stringify(uploadData)
+            });
+
+            return response;
+        } catch (error) {
+            throw error;
+        }
+    }    
+
     // 等级转换方法：将数字等级转换为汉字等级名称
     getLevelText(level) {
         const levelMap = {

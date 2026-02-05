@@ -26,7 +26,7 @@ struct request_record {
 
 // 内部限流规则配置对象
 struct rule_config : rate_limit_rule {
-  bool is_regex = false;    // 是否为正则表达式（自动检测）
+  bool is_regex = false; // 是否为正则表达式（自动检测）
   std::regex regex_pattern; // 编译后的正则表达式（仅当is_regex=true时有效）
 };
 

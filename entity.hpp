@@ -81,7 +81,7 @@ struct users_t {
   std::array<char, 254> email;     // unique, not null
   std::string_view pwd_hash;       // not null
   std::string status;              // 在线状态Online, Offline, Away
-  EmailVerifyStatus is_verifyed;   // 邮箱是否已验证(0:未验证, 1:已验证)
+  EmailVerifyStatus is_verifyed; // 邮箱是否已验证(0:未验证, 1:已验证)
   uint64_t created_at;
   uint64_t last_active_at; // 最后活跃时间
 
@@ -112,7 +112,7 @@ struct users_tmp_t {
   std::array<char, 254> user_name; // unique, not null
   std::array<char, 254> email;     // unique, not null
   std::string_view pwd_hash;       // not null
-  EmailVerifyStatus is_verifyed;   // 邮箱是否已验证(0:未验证, 1:已验证)
+  EmailVerifyStatus is_verifyed; // 邮箱是否已验证(0:未验证, 1:已验证)
   uint64_t created_at;
 };
 // 注册users_t的主键
@@ -164,9 +164,9 @@ struct articles_t {
   std::string review_comment; // 审核意见
   int featured_weight;        // 置顶
   uint64_t review_date;       // 审核完成时间
-  std::string status;         // 状态：draft(草稿), pending_review (待审核),
-                              // published(已发布), rejected (已拒绝)
-  bool is_deleted = false;    // 0: 未删除, 1: 已删除
+  std::string status; // 状态：draft(草稿), pending_review (待审核),
+                      // published(已发布), rejected (已拒绝)
+  bool is_deleted = false; // 0: 未删除, 1: 已删除
 };
 constexpr std::string_view get_alias_struct_name(articles_t *) {
   return "articles";
@@ -255,9 +255,9 @@ constexpr std::string_view get_alias_struct_name(user_gifts_t *) {
 // 经验值交易记录表
 struct user_experience_detail_t {
   uint64_t id = 0;
-  uint64_t user_id;                  // 外键，关联用户表
-  ExperienceChangeType change_type;  // 经验值变动类型
-  int64_t experience_change;         // 经验值变动量，正数表示增加，负数表示减少
+  uint64_t user_id;                 // 外键，关联用户表
+  ExperienceChangeType change_type; // 经验值变动类型
+  int64_t experience_change; // 经验值变动量，正数表示增加，负数表示减少
   uint64_t balance_after_experience; // 变动后的经验值余额
   std::optional<uint64_t> related_id; // 关联的实体ID（如文章ID、评论ID）
   std::optional<std::string>

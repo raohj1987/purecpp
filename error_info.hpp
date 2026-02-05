@@ -50,6 +50,16 @@ inline constexpr std::string_view PURECPP_ERROR_TOKEN_BLACKLISTED =
     "令牌已被列入黑名单";
 inline constexpr std::string_view PURECPP_ERROR_USER_ID_MISMATCH =
     "用户ID不匹配";
+inline constexpr std::string_view PURECPP_ERROR_UPLOAD_FILE_EMPTY =
+    "upload file info is empty";
+inline constexpr std::string_view PURECPP_ERROR_UPLOAD_FILE_JSON_INVALID =
+    "upload file info is not a required json";
+inline constexpr std::string_view PURECPP_ERROR_UPLOAD_FILE_INVALID_EXTENSION =
+    "上传文件格式错误，仅支持jpg, jpeg, png, gif, pdf, txt";
+inline constexpr std::string_view PURECPP_ERROR_UPLOAD_FILE_SIZE_EXCEED =
+    "上传文件大小不能超过4MB";
+inline constexpr std::string_view PURECPP_ERROR_UPLOAD_FILE_INVALID_CONTENT =
+    "上传文件包含危险内容";
 
 // 注册相关错误
 inline constexpr std::string_view PURECPP_ERROR_REGISTER_INFO_EMPTY =
