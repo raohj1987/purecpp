@@ -64,18 +64,6 @@
             font-weight: 600;
         }
 
-        /* 错误信息样式 */
-        .error-message {
-            text-align: center;
-            color: var(--error-color);
-            font-size: 0.85rem;
-            margin-bottom: 1rem;
-            padding: 0.75rem;
-            background-color: rgba(239, 68, 68, 0.1);
-            border-radius: 6px;
-            animation: slideIn 0.3s ease;
-        }
-
         /* 表单样式 */
         .form-group {
             margin-bottom: 1rem;
@@ -275,7 +263,7 @@
         <div class="main-container">
             <div class="main-card">
                 <h2>账号登录</h2>
-                <form x-data="loginFormLogic()" x-init="init()" @submit.prevent="submitLogin">
+                <form x-data="loginFormLogic()" @submit.prevent="submitLogin">
                     <div x-show="message" x-text="message"
                          :style="{color: messageColor, marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem', padding: '0.75rem', borderRadius: '6px', backgroundColor: messageColor === '#ef4444' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}">
                     </div>

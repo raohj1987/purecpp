@@ -62,7 +62,7 @@
     <!-- 统一页头占位符 -->
     <div id="header-container"></div>
 
-    <main class="page-wrapper" x-data="articleDetailComponent()" x-init="init()">
+    <main class="page-wrapper" x-data="articleDetailComponent()">
         <div x-show="isLoading" class="text-center py-4">
             <i class="fas fa-circle-o-notch fa-spin"></i> 正在加载文章...
         </div>
@@ -88,15 +88,10 @@
                 <div class="article-meta">
                     <span><i class="fas fa-user"></i> <span x-text="article.author_name"></span></span>
                     <span><i class="fas fa-tag"></i> 
-                        <template x-if="article.tag_ids && article.tag_ids.includes('|')">
-                            <template x-for="tagId in article.tag_ids.split('|')" :key="tagId">
-                                <template x-if="getTagName(tagId)">
-                                    <span class="tag" style="margin-right: 5px;" x-text="getTagName(tagId)"></span>
-                                </template>
+                        <template x-for="tagId in article.tag_ids.split('|')" :key="tagId">
+                            <template x-if="getTagName(tagId)">
+                                <span class="tag" style="margin-right: 5px;" x-text="getTagName(tagId)"></span>
                             </template>
-                        </template>
-                        <template x-else>
-                            <span x-text="article.tag_ids ? getTagName(article.tag_ids) : ''"></span>
                         </template>
                     </span>
                     <span><i class="fas fa-calendar"></i> <span x-text="formatDate(article.created_at)"></span></span>

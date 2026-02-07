@@ -17,8 +17,8 @@ struct client_artilce {
 };
 
 struct article_page_request {
-  int tag_id = 0;  // 0表示所有标签
-  int user_id = 0; // 0表示所有用户
+  int tag_id = 0;       // 0表示所有标签
+  uint64_t user_id = 0; // 0表示所有用户
   int current_page;
   int per_page;
   std::string search; // 搜索关键词
@@ -29,7 +29,7 @@ struct article_list {
   std::string summary;
   std::string slug;
   std::string author_name;
-  int author_id;
+  uint64_t author_id;
   std::string tag_ids;
   uint64_t created_at;
   uint64_t updated_at;
@@ -634,7 +634,7 @@ public:
     }
 
     // 从请求体中获取分页信息
-    article_page_request page_req{};
+    my_article_request page_req{};
     std::error_code ec;
     iguana::from_json(page_req, body, ec);
     if (ec) {
@@ -709,7 +709,7 @@ public:
             .order_by(col(&articles_t::created_at).desc())
             .limit(ormpp::token)
             .offset(ormpp::token)
-            .collect<user_article_item>(limit, offset);
+            .collect<my_article_item>(limit, offset);
 
     std::string json = make_data(std::move(articles_list),
                                  "获取用户文章列表成功", total_count);
@@ -732,7 +732,7 @@ public:
 
     // 解析请求参数
     struct delete_article_request {
-      uint64_t article_id;
+      std::string slug;
     };
 
     delete_article_request request;
@@ -746,9 +746,10 @@ public:
     }
 
     // 验证文章ID
-    if (request.article_id == 0) {
-      resp.set_status_and_content(status_type::bad_request,
-                                  make_error("无效的请求参数，文章ID不能为空"));
+    if (request.slug.empty()) {
+      resp.set_status_and_content(
+          status_type::bad_request,
+          make_error("无效的请求参数，文章Slug不能为空"));
       return;
     }
 
@@ -767,12 +768,11 @@ public:
     }
 
     // 检查文章是否存在，并且是否是当前用户的文章
-    auto articles =
-        conn->select(col(&articles_t::author_id))
-            .from<articles_t>()
-            .where(col(&articles_t::article_id) == request.article_id &&
-                   col(&articles_t::is_deleted) == 0)
-            .collect();
+    auto articles = conn->select(col(&articles_t::author_id))
+                        .from<articles_t>()
+                        .where(col(&articles_t::slug).param() &&
+                               col(&articles_t::is_deleted).param())
+                        .collect(request.slug, 0);
 
     if (articles.empty()) {
       resp.set_status_and_content(status_type::not_found,
@@ -793,10 +793,8 @@ public:
     articles_t article;
     article.is_deleted = true;
     article.updated_at = get_timestamp_milliseconds();
-
     int n = conn->update_some<&articles_t::is_deleted, &articles_t::updated_at>(
-        article, "article_id=" + std::to_string(request.article_id));
-
+        article, "slug='" + request.slug + "'");
     if (n == 0) {
       set_server_internel_error(resp);
       return;

@@ -3,9 +3,14 @@
 #include <string>
 
 namespace purecpp {
-
+// 获取我的文章请求结构体
+struct my_article_request {
+  uint64_t user_id = 0; // 0表示所有用户
+  int current_page;
+  int per_page;
+};
 // 我的文章响应item
-struct user_article_item {
+struct my_article_item {
   uint64_t article_id;
   std::string title;
   std::string abstraction;
