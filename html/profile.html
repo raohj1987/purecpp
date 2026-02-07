@@ -793,7 +793,7 @@
                             <span>${article.comments_count || 0} 评论</span>
                         </div>
                         <a href="/article.html?slug=${article.slug}" class="read-more">阅读全文 →</a>
-                        <a onclick="deleteArticle(${article.id})" class="delete">删除</a>
+                        <a onclick="deleteArticle('${article.slug}')" class="delete">删除</a>
                     </div>
                 </div>
             </div>
@@ -817,11 +817,11 @@
     }
 
     // 删除文章
-    async function deleteArticle(articleId) {
+    async function deleteArticle(slug) {
         if (!await showConfirm('确定要删除这篇文章吗？')) return;
 
         try {
-            const response = await apiService.deleteMyArticle(articleId);
+            const response = await apiService.deleteMyArticle(slug);
             if (response.success) {
                 // 重新加载文章列表
                 loadMyArticles();

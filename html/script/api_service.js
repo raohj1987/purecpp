@@ -611,10 +611,10 @@ class APIService {
     }
 
     // 删除文章
-    async deleteMyArticle(articleId) {
+    async deleteMyArticle(slug) {
         return this.request('/api/v1/delete_myarticle', {
             method: 'POST',
-            body: JSON.stringify({article_id: articleId})
+            body: JSON.stringify({slug: slug})
         });
     }
 

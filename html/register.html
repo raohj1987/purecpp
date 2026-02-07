@@ -253,74 +253,80 @@
 
     <!-- 注册主体：减小与导航栏的空白 -->
     <main class="page-wrapper">
-        <div class="register-card" x-data="registerFormLogic()">
-            <h2>账号注册</h2>
-            <div x-show="message" x-text="message"
-                 :style="{color: messageColor, marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem', padding: '0.75rem', borderRadius: '6px', backgroundColor: messageColor === '#ef4444' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', marginBottom: '1rem'}">
-            </div>
-            <div
-                    style="background-color: #f0f9ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; text-align: center;">
-                <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>
-                注册成功后需要验证邮箱，请使用常用邮箱地址
-            </div>
-            <form id="registerForm" @submit="handleSubmit">
-                <div class="form-group">
-                    <label for="username">用户名</label>
-                    <input type="text" id="username" class="form-control" placeholder="请输入3-20位字母、数字或下划线" required
-                        x-model="username">
+        <div class="register-container">
+            <div class="register-card" x-data="registerFormLogic()">
+                <h2>账号注册</h2>
+                <div x-show="message" x-text="message"
+                     :style="{color: messageColor, marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem', padding: '0.75rem', borderRadius: '6px', backgroundColor: messageColor === '#ef4444' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', marginBottom: '1rem'}">
                 </div>
-                <!-- 邮箱组：添加专属类，缩小间距 -->
-                <div class="form-group email-group">
-                    <label for="email">邮箱</label>
-                    <input type="email" id="email" class="form-control" placeholder="请输入有效邮箱地址" required
-                        x-model="email">
+                <div
+                        style="background-color: #f0f9ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; text-align: center;">
+                    <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>
+                    注册成功后需要验证邮箱，请使用常用邮箱地址
                 </div>
-                <div class="form-row">
-                    <!-- 密码组：添加专属类，缩小间距 -->
-                    <div class="form-group password-group">
-                        <label for="password">密码</label>
-                        <input type="password" id="password" class="form-control" placeholder="长度6-20位，且含大小写字母和数字"
-                            required x-model="password">
-                    </div>
-                    <!-- 确认密码组：添加专属类，缩小间距 -->
-                    <div class="form-group password-group">
-                        <label for="confirmPwd">确认密码</label>
-                        <input type="password" id="confirmPwd" class="form-control" placeholder="请再次输入密码" required
-                            x-model="confirmPwd">
-                    </div>
-                </div>
-
-                <!-- 问题区域：保持原样，不修改 -->
-                <div class="verify-code">
+                <form id="registerForm" @submit="handleSubmit">
                     <div class="form-group">
-                        <div class="cpp-question"
-                            x-html="`问题：<span style='color: red;'>${currentQuestion.question}</span>`">
+                        <label for="username">用户名</label>
+                        <input type="text" id="username" class="form-control"
+                               placeholder="请输入3-20位字母、数字或下划线" required
+                               x-model="username">
+                    </div>
+                    <!-- 邮箱组：添加专属类，缩小间距 -->
+                    <div class="form-group email-group">
+                        <label for="email">邮箱</label>
+                        <input type="email" id="email" class="form-control" placeholder="请输入有效邮箱地址" required
+                               x-model="email">
+                    </div>
+                    <div class="form-row">
+                        <!-- 密码组：添加专属类，缩小间距 -->
+                        <div class="form-group password-group">
+                            <label for="password">密码</label>
+                            <input type="password" id="password" class="form-control"
+                                   placeholder="长度6-20位，且含大小写字母和数字"
+                                   required x-model="password">
                         </div>
-                        <!-- 输入框容器：包裹输入框 -->
-                        <div class="verify-input-group">
-                            <input type="text" id="verifyAnswer" class="form-control verify-input" placeholder="请输入"
-                                required x-model="verifyAnswer">
+                        <!-- 确认密码组：添加专属类，缩小间距 -->
+                        <div class="form-group password-group">
+                            <label for="confirmPwd">确认密码</label>
+                            <input type="password" id="confirmPwd" class="form-control" placeholder="请再次输入密码"
+                                   required
+                                   x-model="confirmPwd">
                         </div>
                     </div>
-                </div>
 
-                <div class="agreement">
-                    <input type="checkbox" id="agreement" required x-model="agreement">
-                    <label for="agreement">我已阅读并同意 <a href="/terms.html">《用户服务协议》</a> 和 <a
-                            href="/privacy.html">《隐私政策》</a></label>
-                </div>
-                <!-- 注册按钮：保持原样 -->
-                <button type="submit" class="btn-register" x-bind:disabled="isSubmitting">
-                    <span x-show="!isSubmitting">注册账号</span>
-                    <span x-show="isSubmitting"
-                        style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <!-- 问题区域：保持原样，不修改 -->
+                    <div class="verify-code">
+                        <div class="form-group">
+                            <div class="cpp-question"
+                                 x-html="`问题：<span style='color: red;'>${currentQuestion.question}</span>`">
+                            </div>
+                            <!-- 输入框容器：包裹输入框 -->
+                            <div class="verify-input-group">
+                                <input type="text" id="verifyAnswer" class="form-control verify-input"
+                                       placeholder="请输入"
+                                       required x-model="verifyAnswer">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="agreement">
+                        <input type="checkbox" id="agreement" required x-model="agreement">
+                        <label for="agreement">我已阅读并同意 <a href="/terms.html">《用户服务协议》</a> 和 <a
+                                href="/privacy.html">《隐私政策》</a></label>
+                    </div>
+                    <!-- 注册按钮：保持原样 -->
+                    <button type="submit" class="btn-register" x-bind:disabled="isSubmitting">
+                        <span x-show="!isSubmitting">注册账号</span>
+                        <span x-show="isSubmitting"
+                              style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                         <i class="fas fa-spinner fa-spin"></i> 正在注册...
                     </span>
-                </button>
-                <div class="login-link">
-                    已有账号？<a href="/login.html">立即登录</a>
-                </div>
-            </form>
+                    </button>
+                    <div class="login-link">
+                        已有账号？<a href="/login.html">立即登录</a>
+                    </div>
+                </form>
+            </div>
         </div>
     </main>
     <!-- 统一页脚占位符 -->

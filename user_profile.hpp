@@ -55,13 +55,13 @@ public:
       users = conn->select(ormpp::all)
                   .from<users_t>()
                   .where(col(&users_t::id).param())
-                  .collect(request.user_id);
+                  .collect<users_t>(request.user_id);
     } else {
       // 通过username查询
       users = conn->select(ormpp::all)
                   .from<users_t>()
                   .where(col(&users_t::user_name).param())
-                  .collect(request.username);
+                  .collect<users_t>(request.username);
     }
 
     if (users.empty()) {
