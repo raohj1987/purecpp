@@ -183,6 +183,14 @@ public:
     article.comments_count = 0;
     generate_random_string(article.slug);
 
+    size_t pos = 0;
+
+    // 查找并替换所有 \" 为 "
+    while ((pos = article.content.find("\\\"", pos)) != std::string::npos) {
+      article.content.replace(pos, 2, "\""); // 替换 2 个字符(\") 为 1 个字符(")
+      pos += 1;
+    }
+
     auto conn = connection_pool<dbng<mysql>>::instance().get();
     if (conn == nullptr) {
       set_server_internel_error(resp);
