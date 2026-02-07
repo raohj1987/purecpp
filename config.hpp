@@ -67,7 +67,7 @@ struct user_config {
   std::string smtp_from_name;     // 发件人名称
   std::string web_server_url;     // 网页服务器URL
   std::string default_avatar_url; // 默认头像URL
-  int default_user_count = 0; // 默认用户数
+  int default_user_count = 0;     // 默认用户数
   // 基于路由的限流配置
   std::vector<rate_limit_rule> rate_limit_rules; // 限流规则列表
 
