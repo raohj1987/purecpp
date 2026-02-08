@@ -47,14 +47,32 @@ public:
                      col(&article_comments_t::parent_comment_id),
                      col(&article_comments_t::parent_user_name),
                      col(&article_comments_t::ip),
+                     col(&article_comments_t::comment_status),
                      col(&article_comments_t::created_at),
                      col(&article_comments_t::updated_at))
             .from<article_comments_t>()
             .inner_join(col(&article_comments_t::user_id), col(&users_t::id))
-            .where(col(&article_comments_t::article_id).param() &&
-                   col(&article_comments_t::comment_status).param())
+            .where(col(&article_comments_t::article_id).param())
             .order_by(col(&article_comments_t::created_at).desc())
-            .collect<get_comments_response>(article_id, CommentStatus::PUBLISH);
+            .collect<get_comments_response>(article_id);
+    // 如果评论没有子评论，那就不显示该评论了。如果评论有子评论，那正常显示该评论，内容修改为：原评论也删除。
+    std::erase_if(comments, [comments](get_comments_response &comment) -> bool {
+      if (comment.comment_status !=
+          static_cast<int32_t>(CommentStatus::DELETED)) {
+        return false;
+      }
+      for (const auto &child_comment : comments) {
+        if (child_comment.comment_id != comment.comment_id &&
+            child_comment.parent_comment_id == comment.comment_id &&
+            child_comment.comment_status ==
+                static_cast<int32_t>(CommentStatus::PUBLISH)) {
+          comment.content = "该评论已被删除";
+          return false;
+        }
+      }
+      return true;
+    });
+
     // 对引用的评论进行用户信息加工
     std::string json =
         make_data(comments, std::string("Comments retrieved successfully"));
@@ -340,15 +358,32 @@ public:
     uint64_t comment_user_id = std::get<0>(comments.front());
     uint64_t article_id = std::get<1>(comments.front());
 
-    // 检查当前用户是否是评论作者
-    if (current_user_id != comment_user_id) {
+    // 检查审核人是否是管理员(只有管理员、超级管理员和评论作者才能删除评论)
+    auto user_id = get_user_id_from_token(req);
+    if (user_id == 0) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数"));
+      return;
+    }
+    auto users_vect = conn->select(ormpp::all)
+                          .from<users_t>()
+                          .where(col(&users_t::id) == user_id)
+                          .collect();
+    if (users_vect.empty()) {
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("无效的请求参数"));
+      return;
+    }
+    auto &review_user = users_vect.front();
+    // 检查审核人是否是管理员(只有管理员、超级管理员和评论作者才能删除评论)
+    if (review_user.role != "admin" && review_user.role != "superadmin" &&
+        current_user_id != comment_user_id) {
       resp.set_status_and_content(status_type::forbidden,
                                   make_error("没有权限删除其他用户的评论"));
       return;
     }
 
-    // 删除评论（标记为已删除或直接删除）
-    // 这里我们使用标记为已删除的方式
+    // 删除评论（标记为已删除）
     article_comments_t comment;
     comment.comment_status = CommentStatus::DELETED;
     comment.updated_at = get_timestamp_milliseconds();

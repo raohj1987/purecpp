@@ -275,6 +275,10 @@
                                             style="background: none; border: none; color: var(--primary); cursor: pointer; padding: 0; margin-right: 1rem;">
                                         回复
                                     </button>
+                                    <button x-show="isAdmin()" @click="deleteComment(comment.comment_id)"
+                                            style="background: none; border: none; color: #dc3545; cursor: pointer; padding: 0;">
+                                        删除
+                                    </button>
                                 </div>
                             </div>
 
@@ -322,10 +326,16 @@
                                                 <span class="comment-time" x-text="formatDate(child.created_at)"></span>
                                                 <span class="comment-ip" x-text="child.ip || ''"></span>
                                             </div>
-                                            <button @click="replyToComment(child.comment_id)"
+                                            <div style="display: flex; gap: 1rem;">
+                                                <button @click="replyToComment(child.comment_id)"
                                                     style="background: none; border: none; color: var(--primary); cursor: pointer; padding: 0;">
-                                                回复
-                                            </button>
+                                                    回复
+                                                </button>
+                                                <button x-show="isAdmin()" @click="deleteComment(child.comment_id)"
+                                                        style="background: none; border: none; color: #dc3545; cursor: pointer; padding: 0;">
+                                                    删除
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <!-- 子评论的回复表单 -->
@@ -971,6 +981,28 @@
                 // 检查用户是否是管理员
                 isAdmin() {
                     return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'superadmin');
+                },
+
+                // 删除评论
+                async deleteComment(commentId) {
+                    // 显示确认弹窗
+                    if (!(await showConfirm('是否删除该讨论？'))) {
+                        return; // 用户取消操作
+                    }
+
+                    try {
+                        const response = await apiService.deleteMyComment(commentId);
+                        if (response.success) {
+                            // 从评论列表中移除该评论
+                            this.comments = this.comments.filter(comment => comment.comment_id !== commentId);
+                            // 更新评论计数
+                            this.article.comments_count--;
+                            await showAlert('删除成功！');
+                        }
+                    } catch (error) {
+                        console.error('删除评论失败:', error);
+                        await showAlert('删除评论失败: ' + error.message);
+                    }
                 },
             };
         }

@@ -38,6 +38,7 @@ struct get_comments_response {
   uint64_t parent_comment_id;   // 父级评论id
   std::string parent_user_name; // 父级用户名
   std::string ip;               // 评论者IP地址
+  int32_t comment_status;       // 评论状态
   uint64_t created_at;
   uint64_t updated_at;
 };
