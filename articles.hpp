@@ -346,12 +346,12 @@ public:
     }
 
     // 构建查询条件：文章已发布且未删除，并且tag_ids包含至少一个TECH_ARTICLES分组的标签
-    auto where_cond = col(&articles_t::is_deleted) == 0 &&
-                      col(&articles_t::status) == PUBLISHED.data();
+    auto where_cond0 = col(&articles_t::is_deleted) == 0 &&
+                       col(&articles_t::status) == PUBLISHED.data();
 
     // 构建标签ID的OR条件
     bool first = true;
-    decltype(where_cond) col_tags;
+    decltype(where_cond0) col_tags;
     for (const auto &tag : tech_articles_tags) {
       int tag_id = std::get<0>(tag);
       if (first) {
@@ -364,11 +364,11 @@ public:
             col(&articles_t::tag_ids).like("%" + std::to_string(tag_id) + "%");
       }
     }
-    where_cond = where_cond && col_tags;
+    auto where_cond = where_cond0 && col_tags;
 
     // tag_ids字段存储多个标签
     if (page_req.tag_id > 0) {
-      where_cond = where_cond &&
+      where_cond = where_cond0 &&
                    (col(&articles_t::tag_ids)
                         .like("%" + std::to_string(page_req.tag_id) + "%"));
     }
