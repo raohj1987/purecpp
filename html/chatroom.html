@@ -92,8 +92,35 @@
             color: #ccc;
         }
         
-        .channels-section, .direct-messages-section {
+        .channels-section, .direct-messages-section, .shortcuts-section {
             padding: 16px 0;
+        }
+
+        .shortcut-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .shortcut-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            color: white;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-decoration: none;
+        }
+
+        .shortcut-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .shortcut-item i {
+            width: 16px;
+            text-align: center;
+            color: #ccc;
         }
         
         .section-header {
@@ -777,6 +804,24 @@
                     <div class="user-status">在线</div>
                 </div>
             </div>
+
+            <div class="shortcuts-section">
+                <div class="section-header">
+                    <span class="section-header-text">快捷入口</span>
+                </div>
+                <ul class="shortcut-list">
+                    <li class="shortcut-item" id="weekly-summary-shortcut">
+                        <i class="fas fa-thumbtack"></i>
+                        <span class="channel-item-text">每周总结</span>
+                    </li>
+                    <li>
+                        <a class="shortcut-item" href="/rss.xml" target="_blank" rel="noopener">
+                            <i class="fas fa-rss"></i>
+                            <span class="channel-item-text">RSS订阅</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
             
             <div class="channels-section">
                 <div class="section-header">
@@ -898,6 +943,7 @@
         const addChannelBtn = document.getElementById('add-channel-btn');
         const messageStatus = document.getElementById('message-status');
         const messageLengthCounter = document.getElementById('message-length-counter');
+        const weeklySummaryShortcut = document.getElementById('weekly-summary-shortcut');
 
         function isChatAdmin() {
             return currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin');
@@ -1070,6 +1116,10 @@
 
         function channelById(channelId) {
             return channels.find(c => c.id === channelId);
+        }
+
+        function channelByName(channelName) {
+            return channels.find(c => c.name === channelName);
         }
 
         function syncWsChannelState() {
@@ -1751,6 +1801,16 @@
             wsSend({ type: 'switch_channel', channel_id: channelId }, { silent: true });
         }
 
+        async function openNamedChannel(channelName) {
+            const channel = channelByName(channelName);
+            if (!channel) {
+                alert(`未找到频道：${channelName}`);
+                return;
+            }
+            if (channel.id === currentChannelId) return;
+            await switchChannel(channel.id);
+        }
+
         // ========== Markdown 编辑器 ==========
         function initMarkdownEditor() {
             mde = new SimpleMDE({
@@ -2220,6 +2280,12 @@
 
             if (addChannelBtn) {
                 addChannelBtn.onclick = createNewChannel;
+            }
+
+            if (weeklySummaryShortcut) {
+                weeklySummaryShortcut.addEventListener('click', async () => {
+                    await openNamedChannel('每周总结');
+                });
             }
 
             channelList.addEventListener('click', async (e) => {

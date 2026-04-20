@@ -12,6 +12,7 @@
 #include <set>
 #include <shared_mutex>
 #include <sstream>
+#include <thread>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
@@ -112,6 +113,21 @@ struct chat_mute_t {
   }
 };
 REGISTER_AUTO_KEY(chat_mute_t, id);
+
+struct chat_weekly_summary_t {
+  uint64_t id;
+  uint64_t week_start_ms;
+  uint64_t week_end_ms;
+  uint64_t channel_id;
+  uint64_t message_id;
+  uint64_t created_at;
+
+  static constexpr std::string_view get_alias_struct_name(
+      chat_weekly_summary_t *) {
+    return "chat_weekly_summaries";
+  }
+};
+REGISTER_AUTO_KEY(chat_weekly_summary_t, id);
 
 struct chat_mark_read_req {
   uint64_t channel_id;
@@ -564,6 +580,116 @@ inline std::string build_online_json(
 
 inline std::string build_reactions_json(uint64_t message_id) {
   return to_json_string(build_reaction_views(message_id));
+}
+
+inline uint64_t chat_start_of_week_utc_ms(uint64_t ts_ms) {
+  using namespace std::chrono;
+  auto tp = system_clock::time_point(milliseconds(ts_ms));
+  auto days_part = floor<days>(tp);
+  std::chrono::year_month_day ymd{days_part};
+  std::chrono::weekday wd{days_part};
+  const auto days_since_monday = (wd.iso_encoding() + 6) % 7;
+  auto monday = days_part - days(days_since_monday);
+  return static_cast<uint64_t>(
+      duration_cast<milliseconds>(monday.time_since_epoch()).count());
+}
+
+inline std::string chat_format_date_utc(uint64_t ts_ms) {
+  auto seconds = std::chrono::duration_cast<std::chrono::seconds>(
+      std::chrono::milliseconds(ts_ms));
+  std::time_t timestamp = static_cast<std::time_t>(seconds.count());
+  std::tm utc_tm{};
+
+#ifdef _WIN32
+  if (gmtime_s(&utc_tm, &timestamp) != 0) {
+    return {};
+  }
+#else
+  if (gmtime_r(&timestamp, &utc_tm) == nullptr) {
+    return {};
+  }
+#endif
+
+  std::ostringstream oss;
+  oss.imbue(std::locale::classic());
+  oss << std::put_time(&utc_tm, "%Y-%m-%d");
+  return oss.str();
+}
+
+inline uint64_t ensure_chat_channel_exists(std::string_view name,
+                                           std::string_view topic,
+                                           uint32_t is_private = 0,
+                                           uint64_t creator_id = 0) {
+  auto conn = get_db_pool().get();
+  if (!conn) return 0;
+
+  auto channels = conn->select(ormpp::all).from<chat_channel_t>().collect();
+  for (auto &ch : channels) {
+    if (arr_to_str(ch.name) != name) continue;
+    return ch.id;
+  }
+
+  chat_channel_t ch{};
+  str_to_arr(ch.name, std::string(name));
+  str_to_arr(ch.topic, std::string(topic));
+  ch.creator_id = creator_id;
+  ch.is_private = is_private;
+  ch.created_at = get_timestamp_milliseconds();
+  ch.message_count = 0;
+
+  auto id = conn->get_insert_id_after_insert(ch);
+  if (id == 0) {
+    auto retry = conn->select(ormpp::all).from<chat_channel_t>().collect();
+    for (auto &existing : retry) {
+      if (arr_to_str(existing.name) != name) continue;
+      return existing.id;
+    }
+    return 0;
+  }
+
+  return id;
+}
+
+template <typename PairVec>
+inline std::string chat_join_top_entries(const PairVec &entries,
+                                         size_t limit,
+                                         std::string_view sep = "，") {
+  std::ostringstream oss;
+  size_t count = 0;
+  for (auto &entry : entries) {
+    if (count >= limit) break;
+    if (count++) oss << sep;
+    oss << entry.first << "（" << entry.second << "）";
+  }
+  return oss.str();
+}
+
+inline std::string chat_trim_summary_text(std::string_view text,
+                                          size_t max_codepoints) {
+  std::string result;
+  result.reserve((std::min)(text.size(), max_codepoints * 3));
+  size_t codepoints = 0;
+  for (size_t i = 0; i < text.size();) {
+    unsigned char c = static_cast<unsigned char>(text[i]);
+    size_t len = 1;
+    if ((c & 0x80u) == 0x00u) {
+      len = 1;
+    } else if ((c & 0xE0u) == 0xC0u) {
+      len = 2;
+    } else if ((c & 0xF0u) == 0xE0u) {
+      len = 3;
+    } else if ((c & 0xF8u) == 0xF0u) {
+      len = 4;
+    }
+    if (codepoints >= max_codepoints) break;
+    result.append(text.substr(i, len));
+    i += len;
+    ++codepoints;
+  }
+  if (utf8_codepoint_count(text) > max_codepoints) {
+    result += "...";
+  }
+  return result;
 }
 
 class chat_perf_stats {
@@ -1036,6 +1162,18 @@ inline bool init_chat_db() {
           "muted_until INTEGER NOT NULL)");
     }
 
+    if (!table_exists("chat_weekly_summaries")) {
+      exec_or_throw(
+          "CREATE TABLE IF NOT EXISTS chat_weekly_summaries("
+          "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+          "week_start_ms INTEGER NOT NULL,"
+          "week_end_ms INTEGER NOT NULL,"
+          "channel_id INTEGER NOT NULL,"
+          "message_id INTEGER NOT NULL,"
+          "created_at INTEGER NOT NULL,"
+          "UNIQUE (week_start_ms))");
+    }
+
     if (!column_exists("chat_channels", "creator_id")) {
       exec_or_throw(
           "ALTER TABLE chat_channels ADD COLUMN creator_id INTEGER DEFAULT 0");
@@ -1130,6 +1268,12 @@ inline bool init_chat_db() {
              .execute()) {
       throw std::runtime_error(conn->get_last_error());
     }
+    if (!conn->create_table<chat_weekly_summary_t>()
+             .auto_increment(col(&chat_weekly_summary_t::id))
+             .unique(col(&chat_weekly_summary_t::week_start_ms))
+             .execute()) {
+      throw std::runtime_error(conn->get_last_error());
+    }
 
     if (!column_exists("chat_channels", "creator_id")) {
       exec_or_throw(
@@ -1175,6 +1319,9 @@ inline bool init_chat_db() {
     ensure_index("chat_mutes", "idx_chat_mutes_user",
                  "CREATE INDEX idx_chat_mutes_user "
                  "ON chat_mutes(user_id, channel_id, muted_until)");
+    ensure_index("chat_weekly_summaries", "idx_chat_weekly_summaries_week",
+                 "CREATE INDEX idx_chat_weekly_summaries_week "
+                 "ON chat_weekly_summaries(week_start_ms)");
 
 #if defined(PURECPP_DB_MYSQL)
     if (!index_exists("chat_messages", "ft_chat_messages_content")) {
@@ -1191,6 +1338,7 @@ inline bool init_chat_db() {
         {"通用聊天", "欢迎来到 PureCpp 社区聊天室！"},
         {"项目讨论", "讨论项目相关事宜"},
         {"技术问题", "技术问题求助与解答"},
+        {"每周总结", "自动汇总上一周公开聊天室讨论"},
       };
       for (auto &s : seeds) {
         chat_channel_t ch{};
@@ -1277,6 +1425,8 @@ inline bool init_chat_db() {
         chat_channel_cache::instance().put(channel);
       }
     }
+
+    ensure_chat_channel_exists("每周总结", "自动汇总上一周公开聊天室讨论");
 
     CINATRA_LOG_INFO << "Chat database initialized";
     return true;
@@ -1707,6 +1857,246 @@ private:
 };
 
 // ==================== chat_handler_t ====================
+
+inline bool insert_chat_system_message(uint64_t channel_id,
+                                       const std::string &content,
+                                       chat_message_t *out_msg = nullptr) {
+  if (channel_id == 0 || content.empty()) return false;
+
+  auto channel_mtx = chat_channel_cache::instance().channel_mutex(channel_id);
+  std::scoped_lock channel_lock(*channel_mtx);
+
+  auto conn = get_db_pool().get();
+  if (!conn) return false;
+  if (!conn->begin()) return false;
+
+  auto latest = conn->select(ormpp::all)
+                    .from<chat_channel_t>()
+                    .where(col(&chat_channel_t::id).param())
+                    .collect(channel_id);
+  if (latest.empty()) {
+    conn->rollback();
+    return false;
+  }
+
+  chat_message_t msg{};
+  msg.channel_id = channel_id;
+  msg.user_id = 0;
+  str_to_arr(msg.user_name, "PureCpp");
+  msg.content = content;
+  msg.created_at = get_timestamp_milliseconds();
+  msg.channel_seq = latest[0].message_count + 1;
+
+  auto msg_id = conn->get_insert_id_after_insert(msg);
+  if (msg_id == 0) {
+    conn->rollback();
+    return false;
+  }
+
+  if (conn->update<chat_channel_t>()
+          .set(col(&chat_channel_t::message_count), msg.channel_seq)
+          .where(col(&chat_channel_t::id) == channel_id)
+          .execute() != 1) {
+    conn->rollback();
+    return false;
+  }
+
+  if (!conn->commit()) {
+    conn->rollback();
+    return false;
+  }
+
+  msg.id = msg_id;
+  chat_channel_cache::instance().set_message_count(channel_id, msg.channel_seq);
+  if (out_msg) *out_msg = msg;
+  return true;
+}
+
+inline void broadcast_chat_message_inserted(const chat_message_t &msg) {
+  std::ostringstream active_os;
+  active_os << R"({"type":"message","msg":)" << build_msg_json(msg) << "}";
+  async_simple::coro::syncAwait(chat_hub::instance().broadcast_active_channel(
+      msg.channel_id, active_os.str()));
+
+  std::ostringstream activity_os;
+  activity_os << R"({"type":"channel_activity","channel_id":)" << msg.channel_id
+              << R"(,"unread_delta":1})";
+  async_simple::coro::syncAwait(
+      chat_hub::instance().broadcast_inactive_subscribers(
+          msg.channel_id, activity_os.str()));
+}
+
+inline std::string build_chat_weekly_summary_content(
+    uint64_t week_start_ms, uint64_t week_end_ms) {
+  auto conn = get_db_pool().get();
+  if (!conn) return {};
+
+  auto channels = conn->select(ormpp::all).from<chat_channel_t>().collect();
+  std::unordered_map<uint64_t, std::string> public_channel_names;
+  uint64_t summary_channel_id = 0;
+  for (auto &channel : channels) {
+    auto name = arr_to_str(channel.name);
+    if (name == "每周总结") {
+      summary_channel_id = channel.id;
+    }
+    if (channel.is_private || name == "每周总结") continue;
+    public_channel_names[channel.id] = std::move(name);
+  }
+
+  auto messages = conn->select(ormpp::all)
+                      .from<chat_message_t>()
+                      .where(col(&chat_message_t::created_at) >= week_start_ms &&
+                             col(&chat_message_t::created_at) < week_end_ms)
+                      .order_by(col(&chat_message_t::created_at).asc(),
+                                col(&chat_message_t::id).asc())
+                      .collect();
+
+  struct excerpt_item {
+    uint64_t channel_id = 0;
+    std::string user_name;
+    std::string content;
+  };
+
+  std::unordered_map<uint64_t, uint64_t> channel_counts;
+  std::unordered_map<std::string, uint64_t> user_counts;
+  std::vector<excerpt_item> excerpts;
+  excerpts.reserve(6);
+  uint64_t total_messages = 0;
+
+  for (auto &msg : messages) {
+    if (!public_channel_names.count(msg.channel_id)) continue;
+    ++total_messages;
+    ++channel_counts[msg.channel_id];
+    const auto user_name = arr_to_str(msg.user_name);
+    if (!user_name.empty()) {
+      ++user_counts[user_name];
+    }
+
+    if (excerpts.size() >= 3) continue;
+    auto cleaned = chat_trim_summary_text(msg.content, 72);
+    if (cleaned.empty()) continue;
+    excerpts.push_back({msg.channel_id, user_name, std::move(cleaned)});
+  }
+
+  std::ostringstream os;
+  os << "## 每周聊天室总结\n\n";
+  os << "- 统计周期：" << chat_format_date_utc(week_start_ms) << " 至 "
+     << chat_format_date_utc(week_end_ms - 1) << "\n";
+
+  if (total_messages == 0) {
+    os << "- 本周公开频道暂无新的聊天内容。\n";
+    return os.str();
+  }
+
+  std::vector<std::pair<std::string, uint64_t>> top_channels;
+  top_channels.reserve(channel_counts.size());
+  for (auto &[channel_id, count] : channel_counts) {
+    top_channels.emplace_back(public_channel_names[channel_id], count);
+  }
+  std::sort(top_channels.begin(), top_channels.end(),
+            [](const auto &lhs, const auto &rhs) {
+              if (lhs.second != rhs.second) return lhs.second > rhs.second;
+              return lhs.first < rhs.first;
+            });
+
+  std::vector<std::pair<std::string, uint64_t>> top_users;
+  top_users.reserve(user_counts.size());
+  for (auto &[user_name, count] : user_counts) {
+    top_users.emplace_back(user_name, count);
+  }
+  std::sort(top_users.begin(), top_users.end(),
+            [](const auto &lhs, const auto &rhs) {
+              if (lhs.second != rhs.second) return lhs.second > rhs.second;
+              return lhs.first < rhs.first;
+            });
+
+  os << "- 公开频道消息数：" << total_messages << "\n";
+  os << "- 最活跃频道："
+     << (top_channels.empty() ? "无" : chat_join_top_entries(top_channels, 3))
+     << "\n";
+  os << "- 最活跃成员："
+     << (top_users.empty() ? "无" : chat_join_top_entries(top_users, 5)) << "\n";
+
+  if (!excerpts.empty()) {
+    os << "\n### 代表性讨论\n";
+    for (auto &excerpt : excerpts) {
+      os << "- [" << public_channel_names[excerpt.channel_id] << "] ";
+      if (!excerpt.user_name.empty()) {
+        os << excerpt.user_name << "：";
+      }
+      os << excerpt.content << "\n";
+    }
+  }
+
+  if (summary_channel_id != 0) {
+    os << "\n> 注：仅统计公开频道，不包含私聊和私信。\n";
+  }
+  return os.str();
+}
+
+inline bool generate_chat_weekly_summary_for_period(uint64_t week_start_ms,
+                                                    uint64_t week_end_ms) {
+  auto conn = get_db_pool().get();
+  if (!conn) return false;
+
+  auto existing = conn->select(ormpp::all)
+                      .from<chat_weekly_summary_t>()
+                      .where(col(&chat_weekly_summary_t::week_start_ms).param())
+                      .collect(week_start_ms);
+  if (!existing.empty()) return true;
+
+  auto summary_channel_id =
+      ensure_chat_channel_exists("每周总结", "自动汇总上一周公开聊天室讨论");
+  if (summary_channel_id == 0) return false;
+
+  auto content = build_chat_weekly_summary_content(week_start_ms, week_end_ms);
+  if (content.empty()) return false;
+
+  chat_message_t msg{};
+  if (!insert_chat_system_message(summary_channel_id, content, &msg)) {
+    return false;
+  }
+
+  chat_weekly_summary_t summary{};
+  summary.week_start_ms = week_start_ms;
+  summary.week_end_ms = week_end_ms;
+  summary.channel_id = summary_channel_id;
+  summary.message_id = msg.id;
+  summary.created_at = get_timestamp_milliseconds();
+  if (conn->insert(summary) <= 0) {
+    return false;
+  }
+
+  broadcast_chat_message_inserted(msg);
+  CINATRA_LOG_INFO << "chat weekly summary generated for week_start_ms="
+                   << week_start_ms;
+  return true;
+}
+
+inline void start_chat_weekly_summary_worker() {
+  static std::once_flag once;
+  std::call_once(once, [] {
+    std::thread([] {
+      auto run_once = [] {
+        const auto now = get_timestamp_milliseconds();
+        const auto this_week_start = chat_start_of_week_utc_ms(now);
+        if (now < this_week_start + 60ULL * 1000ULL) {
+          return;
+        }
+        const auto last_week_start =
+            this_week_start - 7ULL * 24ULL * 60ULL * 60ULL * 1000ULL;
+        generate_chat_weekly_summary_for_period(last_week_start,
+                                                this_week_start);
+      };
+
+      run_once();
+      while (true) {
+        std::this_thread::sleep_for(std::chrono::minutes(10));
+        run_once();
+      }
+    }).detach();
+  });
+}
 
 class chat_handler_t {
 public:
