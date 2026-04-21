@@ -23,6 +23,8 @@ struct my_article_item {
   uint32_t comments_count;
   std::string review_comment; // 审核结果
 };
+YLT_REFL(my_article_item, article_id, title, abstraction, content, slug, status,
+         created_at, updated_at, views_count, comments_count, review_comment);
 
 // 获取评论请求结构体
 struct get_comments_request {
@@ -42,6 +44,9 @@ struct get_comments_response {
   uint64_t created_at;
   uint64_t updated_at;
 };
+YLT_REFL(get_comments_response, comment_id, article_id, user_id, author_name,
+         content, parent_comment_id, parent_user_name, ip, comment_status,
+         created_at, updated_at);
 
 // 增加评论请求结构体
 struct add_comment_request {
@@ -64,6 +69,9 @@ struct add_comment_response {
   uint64_t created_at;
   uint64_t updated_at;
 };
+YLT_REFL(add_comment_response, comment_id, article_id, user_id, author_name,
+         content, parent_comment_id, parent_user_name, ip, created_at,
+         updated_at);
 
 // 获取我的评论响应
 struct user_comment_item {
@@ -76,6 +84,8 @@ struct user_comment_item {
   uint64_t created_at;
   uint64_t updated_at;
 };
+YLT_REFL(user_comment_item, comment_id, article_id, article_title, content,
+         parent_comment_id, parent_user_name, created_at, updated_at);
 
 // 构建统计数据响应
 struct stats_data {

@@ -303,6 +303,8 @@
             background-color: transparent;
             color: var(--chat-text-color);
             box-shadow: none;
+            border-radius: 10px;
+            transition: background-color 0.25s ease;
         }
         
         .message.own-message {
@@ -374,6 +376,44 @@
         .own-message .message-bubble {
             background-color: var(--own-message-bg);
         }
+
+        .message-reply {
+            margin-bottom: 8px;
+            padding: 8px 10px;
+            border-left: 3px solid var(--accent-color);
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--accent-color) 8%, var(--message-bg));
+            cursor: pointer;
+            max-width: 100%;
+        }
+
+        .own-message .message-reply {
+            background: color-mix(in srgb, var(--accent-color) 10%, var(--own-message-bg));
+        }
+
+        .message-reply:hover {
+            background: color-mix(in srgb, var(--accent-color) 12%, var(--message-bg));
+        }
+
+        .message-reply-user {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-bottom: 4px;
+        }
+
+        .message-reply-text {
+            font-size: 13px;
+            color: var(--chat-muted-color);
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            word-break: break-word;
+        }
         
         .message-text {
             line-height: 1.4;
@@ -388,6 +428,10 @@
             color: rgba(255,255,255,0.35);
             font-style: italic;
             padding: 6px 12px;
+        }
+
+        .message-highlight {
+            background: color-mix(in srgb, var(--accent-color) 10%, transparent);
         }
 
         .message-text a {
@@ -634,6 +678,61 @@
             color: var(--chat-muted-color);
         }
 
+        .replying-banner {
+            display: none;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+            padding: 10px 12px;
+            border-left: 3px solid var(--accent-color);
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--accent-color) 8%, var(--chat-panel-bg));
+        }
+
+        .replying-banner.active {
+            display: flex;
+        }
+
+        .replying-meta {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .replying-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-bottom: 4px;
+        }
+
+        .replying-text {
+            font-size: 13px;
+            color: var(--chat-muted-color);
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            word-break: break-word;
+        }
+
+        .replying-cancel {
+            background: transparent;
+            border: none;
+            color: var(--chat-muted-color);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .replying-cancel:hover {
+            background: var(--chat-hover-bg);
+        }
+
         .message-status {
             color: var(--chat-muted-color);
         }
@@ -867,6 +966,13 @@
             
             <div class="chat-input-container">
                 <div id="typing-indicator" style="display:none; padding:2px 16px; font-size:12px; color:#888; font-style:italic;"></div>
+                <div class="replying-banner" id="replying-banner">
+                    <div class="replying-meta">
+                        <div class="replying-title" id="replying-title"></div>
+                        <div class="replying-text" id="replying-text"></div>
+                    </div>
+                    <button class="replying-cancel" id="replying-cancel" title="取消回复">取消</button>
+                </div>
                 <div class="chat-input-wrapper">
                     <textarea class="chat-input" id="chat-input" placeholder="输入消息... 使用@提及用户"></textarea>
                     <div class="user-suggestions" id="user-suggestions"></div>
@@ -927,6 +1033,7 @@
         let creatingChannel = false;
         let mde = null;  // SimpleMDE 实例
         let lastSearchQuery = '';
+        let replyingTo = null;
 
         // ========== DOM 元素 ==========
         const channelList = document.getElementById('channel-list');
@@ -944,6 +1051,10 @@
         const messageStatus = document.getElementById('message-status');
         const messageLengthCounter = document.getElementById('message-length-counter');
         const weeklySummaryShortcut = document.getElementById('weekly-summary-shortcut');
+        const replyingBanner = document.getElementById('replying-banner');
+        const replyingTitle = document.getElementById('replying-title');
+        const replyingText = document.getElementById('replying-text');
+        const replyingCancel = document.getElementById('replying-cancel');
 
         function isChatAdmin() {
             return currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin');
@@ -1221,8 +1332,70 @@
                 userName: m.user_name,
                 text: m.text,
                 time: m.time,
+                reply: m.reply || null,
                 reactions: m.reactions || []
             };
+        }
+
+        function trimReplyPreviewText(text) {
+            const normalized = String(text || '')
+                .replace(/[\r\n\t]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (!normalized) return '';
+            const codepoints = [...normalized];
+            if (codepoints.length <= 120) return normalized;
+            return codepoints.slice(0, 120).join('') + '...';
+        }
+
+        function renderReplyingBanner() {
+            if (!replyingBanner || !replyingTitle || !replyingText) return;
+            if (!replyingTo) {
+                replyingBanner.classList.remove('active');
+                replyingTitle.textContent = '';
+                replyingText.textContent = '';
+                return;
+            }
+            replyingTitle.textContent = `回复 ${replyingTo.userName}`;
+            replyingText.textContent = trimReplyPreviewText(replyingTo.text);
+            replyingBanner.classList.add('active');
+        }
+
+        function clearReplyingState() {
+            replyingTo = null;
+            renderReplyingBanner();
+        }
+
+        function startReplyToMessage(msg) {
+            if (!msg) return;
+            replyingTo = {
+                messageId: msg.id,
+                userId: msg.userId,
+                userName: msg.userName || '未知用户',
+                text: msg.reply && msg.reply.text ? msg.reply.text : msg.text
+            };
+            renderReplyingBanner();
+            if (mde) {
+                if (!mde.value().trim()) {
+                    mde.value(`@${replyingTo.userName} `);
+                }
+                mde.codemirror.focus();
+            } else {
+                if (!chatInput.value.trim()) {
+                    chatInput.value = `@${replyingTo.userName} `;
+                }
+                chatInput.focus();
+            }
+            updateMessageLengthHint();
+        }
+
+        function scrollToMessage(messageId) {
+            if (!messageId) return;
+            const el = chatMessages.querySelector(`[data-message-id="${messageId}"]`);
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('message-highlight');
+            setTimeout(() => el.classList.remove('message-highlight'), 1400);
         }
 
         let reconnectAttempts = 0;
@@ -1639,6 +1812,16 @@
                 }).join('')}</div>`;
             }
 
+            let replyHtml = '';
+            if (msg.reply && msg.reply.message_id) {
+                replyHtml = `
+                    <div class="message-reply" data-action="jump-reply" data-reply-message-id="${msg.reply.message_id}">
+                        <div class="message-reply-user">回复 ${escapeHtml(msg.reply.user_name || '未知用户')}</div>
+                        <div class="message-reply-text">${escapeHtml(trimReplyPreviewText(msg.reply.text || ''))}</div>
+                    </div>
+                `;
+            }
+
             const avatarHtml = `<div class="message-avatar" style="background-color: ${color};">${avatar}</div>`;
             const bubbleHtml = `
                 <div class="message-bubble-wrap">
@@ -1647,6 +1830,7 @@
                         <div class="message-time">${escapeHtml(msg.time || '')}${msg.edited ? ' (已编辑)' : ''}</div>
                     </div>
                     <div class="message-bubble">
+                        ${replyHtml}
                         <div class="message-text">${formatMessageText(msg.text)}</div>
                         ${reactionsHtml}
                         <div class="message-actions">
@@ -1782,6 +1966,7 @@
             if (!channelId) return;
             currentChannelId = channelId;
             channelHasMore[channelId] = false;
+            clearReplyingState();
 
             // 退出搜索模式
             if (isSearchMode) clearSearch();
@@ -1937,10 +2122,12 @@
             const ok = wsSend({
                 type: 'message',
                 channel_id: currentChannelId,
-                text: text
+                text: text,
+                reply_to_message_id: replyingTo ? replyingTo.messageId : 0
             });
             if (ok) {
                 if (mde) mde.value(''); else chatInput.value = '';
+                clearReplyingState();
                 setMessageStatus(`单条消息最多 ${MAX_MESSAGE_LENGTH} 字`);
                 updateMessageLengthHint();
             }
@@ -2288,6 +2475,10 @@
                 });
             }
 
+            if (replyingCancel) {
+                replyingCancel.addEventListener('click', clearReplyingState);
+            }
+
             channelList.addEventListener('click', async (e) => {
                 const deleteBtn = e.target.closest('[data-action="delete-channel"]');
                 if (deleteBtn) {
@@ -2347,17 +2538,18 @@
                     return;
                 }
 
+                const replyCard = target.closest('[data-action="jump-reply"]');
+                if (replyCard) {
+                    const replyMessageId = parseInt(replyCard.dataset.replyMessageId, 10);
+                    scrollToMessage(replyMessageId);
+                    return;
+                }
+
                 if (target.dataset && target.dataset.action === 'reply') {
                     const mid = parseInt(target.dataset.messageId);
                     const msg = (messages[currentChannelId] || []).find(m => m.id === mid);
                     if (msg) {
-                        if (mde) {
-                            mde.value(`@${msg.userName} `);
-                            mde.codemirror.focus();
-                        } else {
-                            chatInput.value = `@${msg.userName} `;
-                            chatInput.focus();
-                        }
+                        startReplyToMessage(msg);
                     }
                 }
 

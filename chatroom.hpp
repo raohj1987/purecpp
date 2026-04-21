@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <shared_mutex>
 #include <sstream>
@@ -58,6 +59,22 @@ struct chat_message_t {
   }
 };
 REGISTER_AUTO_KEY(chat_message_t, id);
+
+struct chat_message_reply_t {
+  uint64_t id;
+  uint64_t message_id;
+  uint64_t reply_to_message_id;
+  uint64_t reply_to_user_id;
+  std::array<char, 64> reply_user_name;
+  std::string reply_content;
+  uint64_t created_at;
+
+  static constexpr std::string_view get_alias_struct_name(
+      chat_message_reply_t *) {
+    return "chat_message_replies";
+  }
+};
+REGISTER_AUTO_KEY(chat_message_reply_t, id);
 
 struct chat_reaction_t {
   uint64_t id;
@@ -169,6 +186,7 @@ struct chat_ws_in {
   uint64_t channel_id;
   std::string text;
   uint64_t message_id;
+  uint64_t reply_to_message_id;
   std::string emoji;
 };
 
@@ -306,6 +324,14 @@ struct chat_reaction_view {
 };
 YLT_REFL(chat_reaction_view, emoji, count, users);
 
+struct chat_reply_preview_view {
+  uint64_t message_id = 0;
+  uint64_t user_id = 0;
+  std::string user_name;
+  std::string text;
+};
+YLT_REFL(chat_reply_preview_view, message_id, user_id, user_name, text);
+
 struct chat_message_view {
   uint64_t id = 0;
   uint64_t channel_id = 0;
@@ -313,10 +339,11 @@ struct chat_message_view {
   std::string user_name;
   std::string text;
   std::string time;
+  std::optional<chat_reply_preview_view> reply;
   std::vector<chat_reaction_view> reactions;
 };
 YLT_REFL(chat_message_view, id, channel_id, user_id, user_name, text, time,
-         reactions);
+         reply, reactions);
 
 struct chat_online_user_view {
   uint64_t id = 0;
@@ -465,6 +492,9 @@ inline std::vector<chat_reaction_view> build_reaction_views(uint64_t msg_id) {
   return build_reaction_views_from(rs);
 }
 
+inline std::string chat_trim_summary_text(std::string_view text,
+                                          size_t max_codepoints);
+
 inline std::unordered_map<uint64_t, std::vector<chat_reaction_view>>
 batch_build_reactions(const std::vector<chat_message_t> &msgs) {
   std::unordered_map<uint64_t, std::vector<chat_reaction_view>> result;
@@ -507,8 +537,69 @@ batch_build_reactions(const std::vector<chat_message_t> &msgs) {
   return result;
 }
 
+inline std::string trim_message_for_reply_preview(std::string_view text,
+                                                  size_t max_codepoints = 120) {
+  std::string normalized;
+  normalized.reserve(text.size());
+  bool previous_was_space = false;
+  for (char ch : text) {
+    const bool is_space = ch == '\r' || ch == '\n' || ch == '\t';
+    if (is_space) {
+      if (!previous_was_space) {
+        normalized.push_back(' ');
+      }
+      previous_was_space = true;
+      continue;
+    }
+    normalized.push_back(ch);
+    previous_was_space = (ch == ' ');
+  }
+
+  auto first = normalized.find_first_not_of(' ');
+  if (first == std::string::npos) {
+    return {};
+  }
+  auto last = normalized.find_last_not_of(' ');
+  normalized = normalized.substr(first, last - first + 1);
+  return chat_trim_summary_text(normalized, max_codepoints);
+}
+
+inline std::unordered_map<uint64_t, chat_reply_preview_view>
+batch_build_reply_previews(const std::vector<chat_message_t> &msgs) {
+  std::unordered_map<uint64_t, chat_reply_preview_view> result;
+  if (msgs.empty()) return result;
+
+  auto conn = get_db_pool().get();
+  if (!conn) return result;
+
+  std::vector<uint64_t> message_ids;
+  message_ids.reserve(msgs.size());
+  for (auto &m : msgs) {
+    message_ids.push_back(m.id);
+  }
+
+  auto cond = col(&chat_message_reply_t::message_id) == message_ids[0];
+  for (size_t i = 1; i < message_ids.size(); ++i) {
+    cond = cond || (col(&chat_message_reply_t::message_id) == message_ids[i]);
+  }
+
+  auto replies = conn->select(ormpp::all)
+                     .from<chat_message_reply_t>()
+                     .where(cond)
+                     .collect();
+  for (auto &reply : replies) {
+    result[reply.message_id] = chat_reply_preview_view{
+        reply.reply_to_message_id,
+        reply.reply_to_user_id,
+        arr_to_str(reply.reply_user_name),
+        reply.reply_content};
+  }
+  return result;
+}
+
 inline chat_message_view
 make_chat_message_view(const chat_message_t &m,
+                       std::optional<chat_reply_preview_view> reply = std::nullopt,
                        std::vector<chat_reaction_view> reactions = {}) {
   return {m.id,
           m.channel_id,
@@ -516,6 +607,7 @@ make_chat_message_view(const chat_message_t &m,
           arr_to_str(m.user_name),
           m.content,
           chat_format_time(m.created_at),
+          std::move(reply),
           std::move(reactions)};
 }
 
@@ -569,8 +661,10 @@ inline chat_channel_view make_direct_channel_view(const chat_channel_t &ch,
 
 inline std::string
 build_msg_json(const chat_message_t &m,
+               std::optional<chat_reply_preview_view> reply = std::nullopt,
                std::vector<chat_reaction_view> reactions = {}) {
-  return to_json_string(make_chat_message_view(m, std::move(reactions)));
+  return to_json_string(
+      make_chat_message_view(m, std::move(reply), std::move(reactions)));
 }
 
 inline std::string build_online_json(
@@ -1131,6 +1225,18 @@ inline bool init_chat_db() {
           "created_at INTEGER)");
     }
 
+    if (!table_exists("chat_message_replies")) {
+      exec_or_throw(
+          "CREATE TABLE IF NOT EXISTS chat_message_replies("
+          "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+          "message_id INTEGER NOT NULL,"
+          "reply_to_message_id INTEGER NOT NULL,"
+          "reply_to_user_id INTEGER NOT NULL,"
+          "reply_user_name varchar(64),"
+          "reply_content TEXT,"
+          "created_at INTEGER NOT NULL)");
+    }
+
     if (!table_exists("chat_read_positions")) {
       exec_or_throw(
           "CREATE TABLE IF NOT EXISTS chat_read_positions("
@@ -1253,6 +1359,11 @@ inline bool init_chat_db() {
              .execute()) {
       throw std::runtime_error(conn->get_last_error());
     }
+    if (!conn->create_table<chat_message_reply_t>()
+             .auto_increment(col(&chat_message_reply_t::id))
+             .execute()) {
+      throw std::runtime_error(conn->get_last_error());
+    }
     if (!conn->create_table<chat_read_position_t>()
              .auto_increment(col(&chat_read_position_t::id))
              .execute()) {
@@ -1310,6 +1421,12 @@ inline bool init_chat_db() {
     ensure_index("chat_reactions", "idx_chat_reactions_message",
                  "CREATE INDEX idx_chat_reactions_message "
                  "ON chat_reactions(message_id)");
+    ensure_index("chat_message_replies", "idx_chat_message_replies_message",
+                 "CREATE INDEX idx_chat_message_replies_message "
+                 "ON chat_message_replies(message_id)");
+    ensure_index("chat_message_replies", "idx_chat_message_replies_target",
+                 "CREATE INDEX idx_chat_message_replies_target "
+                 "ON chat_message_replies(reply_to_message_id)");
     ensure_index("chat_read_positions", "idx_chat_read_positions_user_channel",
                  "CREATE INDEX idx_chat_read_positions_user_channel "
                  "ON chat_read_positions(user_id, channel_id)");
@@ -1926,178 +2043,6 @@ inline void broadcast_chat_message_inserted(const chat_message_t &msg) {
           msg.channel_id, activity_os.str()));
 }
 
-inline std::string build_chat_weekly_summary_content(
-    uint64_t week_start_ms, uint64_t week_end_ms) {
-  auto conn = get_db_pool().get();
-  if (!conn) return {};
-
-  auto channels = conn->select(ormpp::all).from<chat_channel_t>().collect();
-  std::unordered_map<uint64_t, std::string> public_channel_names;
-  uint64_t summary_channel_id = 0;
-  for (auto &channel : channels) {
-    auto name = arr_to_str(channel.name);
-    if (name == "每周总结") {
-      summary_channel_id = channel.id;
-    }
-    if (channel.is_private || name == "每周总结") continue;
-    public_channel_names[channel.id] = std::move(name);
-  }
-
-  auto messages = conn->select(ormpp::all)
-                      .from<chat_message_t>()
-                      .where(col(&chat_message_t::created_at) >= week_start_ms &&
-                             col(&chat_message_t::created_at) < week_end_ms)
-                      .order_by(col(&chat_message_t::created_at).asc(),
-                                col(&chat_message_t::id).asc())
-                      .collect();
-
-  struct excerpt_item {
-    uint64_t channel_id = 0;
-    std::string user_name;
-    std::string content;
-  };
-
-  std::unordered_map<uint64_t, uint64_t> channel_counts;
-  std::unordered_map<std::string, uint64_t> user_counts;
-  std::vector<excerpt_item> excerpts;
-  excerpts.reserve(6);
-  uint64_t total_messages = 0;
-
-  for (auto &msg : messages) {
-    if (!public_channel_names.count(msg.channel_id)) continue;
-    ++total_messages;
-    ++channel_counts[msg.channel_id];
-    const auto user_name = arr_to_str(msg.user_name);
-    if (!user_name.empty()) {
-      ++user_counts[user_name];
-    }
-
-    if (excerpts.size() >= 3) continue;
-    auto cleaned = chat_trim_summary_text(msg.content, 72);
-    if (cleaned.empty()) continue;
-    excerpts.push_back({msg.channel_id, user_name, std::move(cleaned)});
-  }
-
-  std::ostringstream os;
-  os << "## 每周聊天室总结\n\n";
-  os << "- 统计周期：" << chat_format_date_utc(week_start_ms) << " 至 "
-     << chat_format_date_utc(week_end_ms - 1) << "\n";
-
-  if (total_messages == 0) {
-    os << "- 本周公开频道暂无新的聊天内容。\n";
-    return os.str();
-  }
-
-  std::vector<std::pair<std::string, uint64_t>> top_channels;
-  top_channels.reserve(channel_counts.size());
-  for (auto &[channel_id, count] : channel_counts) {
-    top_channels.emplace_back(public_channel_names[channel_id], count);
-  }
-  std::sort(top_channels.begin(), top_channels.end(),
-            [](const auto &lhs, const auto &rhs) {
-              if (lhs.second != rhs.second) return lhs.second > rhs.second;
-              return lhs.first < rhs.first;
-            });
-
-  std::vector<std::pair<std::string, uint64_t>> top_users;
-  top_users.reserve(user_counts.size());
-  for (auto &[user_name, count] : user_counts) {
-    top_users.emplace_back(user_name, count);
-  }
-  std::sort(top_users.begin(), top_users.end(),
-            [](const auto &lhs, const auto &rhs) {
-              if (lhs.second != rhs.second) return lhs.second > rhs.second;
-              return lhs.first < rhs.first;
-            });
-
-  os << "- 公开频道消息数：" << total_messages << "\n";
-  os << "- 最活跃频道："
-     << (top_channels.empty() ? "无" : chat_join_top_entries(top_channels, 3))
-     << "\n";
-  os << "- 最活跃成员："
-     << (top_users.empty() ? "无" : chat_join_top_entries(top_users, 5)) << "\n";
-
-  if (!excerpts.empty()) {
-    os << "\n### 代表性讨论\n";
-    for (auto &excerpt : excerpts) {
-      os << "- [" << public_channel_names[excerpt.channel_id] << "] ";
-      if (!excerpt.user_name.empty()) {
-        os << excerpt.user_name << "：";
-      }
-      os << excerpt.content << "\n";
-    }
-  }
-
-  if (summary_channel_id != 0) {
-    os << "\n> 注：仅统计公开频道，不包含私聊和私信。\n";
-  }
-  return os.str();
-}
-
-inline bool generate_chat_weekly_summary_for_period(uint64_t week_start_ms,
-                                                    uint64_t week_end_ms) {
-  auto conn = get_db_pool().get();
-  if (!conn) return false;
-
-  auto existing = conn->select(ormpp::all)
-                      .from<chat_weekly_summary_t>()
-                      .where(col(&chat_weekly_summary_t::week_start_ms).param())
-                      .collect(week_start_ms);
-  if (!existing.empty()) return true;
-
-  auto summary_channel_id =
-      ensure_chat_channel_exists("每周总结", "自动汇总上一周公开聊天室讨论");
-  if (summary_channel_id == 0) return false;
-
-  auto content = build_chat_weekly_summary_content(week_start_ms, week_end_ms);
-  if (content.empty()) return false;
-
-  chat_message_t msg{};
-  if (!insert_chat_system_message(summary_channel_id, content, &msg)) {
-    return false;
-  }
-
-  chat_weekly_summary_t summary{};
-  summary.week_start_ms = week_start_ms;
-  summary.week_end_ms = week_end_ms;
-  summary.channel_id = summary_channel_id;
-  summary.message_id = msg.id;
-  summary.created_at = get_timestamp_milliseconds();
-  if (conn->insert(summary) <= 0) {
-    return false;
-  }
-
-  broadcast_chat_message_inserted(msg);
-  CINATRA_LOG_INFO << "chat weekly summary generated for week_start_ms="
-                   << week_start_ms;
-  return true;
-}
-
-inline void start_chat_weekly_summary_worker() {
-  static std::once_flag once;
-  std::call_once(once, [] {
-    std::thread([] {
-      auto run_once = [] {
-        const auto now = get_timestamp_milliseconds();
-        const auto this_week_start = chat_start_of_week_utc_ms(now);
-        if (now < this_week_start + 60ULL * 1000ULL) {
-          return;
-        }
-        const auto last_week_start =
-            this_week_start - 7ULL * 24ULL * 60ULL * 60ULL * 1000ULL;
-        generate_chat_weekly_summary_for_period(last_week_start,
-                                                this_week_start);
-      };
-
-      run_once();
-      while (true) {
-        std::this_thread::sleep_for(std::chrono::minutes(10));
-        run_once();
-      }
-    }).detach();
-  });
-}
-
 class chat_handler_t {
 public:
   // GET /api/v1/chat/channels
@@ -2434,15 +2379,21 @@ public:
 
     bool has_more = (msgs.size() == static_cast<size_t>(limit));
 
-    // Batch load reactions for all messages (avoid N+1)
+    // Batch load reactions and reply previews for all messages (avoid N+1)
     auto reactions_map = batch_build_reactions(msgs);
+    auto reply_map = batch_build_reply_previews(msgs);
 
     std::ostringstream os;
     os << R"({"success":true,"message":"获取消息历史成功","code":200,"has_more":)"
        << (has_more ? "true" : "false") << R"(,"data":[)";
     for (size_t i = 0; i < msgs.size(); i++) {
       if (i) os << ",";
-      os << build_msg_json(msgs[i], reactions_map[msgs[i].id]);
+      auto reply_it = reply_map.find(msgs[i].id);
+      auto reply =
+          reply_it != reply_map.end()
+              ? std::optional<chat_reply_preview_view>(reply_it->second)
+              : std::nullopt;
+      os << build_msg_json(msgs[i], std::move(reply), reactions_map[msgs[i].id]);
     }
     os << "]}";
     resp.set_content_type<resp_content_type::json>();
@@ -2503,14 +2454,20 @@ public:
                  .collect(channel_id);
     }
 
-    // Batch load reactions (avoid N+1)
+    // Batch load reactions and reply previews (avoid N+1)
     auto reactions_map = batch_build_reactions(msgs);
+    auto reply_map = batch_build_reply_previews(msgs);
 
     std::ostringstream os;
     os << R"({"success":true,"message":"搜索成功","code":200,"data":[)";
     for (size_t i = 0; i < msgs.size(); i++) {
       if (i) os << ",";
-      os << build_msg_json(msgs[i], reactions_map[msgs[i].id]);
+      auto reply_it = reply_map.find(msgs[i].id);
+      auto reply =
+          reply_it != reply_map.end()
+              ? std::optional<chat_reply_preview_view>(reply_it->second)
+              : std::nullopt;
+      os << build_msg_json(msgs[i], std::move(reply), reactions_map[msgs[i].id]);
     }
     os << "]}";
     resp.set_content_type<resp_content_type::json>();
@@ -3039,7 +2996,8 @@ public:
               R"({"type":"error","msg":"发送过于频繁，请稍后再试"})");
           continue;
         }
-        co_await handle_chat_message(user_id, user_name, cm.channel_id, cm.text, session_state);
+        co_await handle_chat_message(user_id, user_name, cm.channel_id, cm.text,
+                                     cm.reply_to_message_id, session_state);
       } else if (cm.type == "subscribe_channel") {
         if (user_can_access_channel(user_id, cm.channel_id)) {
           chat_hub::instance().subscribe_channel(conn_key, cm.channel_id);
@@ -3168,6 +3126,7 @@ private:
   async_simple::coro::Lazy<void>
   handle_chat_message(uint64_t user_id, const std::string &user_name,
                       uint64_t channel_id, const std::string &text,
+                      uint64_t reply_to_message_id,
                       std::shared_ptr<chat_hub::session> session_state) {
     const auto total_begin = chat_perf_stats::now_ns();
     uint64_t db_ns = 0;
@@ -3210,6 +3169,28 @@ private:
     const std::string filtered_text =
         sensitive_word_filter::instance().filter(text);
 
+    std::optional<chat_reply_preview_view> reply_preview;
+    if (reply_to_message_id > 0) {
+      auto reply_conn = get_db_pool().get();
+      if (!reply_conn) co_return;
+      auto reply_msgs = reply_conn->select(ormpp::all)
+                            .from<chat_message_t>()
+                            .where(col(&chat_message_t::id).param())
+                            .collect(reply_to_message_id);
+      if (reply_msgs.empty() || reply_msgs[0].channel_id != channel_id) {
+        co_await chat_hub::instance().send_to(
+            session_state,
+            R"({"type":"error","msg":"引用的消息不存在或不在当前频道"})");
+        co_return;
+      }
+
+      reply_preview = chat_reply_preview_view{
+          reply_msgs[0].id,
+          reply_msgs[0].user_id,
+          arr_to_str(reply_msgs[0].user_name),
+          trim_message_for_reply_preview(reply_msgs[0].content)};
+    }
+
     chat_message_t m{};
     m.channel_id = channel_id;
     m.user_id = user_id;
@@ -3245,6 +3226,20 @@ private:
         co_return;
       }
 
+      if (reply_preview.has_value()) {
+        chat_message_reply_t reply_row{};
+        reply_row.message_id = msg_id;
+        reply_row.reply_to_message_id = reply_preview->message_id;
+        reply_row.reply_to_user_id = reply_preview->user_id;
+        str_to_arr(reply_row.reply_user_name, reply_preview->user_name);
+        reply_row.reply_content = reply_preview->text;
+        reply_row.created_at = m.created_at;
+        if (conn->insert(reply_row) <= 0) {
+          conn->rollback();
+          co_return;
+        }
+      }
+
       if (conn->update<chat_channel_t>()
               .set(col(&chat_channel_t::message_count), next_seq)
               .where(col(&chat_channel_t::id) == channel_id)
@@ -3266,7 +3261,8 @@ private:
     m.id = msg_id;
     const auto json_begin = chat_perf_stats::now_ns();
     std::ostringstream active_os;
-    active_os << R"({"type":"message","msg":)" << build_msg_json(m)
+    active_os << R"({"type":"message","msg":)"
+              << build_msg_json(m, reply_preview)
               << "}";
     json_build_ns = chat_perf_stats::now_ns() - json_begin;
     const auto active_begin = chat_perf_stats::now_ns();
@@ -3385,6 +3381,9 @@ private:
     // Delete reactions first, then message
     conn->remove<chat_reaction_t>()
         .where(col(&chat_reaction_t::message_id) == message_id)
+        .execute();
+    conn->remove<chat_message_reply_t>()
+        .where(col(&chat_message_reply_t::message_id) == message_id)
         .execute();
     conn->remove<chat_message_t>()
         .where(col(&chat_message_t::id) == message_id)

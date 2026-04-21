@@ -249,7 +249,6 @@ int main() {
     CINATRA_LOG_ERROR << "init chat db failed";
     return -1;
   }
-  start_chat_weekly_summary_worker();
 
   // 初始化私信数据库
   if (!init_pm_db()) {

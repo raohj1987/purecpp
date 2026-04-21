@@ -1,6 +1,34 @@
 #pragma once
 #include <string>
 
+namespace purecpp {
+struct users_t;
+struct users_tmp_t;
+struct users_token_t;
+struct articles_t;
+struct article_comments_t;
+struct privileges_t;
+struct user_privileges_t;
+struct user_gifts_t;
+struct user_experience_detail_t;
+struct pm_blocklist_t;
+struct private_message_t;
+struct tags_t;
+
+constexpr std::string_view get_alias_struct_name(users_t *);
+constexpr std::string_view get_alias_struct_name(users_tmp_t *);
+constexpr std::string_view get_alias_struct_name(users_token_t *);
+constexpr std::string_view get_alias_struct_name(articles_t *);
+constexpr std::string_view get_alias_struct_name(article_comments_t *);
+constexpr std::string_view get_alias_struct_name(privileges_t *);
+constexpr std::string_view get_alias_struct_name(user_privileges_t *);
+constexpr std::string_view get_alias_struct_name(user_gifts_t *);
+constexpr std::string_view get_alias_struct_name(user_experience_detail_t *);
+constexpr std::string_view get_alias_struct_name(pm_blocklist_t *);
+constexpr std::string_view get_alias_struct_name(private_message_t *);
+constexpr std::string_view get_alias_struct_name(tags_t *);
+} // namespace purecpp
+
 #include "db_backend.hpp"
 using namespace ormpp;
 
