@@ -61,8 +61,28 @@ inline std::string get_base_url(coro_http_request &req) {
     return {};
   }
 
-  auto scheme = req.get_scheme();
-  std::string_view normalized_scheme = scheme.empty() ? "https" : scheme;
+  std::string_view normalized_scheme = req.get_header_value("X-Forwarded-Proto");
+  if (normalized_scheme.empty()) {
+    auto forwarded = req.get_header_value("Forwarded");
+    auto proto_pos = forwarded.find("proto=");
+    if (proto_pos != std::string_view::npos) {
+      proto_pos += 6;
+      auto end_pos = forwarded.find_first_of(";,\r\n", proto_pos);
+      normalized_scheme = forwarded.substr(
+          proto_pos, end_pos == std::string_view::npos
+                         ? std::string_view::npos
+                         : end_pos - proto_pos);
+    }
+  }
+  if (normalized_scheme.empty()) {
+    auto forwarded_ssl = req.get_header_value("X-Forwarded-Ssl");
+    if (forwarded_ssl == "on" || forwarded_ssl == "ON") {
+      normalized_scheme = "https";
+    }
+  }
+  if (normalized_scheme.empty()) {
+    normalized_scheme = "https";
+  }
   return std::string(normalized_scheme) + "://" + std::string(host);
 }
 

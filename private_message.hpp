@@ -95,7 +95,7 @@ inline bool parse_u64(std::string_view raw, uint64_t &value) {
 template <typename Conn>
 inline std::string get_user_name_by_id(Conn &conn, uint64_t user_id) {
   auto users = conn->select(ormpp::all)
-                   .from<users_t>()
+                   .template from<users_t>()
                    .where(col(&users_t::id).param())
                    .collect(user_id);
   return users.empty() ? "" : array_to_string(users[0].user_name);

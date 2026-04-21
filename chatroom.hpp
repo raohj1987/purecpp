@@ -3095,7 +3095,7 @@ private:
     if (!conn || channel_id == 0 || member_user_id == 0) return;
 
     auto existing = conn->select(ormpp::all)
-                        .from<chat_channel_member_t>()
+                        .template from<chat_channel_member_t>()
                         .where(col(&chat_channel_member_t::channel_id).param() &&
                                col(&chat_channel_member_t::user_id).param())
                         .collect(channel_id, member_user_id);
