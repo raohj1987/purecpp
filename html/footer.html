@@ -72,142 +72,50 @@
     }
 
     .theme-toggle {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.45rem;
         font-size: 0.85rem;
+        white-space: nowrap;
     }
 
-    .toggle-switch {
-        position: relative;
-        display: inline-block;
-        width: 44px;
-        height: 24px;
+    .theme-toggle-label {
+        line-height: 1;
     }
 
-    .toggle-switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-
-    .toggle-slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #ccc;
-        transition: .4s;
-        border-radius: 24px;
-        display: flex;
+    .theme-toggle-btn {
+        display: inline-flex;
         align-items: center;
-        justify-content: space-around;
-        padding: 0 4px;
+        justify-content: center;
+        width: 2.2rem;
+        height: 2.2rem;
+        padding: 0;
+        margin: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 999px;
+        background: var(--bg-card);
+        color: var(--text-highlight);
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     }
 
-    .toggle-slider:before {
-        position: absolute;
-        content: "";
-        height: 18px;
-        width: 18px;
-        left: 3px;
-        bottom: 3px;
-        background-color: white;
-        transition: .4s;
-        border-radius: 50%;
+    .theme-toggle-btn:hover {
+        transform: translateY(-1px);
+        border-color: var(--primary);
+        box-shadow: 0 6px 16px rgba(79, 70, 229, 0.16);
     }
 
-    input:checked+.toggle-slider {
-        background-color: var(--primary);
+    .theme-toggle-btn:focus-visible {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
     }
 
-    input:focus+.toggle-slider {
-        box-shadow: 0 0 1px var(--primary);
-    }
-
-    input:checked+.toggle-slider:before {
-        transform: translateX(20px);
-    }
-
-    .toggle-slider i {
-        font-size: 12px;
-        color: white;
-        opacity: 0.7;
-    }
-
-
-    .toggle-switch input {
-        opacity: 0 !important;
-        width: 0 !important;
-        height: 0 !important;
-    }
-
-    .toggle-slider {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        background-color: #bbb !important;
-        border-radius: 24px !important;
-        transition: background-color 0.3s ease !important;
-        border: 1px solid #999 !important;
-    }
-
-    .toggle-slider>span {
-        position: absolute !important;
-        left: 2px !important;
-        bottom: 2px !important;
-        width: 18px !important;
-        height: 18px !important;
-        background-color: white !important;
-        border-radius: 50% !important;
-        transition: left 0.3s ease !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
-        z-index: 1 !important;
-    }
-
-
-    .fa-sun,
-    .fa-moon {
-        position: absolute !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        font-size: 12px !important;
-        transition: opacity 0.3s ease !important;
-        z-index: 2 !important;
-    }
-
-    .fa-sun {
-        left: 8px !important;
-        color: #4f46e5 !important;
-    }
-
-    .fa-moon {
-        right: 8px !important;
-        color: #fff !important;
-    }
-
-
-    /* 主题切换状态（合并精简） */
-    #themeToggleBtn:checked+.toggle-slider {
-        background-color: #333 !important;
-    }
-
-    #themeToggleBtn:checked+.toggle-slider>span {
-        left: 24px !important;
-    }
-
-    #themeToggleBtn:checked+.toggle-slider .fa-sun,
-    #themeToggleBtn:not(:checked)+.toggle-slider .fa-moon {
-        opacity: 0 !important;
-    }
-
-    #themeToggleBtn:checked+.toggle-slider .fa-moon,
-    #themeToggleBtn:not(:checked)+.toggle-slider .fa-sun {
-        opacity: 1 !important;
+    .theme-toggle-btn i {
+        font-size: 1rem;
+        line-height: 1;
+        pointer-events: none;
     }
 
     /* --- 移动端导航栏适配 --- */
@@ -285,21 +193,16 @@
                 <li><a href="/rules.html">社区守则</a></li>
                 <!-- 主题切换按钮 -->
                 <li class="theme-toggle">
-                    <span>主题切换</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="themeToggleBtn">
-                        <span class="toggle-slider">
-                            <span></span>
-                            <i class="fas fa-sun"></i>
-                            <i class="fas fa-moon"></i>
-                        </span>
-                    </label>
+                    <span class="theme-toggle-label">主题</span>
+                    <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-label="切换到深色主题" title="切换主题">
+                        <i class="fas fa-sun" aria-hidden="true"></i>
+                    </button>
                 </li>
             </ul>
 
             <!-- 右列：微信公众号 + GitHub -->
             <div style="display: flex; align-items: center; gap: 1.5rem;">
-                <img src="images/公众号.jpg" alt="微信公众号" title="扫码关注微信公众号" style="width:24px; height:24px; border-radius:4px; vertical-align:middle;">
+                <img src="images/公众号.jpg" alt="微信公众号" title="扫码关注微信公众号" style="width:36px; height:36px; border-radius:8px; vertical-align:middle;">
                 <a href="https://github.com/qicosmos" title="GitHub">
                     <i class="fab fa-github"></i>
                 </a>

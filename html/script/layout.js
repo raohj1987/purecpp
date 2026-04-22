@@ -96,6 +96,27 @@ function initCommonFunctions() {
 // 主题切换功能
 const THEME_STORAGE_KEY = 'purecpp_theme';
 const htmlRoot = document.documentElement;
+const THEME_ICONS = {
+    light: 'fas fa-sun',
+    dark: 'fas fa-moon'
+};
+
+function applyTheme(isDarkMode) {
+    htmlRoot.classList.remove('dark', 'light');
+    htmlRoot.classList.add(isDarkMode ? 'dark' : 'light');
+
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    if (themeToggleBtn) {
+        themeToggleBtn.dataset.theme = isDarkMode ? 'dark' : 'light';
+        themeToggleBtn.setAttribute('aria-label', isDarkMode ? '切换到浅色主题' : '切换到深色主题');
+        themeToggleBtn.setAttribute('title', isDarkMode ? '切换到浅色主题' : '切换到深色主题');
+
+        const icon = themeToggleBtn.querySelector('i');
+        if (icon) {
+            icon.className = isDarkMode ? THEME_ICONS.dark : THEME_ICONS.light;
+        }
+    }
+}
 
 // 初始化主题
 function initTheme() {
@@ -106,16 +127,12 @@ function initTheme() {
 
         // 如果有手动设置，使用用户设置；否则使用操作系统主题
         const isDarkMode = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        themeToggleBtn.checked = isDarkMode;
-
-        // 确保只应用一个主题类
-        htmlRoot.classList.remove('dark', 'light');
-        htmlRoot.classList.add(isDarkMode ? 'dark' : 'light');
+        applyTheme(isDarkMode);
 
         // 确保事件监听器只绑定一次
         if (!themeToggleBtn.hasAttribute('data-event-bound')) {
             // 绑定主题切换事件
-            themeToggleBtn.addEventListener('change', toggleTheme);
+            themeToggleBtn.addEventListener('click', toggleTheme);
             themeToggleBtn.setAttribute('data-event-bound', 'true');
         }
 
@@ -137,11 +154,7 @@ function handleSystemThemeChange(e) {
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     if (themeToggleBtn) {
         // 无论用户是否有手动设置，都跟随系统主题变化
-        themeToggleBtn.checked = isDarkMode;
-
-        // 更新主题类
-        htmlRoot.classList.remove('dark', 'light');
-        htmlRoot.classList.add(isDarkMode ? 'dark' : 'light');
+        applyTheme(isDarkMode);
 
         // 更新localStorage中的主题设置
         localStorage.setItem(THEME_STORAGE_KEY, isDarkMode ? 'dark' : 'light');
@@ -152,11 +165,8 @@ function handleSystemThemeChange(e) {
 function toggleTheme() {
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     if (themeToggleBtn) {
-        const isDarkMode = themeToggleBtn.checked;
-
-        // 确保只应用一个主题类
-        htmlRoot.classList.remove('dark', 'light');
-        htmlRoot.classList.add(isDarkMode ? 'dark' : 'light');
+        const isDarkMode = !htmlRoot.classList.contains('dark');
+        applyTheme(isDarkMode);
 
         // 存储用户选择的主题
         localStorage.setItem(THEME_STORAGE_KEY, isDarkMode ? 'dark' : 'light');
