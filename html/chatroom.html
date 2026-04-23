@@ -1018,6 +1018,10 @@
             return (name && name.length > 0) ? name[0].toUpperCase() : '?';
         }
 
+        function isAiBotUserName(name) {
+            return name === 'ai-bot';
+        }
+
         // ========== 应用状态 ==========
         let currentUser = null;         // {id, name, role, avatar, color}
         let currentChannelId = null;
@@ -1714,6 +1718,10 @@
                 `;
                 li.addEventListener('click', async (e) => {
                     if (user.id === currentUser.id) return;
+                    if (isAiBotUserName(user.name)) {
+                        alert('ai-bot 不支持私聊，请在公开频道中 @ai-bot 提问');
+                        return;
+                    }
                     try {
                         const ch = await openDirectChannelApi(user.name);
                         upsertChannel(ch);

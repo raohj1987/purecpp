@@ -28,6 +28,10 @@ using namespace ormpp;
 
 namespace purecpp {
 
+inline bool is_ai_bot_user_name(std::string_view user_name) {
+  return user_name == "ai-bot";
+}
+
 // ==================== DB Entity (flat structs for ormpp) ====================
 
 struct chat_channel_t {
@@ -1744,6 +1748,29 @@ public:
     for (auto &[id, name] : online_users_cache_) {
       result.emplace_back(id, name);
     }
+    bool has_ai_bot = false;
+    for (auto &[id, name] : result) {
+      if (is_ai_bot_user_name(name)) {
+        has_ai_bot = true;
+        break;
+      }
+    }
+    lk.unlock();
+
+    if (!has_ai_bot) {
+      auto conn = get_db_pool().get();
+      if (conn) {
+        auto bots = conn->select(ormpp::all)
+                        .from<users_t>()
+                        .where(col(&users_t::user_name) == std::string("ai-bot") &&
+                               col(&users_t::status) == std::string(STATUS_OF_ONLINE))
+                        .limit(1)
+                        .collect();
+        if (!bots.empty()) {
+          result.emplace_back(bots[0].id, array_to_string(bots[0].user_name));
+        }
+      }
+    }
     return result;
   }
 
@@ -2523,6 +2550,11 @@ public:
     }
 
     const auto peer_name = arr_to_str(users[0].user_name);
+    if (is_ai_bot_user_name(peer_name)) {
+      resp.set_status_and_content(status_type::forbidden,
+                                  make_error("ai-bot 不支持私聊，请在公开频道中 @ai-bot 提问", 403));
+      return;
+    }
     std::string self_name;
     {
       auto self_users = conn->select(ormpp::all)

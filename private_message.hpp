@@ -174,6 +174,12 @@ public:
       resp.set_status_and_content(status_type::bad_request, make_error("接收者不存在"));
       return;
     }
+    const std::string receiver_name = array_to_string(receivers[0].user_name);
+    if (is_ai_bot_user_name(receiver_name)) {
+      resp.set_status_and_content(status_type::forbidden,
+                                  make_error("ai-bot 不支持私信，请在公开频道中 @ai-bot 提问", 403));
+      return;
+    }
     if (receiver_id == sender_id) {
       resp.set_status_and_content(status_type::bad_request, make_error("不能给自己发私信"));
       return;
