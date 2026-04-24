@@ -325,8 +325,9 @@ struct chat_reaction_view {
   std::string emoji;
   int count = 0;
   std::vector<uint64_t> users;
+  std::vector<std::string> user_names;
 };
-YLT_REFL(chat_reaction_view, emoji, count, users);
+YLT_REFL(chat_reaction_view, emoji, count, users, user_names);
 
 struct chat_reply_preview_view {
   uint64_t message_id = 0;
@@ -469,19 +470,55 @@ build_reaction_views_from(const std::vector<chat_reaction_t> &rs) {
   struct reaction_group {
     int count = 0;
     std::vector<uint64_t> users;
+    std::vector<std::string> user_names;
   };
+
+  auto conn = get_db_pool().get();
+  std::unordered_map<uint64_t, std::string> user_name_map;
+  if (conn) {
+    std::vector<uint64_t> user_ids;
+    user_ids.reserve(rs.size());
+    for (auto &r : rs) {
+      if (std::find(user_ids.begin(), user_ids.end(), r.user_id) ==
+          user_ids.end()) {
+        user_ids.push_back(r.user_id);
+      }
+    }
+
+    if (!user_ids.empty()) {
+      auto cond = col(&users_t::id) == user_ids[0];
+      for (size_t i = 1; i < user_ids.size(); ++i) {
+        cond = cond || (col(&users_t::id) == user_ids[i]);
+      }
+
+      auto users = conn->select(ormpp::all)
+                       .from<users_t>()
+                       .where(cond)
+                       .collect();
+      for (auto &user : users) {
+        user_name_map[user.id] = array_to_string(user.user_name);
+      }
+    }
+  }
 
   std::map<std::string, reaction_group> grouped;
   for (auto &r : rs) {
     auto &group = grouped[arr_to_str(r.emoji)];
     ++group.count;
     group.users.push_back(r.user_id);
+    auto it = user_name_map.find(r.user_id);
+    if (it != user_name_map.end()) {
+      group.user_names.push_back(it->second);
+    } else {
+      group.user_names.push_back(std::to_string(r.user_id));
+    }
   }
 
   std::vector<chat_reaction_view> result;
   result.reserve(grouped.size());
   for (auto &[emoji, group] : grouped) {
-    result.push_back({emoji, group.count, std::move(group.users)});
+    result.push_back(
+        {emoji, group.count, std::move(group.users), std::move(group.user_names)});
   }
   return result;
 }
@@ -1951,6 +1988,7 @@ private:
   drain_session_queue(std::shared_ptr<session> target) {
     while (true) {
       std::shared_ptr<const std::string> payload;
+      bool log_hello_write = false;
       {
         std::scoped_lock lk(target->queue_mtx);
         if (target->closing || !target->conn || target->conn->has_closed()) {
@@ -1964,6 +2002,9 @@ private:
         }
 
         payload = std::move(target->send_queue.front().payload);
+        if (payload && payload->find("\"type\":\"hello\"") != std::string::npos) {
+          log_hello_write = true;
+        }
         if (payload) {
           target->queued_bytes -= payload->size();
         }
@@ -1974,8 +2015,16 @@ private:
 
       const auto write_begin = chat_perf_stats::now_ns();
       auto ec = co_await target->conn->write_websocket(*payload);
+      const auto write_ns = chat_perf_stats::now_ns() - write_begin;
       chat_perf_stats::instance().record_ws_write(
-          chat_perf_stats::now_ns() - write_begin, !ec);
+          write_ns, !ec);
+      if (log_hello_write) {
+        CINATRA_LOG_INFO << "WS hello write user_id=" << target->user_id
+                         << " user_name=" << target->user_name
+                         << " cost_ms=" << (write_ns / 1000000.0)
+                         << " success=" << (!ec)
+                         << " ec=" << ec.message();
+      }
       if (ec) {
         {
           std::scoped_lock lk(target->queue_mtx);
@@ -2938,6 +2987,7 @@ public:
   // GET /ws/chat?token=<jwt>
   async_simple::coro::Lazy<void> handle_ws(coro_http_request &req,
                                            coro_http_response &resp) {
+    const auto ws_begin_ns = chat_perf_stats::now_ns();
     auto token = req.get_decode_query_value("token");
     if (token.empty()) {
       resp.set_status_and_content(status_type::unauthorized,
@@ -2945,8 +2995,12 @@ public:
       co_return;
     }
 
+    const auto validate_begin_ns = chat_perf_stats::now_ns();
     auto [result, info] = validate_jwt_token(token);
+    const auto validate_ns = chat_perf_stats::now_ns() - validate_begin_ns;
     if (result != TokenValidationResult::Valid || !info) {
+      CINATRA_LOG_WARNING << "WS validate token failed cost_ms="
+                          << (validate_ns / 1000000.0);
       resp.set_status_and_content(status_type::unauthorized,
                                   make_error("无效的 token"));
       co_return;
@@ -2954,6 +3008,7 @@ public:
 
     uint64_t user_id = info->user_id;
     std::string user_name;
+    const auto load_user_begin_ns = chat_perf_stats::now_ns();
     {
       auto c = get_db_pool().get();
       if (c) {
@@ -2964,24 +3019,47 @@ public:
         if (!us.empty()) user_name = arr_to_str(us[0].user_name);
       }
     }
+    const auto load_user_ns = chat_perf_stats::now_ns() - load_user_begin_ns;
     if (user_name.empty()) user_name = "User_" + std::to_string(user_id);
 
     auto *conn_ptr = req.get_conn();
     auto conn = conn_ptr->shared_from_this();
     static std::atomic<uint64_t> s_conn_id_gen{0};
     uint64_t conn_key = s_conn_id_gen.fetch_add(1, std::memory_order_relaxed);
+    const auto add_session_begin_ns = chat_perf_stats::now_ns();
     auto add_result =
         chat_hub::instance().add(conn_key, user_id, user_name, conn);
+    const auto add_session_ns =
+        chat_perf_stats::now_ns() - add_session_begin_ns;
     auto session_state = add_result.state;
 
     // Send hello
     {
+      const auto online_begin_ns = chat_perf_stats::now_ns();
       auto online = chat_hub::instance().online_users();
+      const auto online_ns = chat_perf_stats::now_ns() - online_begin_ns;
+      const auto hello_build_begin_ns = chat_perf_stats::now_ns();
       std::ostringstream os;
       os << R"({"type":"hello","user":{"id":)" << user_id
          << R"(,"name":")" << json_escape(user_name)
          << R"("},"online":)" << build_online_json(online) << "}";
+      const auto hello_build_ns =
+          chat_perf_stats::now_ns() - hello_build_begin_ns;
+      const auto hello_enqueue_begin_ns = chat_perf_stats::now_ns();
       co_await chat_hub::instance().send_to(session_state, os.str());
+      const auto hello_enqueue_ns =
+          chat_perf_stats::now_ns() - hello_enqueue_begin_ns;
+      CINATRA_LOG_INFO << "WS hello staged user_id=" << user_id
+                       << " user_name=" << user_name
+                       << " total_ms="
+                       << ((chat_perf_stats::now_ns() - ws_begin_ns) / 1000000.0)
+                       << " validate_ms=" << (validate_ns / 1000000.0)
+                       << " load_user_ms=" << (load_user_ns / 1000000.0)
+                       << " add_session_ms=" << (add_session_ns / 1000000.0)
+                       << " online_ms=" << (online_ns / 1000000.0)
+                       << " hello_build_ms=" << (hello_build_ns / 1000000.0)
+                       << " hello_enqueue_ms=" << (hello_enqueue_ns / 1000000.0)
+                       << " online_count=" << online.size();
     }
 
     // Broadcast presence_join
