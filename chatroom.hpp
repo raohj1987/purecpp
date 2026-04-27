@@ -343,11 +343,12 @@ struct chat_message_view {
   uint64_t user_id = 0;
   std::string user_name;
   std::string text;
+  uint64_t created_at = 0;
   std::string time;
   std::optional<chat_reply_preview_view> reply;
   std::vector<chat_reaction_view> reactions;
 };
-YLT_REFL(chat_message_view, id, channel_id, user_id, user_name, text, time,
+YLT_REFL(chat_message_view, id, channel_id, user_id, user_name, text, created_at, time,
          reply, reactions);
 
 struct chat_online_user_view {
@@ -647,6 +648,7 @@ make_chat_message_view(const chat_message_t &m,
           m.user_id,
           arr_to_str(m.user_name),
           m.content,
+          m.created_at,
           chat_format_time(m.created_at),
           std::move(reply),
           std::move(reactions)};
