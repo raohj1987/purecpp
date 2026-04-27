@@ -29,15 +29,46 @@
             --mention-badge: #ec0b43;
         }
 
+        html {
+            height: 100%;
+        }
+
         body {
-            overflow-x: hidden;
+            height: 100dvh;
+            min-height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        #header-container {
+            flex: 0 0 auto;
+            position: relative;
+            z-index: 1000;
+            background: var(--bg-page);
+        }
+
+        body > main.page-wrapper {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-width: none !important;
+            width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: hidden;
+        }
+
+        #footer-container {
+            display: none;
         }
         
         .chat-container {
             display: flex;
             flex: 1;
+            height: 100%;
             min-height: 0;
+            overflow: hidden;
         }
         
         /* 左侧边栏 */
@@ -48,12 +79,14 @@
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .sidebar-scroll {
-            position: sticky;
-            top: 12px;
-            max-height: calc(100vh - 24px);
+            flex: 1;
+            min-height: 0;
+            max-height: 100%;
             overflow-y: auto;
         }
         
@@ -216,6 +249,8 @@
             display: flex;
             flex-direction: column;
             min-height: 0;
+            min-width: 0;
+            overflow: hidden;
             background-color: var(--chat-panel-bg);
             color: var(--chat-text-color);
         }
@@ -223,12 +258,15 @@
         .chat-header {
             padding: 0 20px;
             height: 60px;
+            flex: 0 0 60px;
             border-bottom: 1px solid var(--chat-panel-border);
             background-color: var(--chat-panel-bg);
             color: var(--chat-text-color);
             display: flex;
             align-items: center;
             justify-content: space-between;
+            position: relative;
+            z-index: 10;
         }
         
         .channel-info {
@@ -247,11 +285,72 @@
             color: var(--chat-muted-color);
             font-size: 14px;
         }
-        
+
+        .chat-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chat-search-input {
+            width: 220px;
+            height: 30px;
+            min-height: 30px;
+            margin: 0;
+            padding: 0 8px;
+            border: 1px solid var(--chat-panel-border);
+            border-radius: 4px;
+            box-sizing: border-box;
+            background: var(--chat-input-bg);
+            color: var(--chat-text-color);
+            font-size: 12px;
+            line-height: 1.2;
+        }
+
+        .chat-header-actions #chat-search-input {
+            width: 220px !important;
+            height: 30px !important;
+            min-height: 30px !important;
+            max-height: 30px !important;
+            margin: 0 !important;
+            padding: 0 8px !important;
+            line-height: 28px !important;
+        }
+
+        .chat-search-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 24px;
+            min-height: 24px;
+            margin: 0;
+            padding: 1px 14px;
+            border: none;
+            border-radius: 4px;
+            box-sizing: border-box;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1.2;
+            white-space: nowrap;
+            flex: 0 0 auto;
+        }
+
+        .chat-search-button.primary {
+            background: var(--primary-color);
+            min-width: 76px;
+        }
+
+        .chat-search-button.secondary {
+            background: #888;
+            min-width: 64px;
+        }
+
         .chat-content {
             flex: 1;
             display: flex;
             min-height: 0;
+            overflow: hidden;
         }
         
         .chat-messages {
@@ -592,9 +691,10 @@
         
         /* 输入区域 */
         .chat-input-container {
-            padding: 20px;
+            padding: 12px 16px;
             border-top: 1px solid var(--chat-panel-border);
             background-color: var(--chat-panel-bg);
+            flex: 0 0 auto;
         }
         
         .chat-input-wrapper {
@@ -622,8 +722,8 @@
 
         /* SimpleMDE 在聊天室中的样式覆盖 */
         .chat-input-wrapper .CodeMirror {
-            min-height: 80px;
-            max-height: 200px;
+            min-height: 76px;
+            max-height: 160px;
             overflow: hidden;
             font-size: 15px;
             font-family: inherit;
@@ -637,8 +737,8 @@
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 4px;
-            padding: 6px 8px;
+            gap: 3px;
+            padding: 4px 6px;
             background-color: var(--chat-panel-bg);
             border: 1px solid var(--chat-panel-border);
             border-bottom: none;
@@ -654,8 +754,8 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 30px;
-            height: 30px;
+            width: 28px;
+            height: 28px;
             margin: 0;
             padding: 0;
             border: 1px solid transparent;
@@ -665,8 +765,8 @@
         .chat-input-wrapper .editor-toolbar i.separator {
             display: inline-block;
             width: 1px;
-            height: 18px;
-            margin: 0 4px;
+            height: 16px;
+            margin: 0 3px;
             border: none;
             background-color: var(--chat-panel-border);
         }
@@ -676,8 +776,8 @@
             border-color: var(--chat-panel-border);
         }
         .chat-input-wrapper .CodeMirror-scroll {
-            min-height: 80px;
-            max-height: 200px;
+            min-height: 76px;
+            max-height: 160px;
             overflow-y: auto !important;
         }
         .chat-input-wrapper .editor-preview {
@@ -696,23 +796,34 @@
         
         .input-actions {
             display: flex;
+            align-items: center;
             justify-content: space-between;
-            margin-top: 8px;
+            gap: 10px;
+            margin-top: 6px;
         }
-        
+
+        .input-actions-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
         .action-buttons {
             display: flex;
-            gap: 10px;
+            gap: 6px;
+            flex: 0 0 auto;
         }
-        
+
         .action-button {
             background: none;
             border: none;
             color: var(--chat-muted-color);
             cursor: pointer;
-            font-size: 18px;
-            width: 36px;
-            height: 36px;
+            font-size: 16px;
+            width: 30px;
+            height: 30px;
             border-radius: 4px;
             display: flex;
             align-items: center;
@@ -725,9 +836,11 @@
 
         .chat-input-meta {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-top: 6px;
+            gap: 8px;
+            flex: 1 1 auto;
+            min-width: 0;
+            margin: 0;
             font-size: 12px;
             color: var(--chat-muted-color);
         }
@@ -789,6 +902,9 @@
 
         .message-status {
             color: var(--chat-muted-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .message-status.error {
@@ -800,15 +916,22 @@
             color: #d1453b;
             font-weight: 600;
         }
-        
+
+        .message-length-counter {
+            flex: 0 0 auto;
+        }
+
         .send-button {
             background-color: var(--primary-color);
             color: white;
             border: none;
             border-radius: 4px;
-            padding: 8px 20px;
+            min-height: 32px;
+            padding: 6px 16px;
             cursor: pointer;
             font-weight: bold;
+            line-height: 1.2;
+            flex: 0 0 auto;
         }
         
         .send-button:hover {
@@ -939,7 +1062,21 @@
             .mention-badge {
                 right: 5px;
             }
-            
+
+            .chat-input-container {
+                padding: 10px 12px;
+            }
+
+            .chat-input-wrapper .CodeMirror,
+            .chat-input-wrapper .CodeMirror-scroll {
+                min-height: 68px;
+                max-height: 150px;
+            }
+
+            .message-status {
+                display: none;
+            }
+
         }
     </style>
 </head>
@@ -1014,10 +1151,10 @@
                     <div class="channel-name" id="current-channel-name"># 通用聊天</div>
                     <div class="channel-topic" id="current-channel-topic">欢迎来到PureCpp社区聊天室！</div>
                 </div>
-                <div class="chat-header-actions" style="display:flex; align-items:center; gap:8px;">
-                    <input type="text" id="chat-search-input" placeholder="搜索消息..." style="padding:6px 10px; border:1px solid var(--chat-panel-border); border-radius:4px; font-size:13px; width:180px; background:var(--chat-input-bg); color:var(--chat-text-color);">
-                    <button id="chat-search-btn" style="padding:6px 12px; background:#4a154b; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px;">搜索</button>
-                    <button id="chat-search-clear" style="display:none; padding:6px 10px; background:#888; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px;">清除</button>
+                <div class="chat-header-actions">
+                    <input type="text" id="chat-search-input" class="chat-search-input" placeholder="搜索消息...">
+                    <button id="chat-search-btn" class="chat-search-button primary">搜索</button>
+                    <button id="chat-search-clear" class="chat-search-button secondary" style="display:none;">清除</button>
                 </div>
             </div>
             
@@ -1041,18 +1178,20 @@
                     <div class="user-suggestions" id="user-suggestions"></div>
                     <div class="emoji-picker" id="emoji-picker"></div>
                 </div>
-                <div class="chat-input-meta">
-                    <div class="message-status" id="message-status">单条消息最多 2000 字</div>
-                    <div class="message-length-counter" id="message-length-counter">0 / 2000</div>
-                </div>
                 <div class="input-actions">
-                    <div class="action-buttons">
-                        <button class="action-button" id="emoji-btn" title="表情">
-                            <i class="far fa-smile"></i>
-                        </button>
-                        <button class="action-button" id="image-btn" title="上传图片">
-                            <i class="fas fa-image"></i>
-                        </button>
+                    <div class="input-actions-left">
+                        <div class="action-buttons">
+                            <button class="action-button" id="emoji-btn" title="表情">
+                                <i class="far fa-smile"></i>
+                            </button>
+                            <button class="action-button" id="image-btn" title="上传图片">
+                                <i class="fas fa-image"></i>
+                            </button>
+                        </div>
+                        <div class="chat-input-meta">
+                            <div class="message-status" id="message-status">单条消息最多 2000 字</div>
+                            <div class="message-length-counter" id="message-length-counter">0 / 2000</div>
+                        </div>
                     </div>
                     <button class="send-button" id="send-btn">发送</button>
                 </div>
