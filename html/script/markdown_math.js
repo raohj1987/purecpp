@@ -16,7 +16,10 @@
 
     function normalizeMarkdownSource(content) {
         if (content === null || content === undefined) return '';
-        return String(content).replace(/\r\n?/g, '\n');
+        return String(content)
+            .replace(/\\n/g, '\n')
+            .replace(/\\t/g, '\t')
+            .replace(/\r\n?/g, '\n');
     }
 
     function isEscaped(source, index) {
