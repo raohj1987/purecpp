@@ -9,9 +9,11 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <shared_mutex>
 #include <sstream>
+#include <thread>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
@@ -25,6 +27,10 @@ using namespace cinatra;
 using namespace ormpp;
 
 namespace purecpp {
+
+inline bool is_ai_bot_user_name(std::string_view user_name) {
+  return user_name == "ai-bot";
+}
 
 // ==================== DB Entity (flat structs for ormpp) ====================
 
@@ -58,6 +64,22 @@ struct chat_message_t {
 };
 REGISTER_AUTO_KEY(chat_message_t, id);
 
+struct chat_message_reply_t {
+  uint64_t id;
+  uint64_t message_id;
+  uint64_t reply_to_message_id;
+  uint64_t reply_to_user_id;
+  std::array<char, 64> reply_user_name;
+  std::string reply_content;
+  uint64_t created_at;
+
+  static constexpr std::string_view
+  get_alias_struct_name(chat_message_reply_t *) {
+    return "chat_message_replies";
+  }
+};
+REGISTER_AUTO_KEY(chat_message_reply_t, id);
+
 struct chat_reaction_t {
   uint64_t id;
   uint64_t message_id;
@@ -79,8 +101,8 @@ struct chat_read_position_t {
   uint64_t last_read_channel_seq;
   uint64_t updated_at;
 
-  static constexpr std::string_view get_alias_struct_name(
-      chat_read_position_t *) {
+  static constexpr std::string_view
+  get_alias_struct_name(chat_read_position_t *) {
     return "chat_read_positions";
   }
 };
@@ -92,8 +114,8 @@ struct chat_channel_member_t {
   uint64_t user_id;
   uint64_t joined_at;
 
-  static constexpr std::string_view get_alias_struct_name(
-      chat_channel_member_t *) {
+  static constexpr std::string_view
+  get_alias_struct_name(chat_channel_member_t *) {
     return "chat_channel_members";
   }
 };
@@ -101,10 +123,10 @@ REGISTER_AUTO_KEY(chat_channel_member_t, id);
 
 struct chat_mute_t {
   uint64_t id;
-  uint64_t user_id;    // 被禁言用户
-  uint64_t channel_id; // 0 = 全局禁言
-  uint64_t muted_by;   // 管理员 user_id
-  uint64_t muted_at;   // ms 时间戳
+  uint64_t user_id;     // 被禁言用户
+  uint64_t channel_id;  // 0 = 全局禁言
+  uint64_t muted_by;    // 管理员 user_id
+  uint64_t muted_at;    // ms 时间戳
   uint64_t muted_until; // ms 时间戳（到期自动解禁）
 
   static constexpr std::string_view get_alias_struct_name(chat_mute_t *) {
@@ -112,6 +134,21 @@ struct chat_mute_t {
   }
 };
 REGISTER_AUTO_KEY(chat_mute_t, id);
+
+struct chat_weekly_summary_t {
+  uint64_t id;
+  uint64_t week_start_ms;
+  uint64_t week_end_ms;
+  uint64_t channel_id;
+  uint64_t message_id;
+  uint64_t created_at;
+
+  static constexpr std::string_view
+  get_alias_struct_name(chat_weekly_summary_t *) {
+    return "chat_weekly_summaries";
+  }
+};
+REGISTER_AUTO_KEY(chat_weekly_summary_t, id);
 
 struct chat_mark_read_req {
   uint64_t channel_id;
@@ -153,14 +190,14 @@ struct chat_ws_in {
   uint64_t channel_id;
   std::string text;
   uint64_t message_id;
+  uint64_t reply_to_message_id;
   std::string emoji;
 };
 
 // ==================== Helpers ====================
 
 inline std::string arr_to_str(const auto &arr) {
-  return std::string(arr.data(),
-                     strnlen(arr.data(), arr.size()));
+  return std::string(arr.data(), strnlen(arr.data(), arr.size()));
 }
 
 inline void str_to_arr(auto &arr, const std::string &s) {
@@ -179,12 +216,12 @@ inline std::tm chat_localtime(std::time_t t) {
 }
 
 inline std::string chat_format_time(uint64_t ts_ms) {
-  auto tp = std::chrono::system_clock::time_point(
-      std::chrono::milliseconds(ts_ms));
+  auto tp =
+      std::chrono::system_clock::time_point(std::chrono::milliseconds(ts_ms));
   auto tt = std::chrono::system_clock::to_time_t(tp);
   auto tm = chat_localtime(tt);
-  auto now_t = std::chrono::system_clock::to_time_t(
-      std::chrono::system_clock::now());
+  auto now_t =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   auto now_tm = chat_localtime(now_t);
   char buf[32];
   if (tm.tm_year == now_tm.tm_year && tm.tm_yday == now_tm.tm_yday) {
@@ -213,9 +250,12 @@ inline std::string url_decode(const std::string &s) {
   for (size_t i = 0; i < s.size(); i++) {
     if (s[i] == '%' && i + 2 < s.size()) {
       auto hex = [](char c) -> int {
-        if (c >= '0' && c <= '9') return c - '0';
-        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        if (c >= '0' && c <= '9')
+          return c - '0';
+        if (c >= 'a' && c <= 'f')
+          return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F')
+          return c - 'A' + 10;
         return -1;
       };
       int hi = hex(s[i + 1]), lo = hex(s[i + 2]);
@@ -236,7 +276,8 @@ inline std::string url_decode(const std::string &s) {
 inline size_t utf8_codepoint_count(std::string_view s) {
   size_t n = 0;
   for (unsigned char c : s)
-    if ((c & 0xC0u) != 0x80u) ++n;
+    if ((c & 0xC0u) != 0x80u)
+      ++n;
   return n;
 }
 
@@ -287,8 +328,17 @@ struct chat_reaction_view {
   std::string emoji;
   int count = 0;
   std::vector<uint64_t> users;
+  std::vector<std::string> user_names;
 };
-YLT_REFL(chat_reaction_view, emoji, count, users);
+YLT_REFL(chat_reaction_view, emoji, count, users, user_names);
+
+struct chat_reply_preview_view {
+  uint64_t message_id = 0;
+  uint64_t user_id = 0;
+  std::string user_name;
+  std::string text;
+};
+YLT_REFL(chat_reply_preview_view, message_id, user_id, user_name, text);
 
 struct chat_message_view {
   uint64_t id = 0;
@@ -296,11 +346,13 @@ struct chat_message_view {
   uint64_t user_id = 0;
   std::string user_name;
   std::string text;
+  uint64_t created_at = 0;
   std::string time;
+  std::optional<chat_reply_preview_view> reply;
   std::vector<chat_reaction_view> reactions;
 };
-YLT_REFL(chat_message_view, id, channel_id, user_id, user_name, text, time,
-         reactions);
+YLT_REFL(chat_message_view, id, channel_id, user_id, user_name, text,
+         created_at, time, reply, reactions);
 
 struct chat_online_user_view {
   uint64_t id = 0;
@@ -388,8 +440,7 @@ struct chat_ws_message_edited {
   std::string text;
   uint64_t edited_at = 0;
 };
-YLT_REFL(chat_ws_message_edited, type, message_id, channel_id, text,
-         edited_at);
+YLT_REFL(chat_ws_message_edited, type, message_id, channel_id, text, edited_at);
 
 struct chat_ws_message_deleted {
   std::string type;
@@ -406,8 +457,7 @@ struct chat_ws_typing {
 };
 YLT_REFL(chat_ws_typing, type, user_id, user_name, channel_id);
 
-template <typename T>
-inline std::string to_json_string(const T &value) {
+template <typename T> inline std::string to_json_string(const T &value) {
   std::string json;
   try {
     iguana::to_json(value, json);
@@ -422,26 +472,72 @@ build_reaction_views_from(const std::vector<chat_reaction_t> &rs) {
   struct reaction_group {
     int count = 0;
     std::vector<uint64_t> users;
+    std::vector<std::string> user_names;
   };
+
+  auto make_uint64_in_condition = [](std::string_view column_name,
+                                     const std::vector<uint64_t> &ids) {
+    std::string values;
+    for (size_t i = 0; i < ids.size(); ++i) {
+      if (i > 0)
+        values.push_back(',');
+      values += std::to_string(ids[i]);
+    }
+    return ormpp::where_condition{std::string(column_name) + " in(", values,
+                                  ")"};
+  };
+
+  auto conn = get_db_pool().get();
+  std::unordered_map<uint64_t, std::string> user_name_map;
+  if (conn) {
+    std::vector<uint64_t> user_ids;
+    std::unordered_set<uint64_t> seen_user_ids;
+    user_ids.reserve(rs.size());
+    seen_user_ids.reserve(rs.size());
+    for (auto &r : rs) {
+      if (seen_user_ids.insert(r.user_id).second) {
+        user_ids.push_back(r.user_id);
+      }
+    }
+
+    if (!user_ids.empty()) {
+      auto users =
+          conn->select(ormpp::all)
+              .from<users_t>()
+              .where(make_uint64_in_condition(col_name(&users_t::id), user_ids))
+              .collect();
+      for (auto &user : users) {
+        user_name_map[user.id] = array_to_string(user.user_name);
+      }
+    }
+  }
 
   std::map<std::string, reaction_group> grouped;
   for (auto &r : rs) {
     auto &group = grouped[arr_to_str(r.emoji)];
     ++group.count;
     group.users.push_back(r.user_id);
+    auto it = user_name_map.find(r.user_id);
+    if (it != user_name_map.end()) {
+      group.user_names.push_back(it->second);
+    } else {
+      group.user_names.push_back("用户 " + std::to_string(r.user_id));
+    }
   }
 
   std::vector<chat_reaction_view> result;
   result.reserve(grouped.size());
   for (auto &[emoji, group] : grouped) {
-    result.push_back({emoji, group.count, std::move(group.users)});
+    result.push_back({emoji, group.count, std::move(group.users),
+                      std::move(group.user_names)});
   }
   return result;
 }
 
 inline std::vector<chat_reaction_view> build_reaction_views(uint64_t msg_id) {
   auto conn = get_db_pool().get();
-  if (!conn) return {};
+  if (!conn)
+    return {};
   auto rs = conn->select(ormpp::all)
                 .from<chat_reaction_t>()
                 .where(col(&chat_reaction_t::message_id).param())
@@ -449,32 +545,45 @@ inline std::vector<chat_reaction_view> build_reaction_views(uint64_t msg_id) {
   return build_reaction_views_from(rs);
 }
 
+inline std::string chat_trim_summary_text(std::string_view text,
+                                          size_t max_codepoints);
+
 inline std::unordered_map<uint64_t, std::vector<chat_reaction_view>>
 batch_build_reactions(const std::vector<chat_message_t> &msgs) {
   std::unordered_map<uint64_t, std::vector<chat_reaction_view>> result;
-  if (msgs.empty()) return result;
+  if (msgs.empty())
+    return result;
 
   auto conn = get_db_pool().get();
   if (!conn) {
-    for (auto &m : msgs) result[m.id] = {};
+    for (auto &m : msgs)
+      result[m.id] = {};
     return result;
   }
 
   std::vector<uint64_t> msg_ids;
+  std::unordered_set<uint64_t> seen_msg_ids;
   msg_ids.reserve(msgs.size());
+  seen_msg_ids.reserve(msgs.size());
   for (auto &m : msgs) {
-    msg_ids.push_back(m.id);
+    if (seen_msg_ids.insert(m.id).second) {
+      msg_ids.push_back(m.id);
+    }
   }
 
-  auto cond = col(&chat_reaction_t::message_id) == msg_ids[0];
-  for (size_t i = 1; i < msg_ids.size(); ++i) {
-    cond = cond || (col(&chat_reaction_t::message_id) == msg_ids[i]);
+  std::string id_list;
+  for (size_t i = 0; i < msg_ids.size(); ++i) {
+    if (i > 0)
+      id_list.push_back(',');
+    id_list += std::to_string(msg_ids[i]);
   }
-
-  auto all_reactions = conn->select(ormpp::all)
-                           .from<chat_reaction_t>()
-                           .where(cond)
-                           .collect();
+  auto all_reactions =
+      conn->select(ormpp::all)
+          .from<chat_reaction_t>()
+          .where(ormpp::where_condition{
+              std::string(col_name(&chat_reaction_t::message_id)) + " in(",
+              id_list, ")"})
+          .collect();
   std::unordered_map<uint64_t, std::vector<chat_reaction_t>> grouped;
   for (auto &r : all_reactions) {
     grouped[r.message_id].push_back(r);
@@ -491,15 +600,97 @@ batch_build_reactions(const std::vector<chat_message_t> &msgs) {
   return result;
 }
 
-inline chat_message_view
-make_chat_message_view(const chat_message_t &m,
-                       std::vector<chat_reaction_view> reactions = {}) {
+inline std::string trim_message_for_reply_preview(std::string_view text,
+                                                  size_t max_codepoints = 120) {
+  std::string normalized;
+  normalized.reserve(text.size());
+  bool previous_was_space = false;
+  // Chat content is UTF-8. This pass only folds ASCII whitespace bytes and
+  // leaves all non-ASCII bytes intact; truncation happens below by codepoint.
+  for (char ch : text) {
+    const bool is_space = ch == '\r' || ch == '\n' || ch == '\t';
+    if (is_space) {
+      if (!previous_was_space) {
+        normalized.push_back(' ');
+      }
+      previous_was_space = true;
+      continue;
+    }
+    normalized.push_back(ch);
+    previous_was_space = (ch == ' ');
+  }
+
+  auto first = normalized.find_first_not_of(' ');
+  if (first == std::string::npos) {
+    return {};
+  }
+  auto last = normalized.find_last_not_of(' ');
+  normalized = normalized.substr(first, last - first + 1);
+  return chat_trim_summary_text(normalized, max_codepoints);
+}
+
+inline std::unordered_map<uint64_t, chat_reply_preview_view>
+batch_build_reply_previews(const std::vector<chat_message_t> &msgs) {
+  std::unordered_map<uint64_t, chat_reply_preview_view> result;
+  if (msgs.empty())
+    return result;
+
+  auto conn = get_db_pool().get();
+  if (!conn)
+    return result;
+
+  std::vector<uint64_t> message_ids;
+  std::unordered_set<uint64_t> seen_message_ids;
+  message_ids.reserve(msgs.size());
+  seen_message_ids.reserve(msgs.size());
+  for (auto &m : msgs) {
+    if (seen_message_ids.insert(m.id).second) {
+      message_ids.push_back(m.id);
+    }
+  }
+
+  std::string id_list;
+  for (size_t i = 0; i < message_ids.size(); ++i) {
+    if (i > 0)
+      id_list.push_back(',');
+    id_list += std::to_string(message_ids[i]);
+  }
+
+  auto replies =
+      conn->select(ormpp::all)
+          .from<chat_message_reply_t>()
+          .where(ormpp::where_condition{
+              std::string(col_name(&chat_message_reply_t::message_id)) + " in(",
+              id_list, ")"})
+          .order_by(col(&chat_message_reply_t::id).asc())
+          .collect();
+  for (auto &reply : replies) {
+    auto [_, inserted] = result.emplace(
+        reply.message_id,
+        chat_reply_preview_view{
+            reply.reply_to_message_id, reply.reply_to_user_id,
+            arr_to_str(reply.reply_user_name), reply.reply_content});
+    if (!inserted) {
+      CINATRA_LOG_WARNING
+          << "Duplicate chat reply preview ignored for message_id="
+          << reply.message_id << ", reply_row_id=" << reply.id;
+    }
+  }
+  return result;
+}
+
+inline chat_message_view make_chat_message_view(
+    const chat_message_t &m,
+    std::optional<chat_reply_preview_view> reply = std::nullopt,
+    std::vector<chat_reaction_view> reactions = {}) {
   return {m.id,
           m.channel_id,
           m.user_id,
           arr_to_str(m.user_name),
           m.content,
+          m.created_at,
           chat_format_time(m.created_at),
+          std::move(reply),
           std::move(reactions)};
 }
 
@@ -517,11 +708,10 @@ inline bool is_direct_channel_name(std::string_view name) {
   return name.rfind("__dm__", 0) == 0;
 }
 
-inline chat_channel_view make_chat_channel_view(const chat_channel_t &ch,
-                                                uint64_t unread,
-                                                uint64_t peer_user_id = 0,
-                                                std::string display_name = {},
-                                                std::string display_topic = {}) {
+inline chat_channel_view
+make_chat_channel_view(const chat_channel_t &ch, uint64_t unread,
+                       uint64_t peer_user_id = 0, std::string display_name = {},
+                       std::string display_topic = {}) {
   const auto raw_name = arr_to_str(ch.name);
   const auto raw_topic = arr_to_str(ch.topic);
   const bool is_direct = ch.is_private && is_direct_channel_name(raw_name);
@@ -541,9 +731,8 @@ inline chat_channel_view make_direct_channel_view(const chat_channel_t &ch,
                                                   uint64_t peer_user_id,
                                                   std::string peer_name,
                                                   uint64_t unread = 0) {
-  std::string topic = peer_name.empty()
-                          ? "与成员的私聊"
-                          : ("与 " + peer_name + " 的私聊");
+  std::string topic =
+      peer_name.empty() ? "与成员的私聊" : ("与 " + peer_name + " 的私聊");
   if (peer_name.empty()) {
     peer_name = "用户 " + std::to_string(peer_user_id);
   }
@@ -553,17 +742,136 @@ inline chat_channel_view make_direct_channel_view(const chat_channel_t &ch,
 
 inline std::string
 build_msg_json(const chat_message_t &m,
+               std::optional<chat_reply_preview_view> reply = std::nullopt,
                std::vector<chat_reaction_view> reactions = {}) {
-  return to_json_string(make_chat_message_view(m, std::move(reactions)));
+  return to_json_string(
+      make_chat_message_view(m, std::move(reply), std::move(reactions)));
 }
 
-inline std::string build_online_json(
-    const std::vector<std::pair<uint64_t, std::string>> &users) {
+inline std::string
+build_online_json(const std::vector<std::pair<uint64_t, std::string>> &users) {
   return to_json_string(make_online_user_views(users));
 }
 
 inline std::string build_reactions_json(uint64_t message_id) {
   return to_json_string(build_reaction_views(message_id));
+}
+
+inline uint64_t chat_start_of_week_utc_ms(uint64_t ts_ms) {
+  using namespace std::chrono;
+  auto tp = system_clock::time_point(milliseconds(ts_ms));
+  auto days_part = floor<days>(tp);
+  std::chrono::year_month_day ymd{days_part};
+  std::chrono::weekday wd{days_part};
+  const auto days_since_monday = (wd.iso_encoding() + 6) % 7;
+  auto monday = days_part - days(days_since_monday);
+  return static_cast<uint64_t>(
+      duration_cast<milliseconds>(monday.time_since_epoch()).count());
+}
+
+inline std::string chat_format_date_utc(uint64_t ts_ms) {
+  auto seconds = std::chrono::duration_cast<std::chrono::seconds>(
+      std::chrono::milliseconds(ts_ms));
+  std::time_t timestamp = static_cast<std::time_t>(seconds.count());
+  std::tm utc_tm{};
+
+#ifdef _WIN32
+  if (gmtime_s(&utc_tm, &timestamp) != 0) {
+    return {};
+  }
+#else
+  if (gmtime_r(&timestamp, &utc_tm) == nullptr) {
+    return {};
+  }
+#endif
+
+  std::ostringstream oss;
+  oss.imbue(std::locale::classic());
+  oss << std::put_time(&utc_tm, "%Y-%m-%d");
+  return oss.str();
+}
+
+inline uint64_t ensure_chat_channel_exists(std::string_view name,
+                                           std::string_view topic,
+                                           uint32_t is_private = 0,
+                                           uint64_t creator_id = 0) {
+  auto conn = get_db_pool().get();
+  if (!conn)
+    return 0;
+
+  auto existing = conn->select(ormpp::all)
+                      .from<chat_channel_t>()
+                      .where(col(&chat_channel_t::name).param())
+                      .collect(std::string(name));
+  if (!existing.empty()) {
+    return existing.front().id;
+  }
+
+  chat_channel_t ch{};
+  str_to_arr(ch.name, std::string(name));
+  str_to_arr(ch.topic, std::string(topic));
+  ch.creator_id = creator_id;
+  ch.is_private = is_private;
+  ch.created_at = get_timestamp_milliseconds();
+  ch.message_count = 0;
+
+  auto id = conn->get_insert_id_after_insert(ch);
+  if (id == 0) {
+    auto retry = conn->select(ormpp::all)
+                     .from<chat_channel_t>()
+                     .where(col(&chat_channel_t::name).param())
+                     .collect(std::string(name));
+    if (!retry.empty()) {
+      return retry.front().id;
+    }
+    return 0;
+  }
+
+  return id;
+}
+
+template <typename PairVec>
+inline std::string chat_join_top_entries(const PairVec &entries, size_t limit,
+                                         std::string_view sep = "，") {
+  std::ostringstream oss;
+  size_t count = 0;
+  for (auto &entry : entries) {
+    if (count >= limit)
+      break;
+    if (count++)
+      oss << sep;
+    oss << entry.first << "（" << entry.second << "）";
+  }
+  return oss.str();
+}
+
+inline std::string chat_trim_summary_text(std::string_view text,
+                                          size_t max_codepoints) {
+  std::string result;
+  result.reserve((std::min)(text.size(), max_codepoints * 3));
+  size_t codepoints = 0;
+  for (size_t i = 0; i < text.size();) {
+    unsigned char c = static_cast<unsigned char>(text[i]);
+    size_t len = 1;
+    if ((c & 0x80u) == 0x00u) {
+      len = 1;
+    } else if ((c & 0xE0u) == 0xC0u) {
+      len = 2;
+    } else if ((c & 0xF0u) == 0xE0u) {
+      len = 3;
+    } else if ((c & 0xF8u) == 0xF0u) {
+      len = 4;
+    }
+    if (codepoints >= max_codepoints)
+      break;
+    result.append(text.substr(i, len));
+    i += len;
+    ++codepoints;
+  }
+  if (utf8_codepoint_count(text) > max_codepoints) {
+    result += "...";
+  }
+  return result;
 }
 
 class chat_perf_stats {
@@ -580,8 +888,7 @@ public:
             .count());
   }
 
-  void record_message(uint64_t total_ns, uint64_t db_ns,
-                      uint64_t json_build_ns,
+  void record_message(uint64_t total_ns, uint64_t db_ns, uint64_t json_build_ns,
                       uint64_t active_broadcast_ns,
                       uint64_t inactive_broadcast_ns) {
     handled_messages_.fetch_add(1, std::memory_order_relaxed);
@@ -624,13 +931,15 @@ private:
   }
 
   static double avg_ms(uint64_t total_ns, uint64_t count) {
-    if (count == 0) return 0.0;
+    if (count == 0)
+      return 0.0;
     return static_cast<double>(total_ns) / static_cast<double>(count) / 1e6;
   }
 
   void maybe_log_summary() {
     const auto handled = handled_messages_.load(std::memory_order_relaxed);
-    if (handled < log_every_messages_) return;
+    if (handled < log_every_messages_)
+      return;
 
     const auto bucket = handled / log_every_messages_;
     auto last = last_logged_bucket_.load(std::memory_order_relaxed);
@@ -642,8 +951,7 @@ private:
             enqueue_calls_.load(std::memory_order_relaxed);
         const auto ws_frames = ws_write_frames_.load(std::memory_order_relaxed);
         CINATRA_LOG_INFO
-            << "chat_perf messages=" << handled
-            << " avg_total_ms="
+            << "chat_perf messages=" << handled << " avg_total_ms="
             << avg_ms(message_total_ns_.load(std::memory_order_relaxed),
                       handled)
             << " avg_db_ms="
@@ -652,13 +960,13 @@ private:
             << avg_ms(message_json_build_ns_.load(std::memory_order_relaxed),
                       handled)
             << " avg_broadcast_active_ms="
-            << avg_ms(message_active_broadcast_ns_.load(std::memory_order_relaxed),
-                      handled)
-            << " avg_broadcast_inactive_ms="
             << avg_ms(
-                   message_inactive_broadcast_ns_.load(
-                       std::memory_order_relaxed),
+                   message_active_broadcast_ns_.load(std::memory_order_relaxed),
                    handled)
+            << " avg_broadcast_inactive_ms="
+            << avg_ms(message_inactive_broadcast_ns_.load(
+                          std::memory_order_relaxed),
+                      handled)
             << " avg_enqueue_ms="
             << avg_ms(enqueue_total_ns_.load(std::memory_order_relaxed),
                       enqueue_calls)
@@ -709,20 +1017,23 @@ public:
 
   bool get(uint64_t channel_id, chat_channel_cache_entry &out,
            bool force_refresh = false) {
-    if (channel_id == 0) return false;
+    if (channel_id == 0)
+      return false;
 
     const auto now = get_timestamp_milliseconds();
     {
       std::shared_lock lk(mtx_);
       auto it = entries_.find(channel_id);
-      if (!force_refresh && it != entries_.end() && it->second.expires_at > now) {
+      if (!force_refresh && it != entries_.end() &&
+          it->second.expires_at > now) {
         out = it->second;
         return out.exists;
       }
     }
 
     auto conn = get_db_pool().get();
-    if (!conn) return false;
+    if (!conn)
+      return false;
 
     chat_channel_cache_entry entry{};
     entry.expires_at = now + ttl_ms_;
@@ -741,7 +1052,8 @@ public:
       std::unique_lock lk(mtx_);
       entries_[channel_id] = entry;
       auto &channel_mtx = channel_mutexes_[channel_id];
-      if (!channel_mtx) channel_mtx = std::make_shared<std::mutex>();
+      if (!channel_mtx)
+        channel_mtx = std::make_shared<std::mutex>();
     }
 
     out = entry;
@@ -757,7 +1069,8 @@ public:
     entry.message_count = channel.message_count;
     entry.expires_at = get_timestamp_milliseconds() + ttl_ms_;
     auto &channel_mtx = channel_mutexes_[channel.id];
-    if (!channel_mtx) channel_mtx = std::make_shared<std::mutex>();
+    if (!channel_mtx)
+      channel_mtx = std::make_shared<std::mutex>();
   }
 
   void set_message_count(uint64_t channel_id, uint64_t message_count) {
@@ -767,7 +1080,8 @@ public:
     entry.message_count = message_count;
     entry.expires_at = get_timestamp_milliseconds() + ttl_ms_;
     auto &channel_mtx = channel_mutexes_[channel_id];
-    if (!channel_mtx) channel_mtx = std::make_shared<std::mutex>();
+    if (!channel_mtx)
+      channel_mtx = std::make_shared<std::mutex>();
   }
 
   void decrement_message_count(uint64_t channel_id) {
@@ -788,11 +1102,13 @@ public:
     {
       std::shared_lock lk(mtx_);
       auto it = channel_mutexes_.find(channel_id);
-      if (it != channel_mutexes_.end()) return it->second;
+      if (it != channel_mutexes_.end())
+        return it->second;
     }
     std::unique_lock lk(mtx_);
     auto &channel_mtx = channel_mutexes_[channel_id];
-    if (!channel_mtx) channel_mtx = std::make_shared<std::mutex>();
+    if (!channel_mtx)
+      channel_mtx = std::make_shared<std::mutex>();
     return channel_mtx;
   }
 
@@ -837,7 +1153,8 @@ public:
     {
       std::shared_lock lk(mtx_);
       auto it = entries_.find({user_id, channel_id});
-      if (it == entries_.end()) return false;
+      if (it == entries_.end())
+        return false;
       if (it->second.expires_at <= get_timestamp_milliseconds()) {
         // expired — need write lock to erase
       } else {
@@ -848,7 +1165,8 @@ public:
     // Erase expired entry under write lock
     std::unique_lock lk(mtx_);
     auto it = entries_.find({user_id, channel_id});
-    if (it != entries_.end() && it->second.expires_at <= get_timestamp_milliseconds()) {
+    if (it != entries_.end() &&
+        it->second.expires_at <= get_timestamp_milliseconds()) {
       entries_.erase(it);
     }
     return false;
@@ -856,8 +1174,8 @@ public:
 
   void put(uint64_t user_id, uint64_t channel_id, bool allowed) {
     std::unique_lock lk(mtx_);
-    entries_[{user_id, channel_id}] = {
-        allowed, get_timestamp_milliseconds() + ttl_ms_};
+    entries_[{user_id, channel_id}] = {allowed,
+                                       get_timestamp_milliseconds() + ttl_ms_};
   }
 
 private:
@@ -891,8 +1209,7 @@ inline bool init_chat_db() {
     auto column_exists = [&](std::string_view table_name,
                              std::string_view column_name) {
       std::string sql = "SELECT 1 FROM pragma_table_info('" +
-                        std::string(table_name) +
-                        "') WHERE name=? LIMIT 1";
+                        std::string(table_name) + "') WHERE name=? LIMIT 1";
       auto rows = conn->query_s<std::tuple<int>>(sql, std::string(column_name));
       return !rows.empty();
     };
@@ -971,69 +1288,85 @@ inline bool init_chat_db() {
 
 #if defined(PURECPP_DB_SQLITE)
     if (!table_exists("chat_channels")) {
-      exec_or_throw(
-          "CREATE TABLE IF NOT EXISTS chat_channels("
-          "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-          "name varchar(64),"
-          "topic varchar(256),"
-          "creator_id INTEGER DEFAULT 0,"
-          "is_private INTEGER DEFAULT 0,"
-          "created_at INTEGER,"
-          "message_count INTEGER DEFAULT 0,"
-          "UNIQUE (name))");
+      exec_or_throw("CREATE TABLE IF NOT EXISTS chat_channels("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "name varchar(64),"
+                    "topic varchar(256),"
+                    "creator_id INTEGER DEFAULT 0,"
+                    "is_private INTEGER DEFAULT 0,"
+                    "created_at INTEGER,"
+                    "message_count INTEGER DEFAULT 0,"
+                    "UNIQUE (name))");
     }
 
     if (!table_exists("chat_messages")) {
-      exec_or_throw(
-          "CREATE TABLE IF NOT EXISTS chat_messages("
-          "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-          "channel_id INTEGER,"
-          "user_id INTEGER,"
-          "user_name varchar(64),"
-          "content TEXT,"
-          "created_at INTEGER,"
-          "channel_seq INTEGER DEFAULT 0)");
+      exec_or_throw("CREATE TABLE IF NOT EXISTS chat_messages("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "channel_id INTEGER,"
+                    "user_id INTEGER,"
+                    "user_name varchar(64),"
+                    "content TEXT,"
+                    "created_at INTEGER,"
+                    "channel_seq INTEGER DEFAULT 0)");
     }
 
     if (!table_exists("chat_reactions")) {
-      exec_or_throw(
-          "CREATE TABLE IF NOT EXISTS chat_reactions("
-          "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-          "message_id INTEGER,"
-          "user_id INTEGER,"
-          "emoji varchar(16),"
-          "created_at INTEGER)");
+      exec_or_throw("CREATE TABLE IF NOT EXISTS chat_reactions("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "message_id INTEGER,"
+                    "user_id INTEGER,"
+                    "emoji varchar(16),"
+                    "created_at INTEGER)");
+    }
+
+    if (!table_exists("chat_message_replies")) {
+      exec_or_throw("CREATE TABLE IF NOT EXISTS chat_message_replies("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "message_id INTEGER NOT NULL,"
+                    "reply_to_message_id INTEGER NOT NULL,"
+                    "reply_to_user_id INTEGER NOT NULL,"
+                    "reply_user_name varchar(64),"
+                    "reply_content TEXT,"
+                    "created_at INTEGER NOT NULL)");
     }
 
     if (!table_exists("chat_read_positions")) {
-      exec_or_throw(
-          "CREATE TABLE IF NOT EXISTS chat_read_positions("
-          "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-          "user_id INTEGER,"
-          "channel_id INTEGER,"
-          "last_read_message_id INTEGER,"
-          "last_read_channel_seq INTEGER DEFAULT 0,"
-          "updated_at INTEGER)");
+      exec_or_throw("CREATE TABLE IF NOT EXISTS chat_read_positions("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "user_id INTEGER,"
+                    "channel_id INTEGER,"
+                    "last_read_message_id INTEGER,"
+                    "last_read_channel_seq INTEGER DEFAULT 0,"
+                    "updated_at INTEGER)");
     }
 
     if (!table_exists("chat_channel_members")) {
-      exec_or_throw(
-          "CREATE TABLE IF NOT EXISTS chat_channel_members("
-          "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-          "channel_id INTEGER,"
-          "user_id INTEGER,"
-          "joined_at INTEGER)");
+      exec_or_throw("CREATE TABLE IF NOT EXISTS chat_channel_members("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "channel_id INTEGER,"
+                    "user_id INTEGER,"
+                    "joined_at INTEGER)");
     }
 
     if (!table_exists("chat_mutes")) {
-      exec_or_throw(
-          "CREATE TABLE IF NOT EXISTS chat_mutes("
-          "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-          "user_id INTEGER NOT NULL,"
-          "channel_id INTEGER DEFAULT 0,"
-          "muted_by INTEGER NOT NULL,"
-          "muted_at INTEGER NOT NULL,"
-          "muted_until INTEGER NOT NULL)");
+      exec_or_throw("CREATE TABLE IF NOT EXISTS chat_mutes("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "user_id INTEGER NOT NULL,"
+                    "channel_id INTEGER DEFAULT 0,"
+                    "muted_by INTEGER NOT NULL,"
+                    "muted_at INTEGER NOT NULL,"
+                    "muted_until INTEGER NOT NULL)");
+    }
+
+    if (!table_exists("chat_weekly_summaries")) {
+      exec_or_throw("CREATE TABLE IF NOT EXISTS chat_weekly_summaries("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "week_start_ms INTEGER NOT NULL,"
+                    "week_end_ms INTEGER NOT NULL,"
+                    "channel_id INTEGER NOT NULL,"
+                    "message_id INTEGER NOT NULL,"
+                    "created_at INTEGER NOT NULL,"
+                    "UNIQUE (week_start_ms))");
     }
 
     if (!column_exists("chat_channels", "creator_id")) {
@@ -1047,8 +1380,8 @@ inline bool init_chat_db() {
     }
 
     if (!column_exists("chat_channels", "message_count")) {
-      exec_or_throw(
-          "ALTER TABLE chat_channels ADD COLUMN message_count INTEGER DEFAULT 0");
+      exec_or_throw("ALTER TABLE chat_channels ADD COLUMN message_count "
+                    "INTEGER DEFAULT 0");
     }
 
     if (!column_exists("chat_messages", "channel_seq")) {
@@ -1057,8 +1390,8 @@ inline bool init_chat_db() {
     }
 
     if (!column_exists("chat_read_positions", "last_read_channel_seq")) {
-      exec_or_throw(
-          "ALTER TABLE chat_read_positions ADD COLUMN last_read_channel_seq INTEGER DEFAULT 0");
+      exec_or_throw("ALTER TABLE chat_read_positions ADD COLUMN "
+                    "last_read_channel_seq INTEGER DEFAULT 0");
     }
 
     migrate_legacy_table(
@@ -1074,27 +1407,26 @@ inline bool init_chat_db() {
         "SELECT id, channel_id, user_id, user_name, content, created_at, 0 "
         "FROM chat_message_t",
         "chat_messages");
-    migrate_legacy_table(
-        "chat_reaction_t",
-        "INSERT OR IGNORE INTO chat_reactions("
-        "id, message_id, user_id, emoji, created_at) "
-        "SELECT id, message_id, user_id, emoji, created_at "
-        "FROM chat_reaction_t",
-        "chat_reactions");
+    migrate_legacy_table("chat_reaction_t",
+                         "INSERT OR IGNORE INTO chat_reactions("
+                         "id, message_id, user_id, emoji, created_at) "
+                         "SELECT id, message_id, user_id, emoji, created_at "
+                         "FROM chat_reaction_t",
+                         "chat_reactions");
     migrate_legacy_table(
         "chat_read_position_t",
         "INSERT OR IGNORE INTO chat_read_positions("
-        "id, user_id, channel_id, last_read_message_id, last_read_channel_seq, updated_at) "
+        "id, user_id, channel_id, last_read_message_id, last_read_channel_seq, "
+        "updated_at) "
         "SELECT id, user_id, channel_id, last_read_message_id, 0, updated_at "
         "FROM chat_read_position_t",
         "chat_read_positions");
-    migrate_legacy_table(
-        "chat_channel_member_t",
-        "INSERT OR IGNORE INTO chat_channel_members("
-        "id, channel_id, user_id, joined_at) "
-        "SELECT id, channel_id, user_id, joined_at "
-        "FROM chat_channel_member_t",
-        "chat_channel_members");
+    migrate_legacy_table("chat_channel_member_t",
+                         "INSERT OR IGNORE INTO chat_channel_members("
+                         "id, channel_id, user_id, joined_at) "
+                         "SELECT id, channel_id, user_id, joined_at "
+                         "FROM chat_channel_member_t",
+                         "chat_channel_members");
 
     exec_or_throw("DROP TABLE IF EXISTS chat_users");
     exec_or_throw("DROP TABLE IF EXISTS chat_user_t");
@@ -1115,6 +1447,11 @@ inline bool init_chat_db() {
              .execute()) {
       throw std::runtime_error(conn->get_last_error());
     }
+    if (!conn->create_table<chat_message_reply_t>()
+             .auto_increment(col(&chat_message_reply_t::id))
+             .execute()) {
+      throw std::runtime_error(conn->get_last_error());
+    }
     if (!conn->create_table<chat_read_position_t>()
              .auto_increment(col(&chat_read_position_t::id))
              .execute()) {
@@ -1130,6 +1467,12 @@ inline bool init_chat_db() {
              .execute()) {
       throw std::runtime_error(conn->get_last_error());
     }
+    if (!conn->create_table<chat_weekly_summary_t>()
+             .auto_increment(col(&chat_weekly_summary_t::id))
+             .unique(col(&chat_weekly_summary_t::week_start_ms))
+             .execute()) {
+      throw std::runtime_error(conn->get_last_error());
+    }
 
     if (!column_exists("chat_channels", "creator_id")) {
       exec_or_throw(
@@ -1140,16 +1483,16 @@ inline bool init_chat_db() {
           "ALTER TABLE chat_channels ADD COLUMN is_private INT DEFAULT 0");
     }
     if (!column_exists("chat_channels", "message_count")) {
-      exec_or_throw(
-          "ALTER TABLE chat_channels ADD COLUMN message_count BIGINT DEFAULT 0");
+      exec_or_throw("ALTER TABLE chat_channels ADD COLUMN message_count BIGINT "
+                    "DEFAULT 0");
     }
     if (!column_exists("chat_messages", "channel_seq")) {
       exec_or_throw(
           "ALTER TABLE chat_messages ADD COLUMN channel_seq BIGINT DEFAULT 0");
     }
     if (!column_exists("chat_read_positions", "last_read_channel_seq")) {
-      exec_or_throw(
-          "ALTER TABLE chat_read_positions ADD COLUMN last_read_channel_seq BIGINT DEFAULT 0");
+      exec_or_throw("ALTER TABLE chat_read_positions ADD COLUMN "
+                    "last_read_channel_seq BIGINT DEFAULT 0");
     }
 #endif
 
@@ -1166,21 +1509,30 @@ inline bool init_chat_db() {
     ensure_index("chat_reactions", "idx_chat_reactions_message",
                  "CREATE INDEX idx_chat_reactions_message "
                  "ON chat_reactions(message_id)");
+    ensure_index("chat_message_replies", "idx_chat_message_replies_message",
+                 "CREATE INDEX idx_chat_message_replies_message "
+                 "ON chat_message_replies(message_id)");
+    ensure_index("chat_message_replies", "idx_chat_message_replies_target",
+                 "CREATE INDEX idx_chat_message_replies_target "
+                 "ON chat_message_replies(reply_to_message_id)");
     ensure_index("chat_read_positions", "idx_chat_read_positions_user_channel",
                  "CREATE INDEX idx_chat_read_positions_user_channel "
                  "ON chat_read_positions(user_id, channel_id)");
-    ensure_index("chat_channel_members", "idx_chat_channel_members_channel_user",
+    ensure_index("chat_channel_members",
+                 "idx_chat_channel_members_channel_user",
                  "CREATE INDEX idx_chat_channel_members_channel_user "
                  "ON chat_channel_members(channel_id, user_id)");
     ensure_index("chat_mutes", "idx_chat_mutes_user",
                  "CREATE INDEX idx_chat_mutes_user "
                  "ON chat_mutes(user_id, channel_id, muted_until)");
+    ensure_index("chat_weekly_summaries", "idx_chat_weekly_summaries_week",
+                 "CREATE INDEX idx_chat_weekly_summaries_week "
+                 "ON chat_weekly_summaries(week_start_ms)");
 
 #if defined(PURECPP_DB_MYSQL)
     if (!index_exists("chat_messages", "ft_chat_messages_content")) {
-      exec_or_throw(
-          "CREATE FULLTEXT INDEX ft_chat_messages_content "
-          "ON chat_messages(content)");
+      exec_or_throw("CREATE FULLTEXT INDEX ft_chat_messages_content "
+                    "ON chat_messages(content)");
     }
 #endif
 
@@ -1188,9 +1540,10 @@ inline bool init_chat_db() {
     auto channels = conn->select(ormpp::all).from<chat_channel_t>().collect();
     if (channels.empty()) {
       const char *seeds[][2] = {
-        {"通用聊天", "欢迎来到 PureCpp 社区聊天室！"},
-        {"项目讨论", "讨论项目相关事宜"},
-        {"技术问题", "技术问题求助与解答"},
+          {"通用聊天", "欢迎来到 PureCpp 社区聊天室！"},
+          {"项目讨论", "讨论项目相关事宜"},
+          {"技术问题", "技术问题求助与解答"},
+          {"每周总结", "自动汇总上一周公开聊天室讨论"},
       };
       for (auto &s : seeds) {
         chat_channel_t ch{};
@@ -1207,12 +1560,13 @@ inline bool init_chat_db() {
 
     // Check if backfill is needed (any message with channel_seq = 0)
     auto need_backfill = conn->select(ormpp::all)
-                            .from<chat_message_t>()
-                            .where(col(&chat_message_t::channel_seq) == 0)
-                            .limit(1)
-                            .collect();
+                             .from<chat_message_t>()
+                             .where(col(&chat_message_t::channel_seq) == 0)
+                             .limit(1)
+                             .collect();
     std::unordered_map<uint64_t, uint64_t> message_seq_by_id;
-    auto all_channels = conn->select(ormpp::all).from<chat_channel_t>().collect();
+    auto all_channels =
+        conn->select(ormpp::all).from<chat_channel_t>().collect();
 
     if (!need_backfill.empty()) {
       CINATRA_LOG_INFO << "Backfilling channel_seq for messages...";
@@ -1232,7 +1586,8 @@ inline bool init_chat_db() {
                     .set(col(&chat_message_t::channel_seq), seq)
                     .where(col(&chat_message_t::id) == msg.id)
                     .execute() != 1) {
-              throw std::runtime_error("Failed to backfill chat_message.channel_seq");
+              throw std::runtime_error(
+                  "Failed to backfill chat_message.channel_seq");
             }
           }
           message_seq_by_id[msg.id] = seq;
@@ -1244,7 +1599,8 @@ inline bool init_chat_db() {
                   .set(col(&chat_channel_t::message_count), seq)
                   .where(col(&chat_channel_t::id) == channel.id)
                   .execute() != 1) {
-            throw std::runtime_error("Failed to backfill chat_channel.message_count");
+            throw std::runtime_error(
+                "Failed to backfill chat_channel.message_count");
           }
         }
         chat_channel_cache::instance().put(channel);
@@ -1277,6 +1633,8 @@ inline bool init_chat_db() {
         chat_channel_cache::instance().put(channel);
       }
     }
+
+    ensure_chat_channel_exists("每周总结", "自动汇总上一周公开聊天室讨论");
 
     CINATRA_LOG_INFO << "Chat database initialized";
     return true;
@@ -1353,7 +1711,8 @@ public:
     {
       std::unique_lock lk(mtx_);
       auto it = sessions_.find(key);
-      if (it == sessions_.end()) return result;
+      if (it == sessions_.end())
+        return result;
       target = std::move(it->second);
       sessions_.erase(it);
 
@@ -1398,24 +1757,27 @@ public:
     co_return;
   }
 
-  async_simple::coro::Lazy<void> send_to_user(uint64_t user_id,
-                                              std::string payload,
-                                              priority prio = priority::normal) {
+  async_simple::coro::Lazy<void>
+  send_to_user(uint64_t user_id, std::string payload,
+               priority prio = priority::normal) {
     auto shared_payload =
         std::make_shared<const std::string>(std::move(payload));
     std::shared_lock lk(mtx_);
     for (auto &[_, state] : sessions_) {
-      if (!state || state->user_id != user_id) continue;
+      if (!state || state->user_id != user_id)
+        continue;
       enqueue_frame(state, shared_payload, prio);
     }
     co_return;
   }
 
   void subscribe_channel(uint64_t key, uint64_t channel_id) {
-    if (channel_id == 0) return;
+    if (channel_id == 0)
+      return;
     std::unique_lock lk(mtx_);
     auto it = sessions_.find(key);
-    if (it == sessions_.end()) return;
+    if (it == sessions_.end())
+      return;
     auto inserted = it->second->subscribed_channels.insert(channel_id);
     if (inserted.second) {
       channel_subscriber_keys_[channel_id].insert(key);
@@ -1423,10 +1785,12 @@ public:
   }
 
   void subscribe_user_sessions(uint64_t user_id, uint64_t channel_id) {
-    if (user_id == 0 || channel_id == 0) return;
+    if (user_id == 0 || channel_id == 0)
+      return;
     std::unique_lock lk(mtx_);
     for (auto &[key, state] : sessions_) {
-      if (!state || state->user_id != user_id) continue;
+      if (!state || state->user_id != user_id)
+        continue;
       auto inserted = state->subscribed_channels.insert(channel_id);
       if (inserted.second) {
         channel_subscriber_keys_[channel_id].insert(key);
@@ -1435,10 +1799,12 @@ public:
   }
 
   void set_active_channel(uint64_t key, uint64_t channel_id) {
-    if (channel_id == 0) return;
+    if (channel_id == 0)
+      return;
     std::unique_lock lk(mtx_);
     auto it = sessions_.find(key);
-    if (it == sessions_.end()) return;
+    if (it == sessions_.end())
+      return;
 
     auto &state = *it->second;
     auto inserted = state.subscribed_channels.insert(channel_id);
@@ -1446,7 +1812,8 @@ public:
       channel_subscriber_keys_[channel_id].insert(key);
     }
 
-    if (state.active_channel_id == channel_id) return;
+    if (state.active_channel_id == channel_id)
+      return;
 
     if (state.active_channel_id != 0) {
       erase_index_key(active_channel_keys_, state.active_channel_id, key);
@@ -1456,13 +1823,15 @@ public:
   }
 
   void remove_channel(uint64_t channel_id) {
-    if (channel_id == 0) return;
+    if (channel_id == 0)
+      return;
 
     std::unique_lock lk(mtx_);
     active_channel_keys_.erase(channel_id);
     channel_subscriber_keys_.erase(channel_id);
     for (auto &[key, state] : sessions_) {
-      if (!state) continue;
+      if (!state)
+        continue;
       if (state->active_channel_id == channel_id) {
         state->active_channel_id = 0;
       }
@@ -1477,6 +1846,30 @@ public:
     for (auto &[id, name] : online_users_cache_) {
       result.emplace_back(id, name);
     }
+    bool has_ai_bot = false;
+    for (auto &[id, name] : result) {
+      if (is_ai_bot_user_name(name)) {
+        has_ai_bot = true;
+        break;
+      }
+    }
+    lk.unlock();
+
+    if (!has_ai_bot) {
+      auto conn = get_db_pool().get();
+      if (conn) {
+        auto bots =
+            conn->select(ormpp::all)
+                .from<users_t>()
+                .where(col(&users_t::user_name) == std::string("ai-bot") &&
+                       col(&users_t::status) == std::string(STATUS_OF_ONLINE))
+                .limit(1)
+                .collect();
+        if (!bots.empty()) {
+          result.emplace_back(bots[0].id, array_to_string(bots[0].user_name));
+        }
+      }
+    }
     return result;
   }
 
@@ -1484,10 +1877,12 @@ public:
   bool check_msg_rate(uint64_t key) {
     std::shared_lock lk(mtx_);
     auto it = sessions_.find(key);
-    if (it == sessions_.end()) return false;
+    if (it == sessions_.end())
+      return false;
     auto now = get_timestamp_milliseconds();
     auto prev = it->second->last_msg_time.load(std::memory_order_relaxed);
-    if (now - prev < 500) return false; // 500ms cooldown
+    if (now - prev < 500)
+      return false; // 500ms cooldown
     it->second->last_msg_time.store(now, std::memory_order_relaxed);
     return true;
   }
@@ -1503,14 +1898,15 @@ public:
     co_return;
   }
 
-  async_simple::coro::Lazy<void> broadcast_active_channel(
-      uint64_t channel_id, std::string payload,
-      priority prio = priority::normal) {
+  async_simple::coro::Lazy<void>
+  broadcast_active_channel(uint64_t channel_id, std::string payload,
+                           priority prio = priority::normal) {
     auto shared_payload =
         std::make_shared<const std::string>(std::move(payload));
     std::shared_lock lk(mtx_);
     auto it = active_channel_keys_.find(channel_id);
-    if (it == active_channel_keys_.end()) co_return;
+    if (it == active_channel_keys_.end())
+      co_return;
     for (auto key : it->second) {
       auto session_it = sessions_.find(key);
       if (session_it != sessions_.end()) {
@@ -1520,18 +1916,21 @@ public:
     co_return;
   }
 
-  async_simple::coro::Lazy<void> broadcast_inactive_subscribers(
-      uint64_t channel_id, std::string payload,
-      priority prio = priority::low) {
+  async_simple::coro::Lazy<void>
+  broadcast_inactive_subscribers(uint64_t channel_id, std::string payload,
+                                 priority prio = priority::low) {
     auto shared_payload =
         std::make_shared<const std::string>(std::move(payload));
     std::shared_lock lk(mtx_);
     auto it = channel_subscriber_keys_.find(channel_id);
-    if (it == channel_subscriber_keys_.end()) co_return;
+    if (it == channel_subscriber_keys_.end())
+      co_return;
     for (auto key : it->second) {
       auto session_it = sessions_.find(key);
-      if (session_it == sessions_.end()) continue;
-      if (session_it->second->active_channel_id == channel_id) continue;
+      if (session_it == sessions_.end())
+        continue;
+      if (session_it->second->active_channel_id == channel_id)
+        continue;
       enqueue_frame(session_it->second, shared_payload, prio);
     }
     co_return;
@@ -1545,14 +1944,16 @@ private:
   static void erase_index_key(IndexMap &index, uint64_t channel_id,
                               uint64_t key) {
     auto it = index.find(channel_id);
-    if (it == index.end()) return;
+    if (it == index.end())
+      return;
     it->second.erase(key);
     if (it->second.empty()) {
       index.erase(it);
     }
   }
 
-  static bool queue_limit_exceeded(const session &target, size_t incoming_size) {
+  static bool queue_limit_exceeded(const session &target,
+                                   size_t incoming_size) {
     return target.send_queue.size() + 1 > max_pending_messages_ ||
            target.queued_bytes + incoming_size > max_pending_bytes_;
   }
@@ -1572,18 +1973,17 @@ private:
       return;
     }
 
-    auto insert_it = std::find_if(target.send_queue.begin(),
-                                  target.send_queue.end(),
-                                  [](const queued_frame &item) {
-                                    return item.droppable;
-                                  });
+    auto insert_it =
+        std::find_if(target.send_queue.begin(), target.send_queue.end(),
+                     [](const queued_frame &item) { return item.droppable; });
     target.send_queue.insert(insert_it, std::move(frame));
   }
 
   static bool evict_one_droppable_locked(session &target) {
     for (auto it = target.send_queue.begin(); it != target.send_queue.end();
          ++it) {
-      if (!it->droppable || !it->payload) continue;
+      if (!it->droppable || !it->payload)
+        continue;
       target.queued_bytes -= it->payload->size();
       target.send_queue.erase(it);
       ++target.dropped_low_priority;
@@ -1595,7 +1995,8 @@ private:
   void enqueue_frame(const std::shared_ptr<session> &target,
                      std::shared_ptr<const std::string> payload,
                      priority prio) {
-    if (!target || !payload || !target->conn) return;
+    if (!target || !payload || !target->conn)
+      return;
 
     const auto enqueue_begin = chat_perf_stats::now_ns();
     bool start_sender = false;
@@ -1604,10 +2005,12 @@ private:
     size_t queued_bytes_after = 0;
     {
       std::scoped_lock lk(target->queue_mtx);
-      if (target->closing || target->conn->has_closed()) return;
+      if (target->closing || target->conn->has_closed())
+        return;
 
       const auto payload_size = payload->size();
-      if (prio == priority::low && queue_limit_exceeded(*target, payload_size)) {
+      if (prio == priority::low &&
+          queue_limit_exceeded(*target, payload_size)) {
         ++target->dropped_low_priority;
         return;
       }
@@ -1623,11 +2026,11 @@ private:
       }
 
       if (close_slow_client) {
-        CINATRA_LOG_WARNING << "closing slow websocket client user_id="
-                            << target->user_id << " user_name="
-                            << target->user_name << " pending_bytes="
-                            << target->queued_bytes << " dropped_low_priority="
-                            << target->dropped_low_priority;
+        CINATRA_LOG_WARNING
+            << "closing slow websocket client user_id=" << target->user_id
+            << " user_name=" << target->user_name
+            << " pending_bytes=" << target->queued_bytes
+            << " dropped_low_priority=" << target->dropped_low_priority;
       } else {
         enqueue_locked(*target, std::move(payload), prio);
         queue_size_after = target->send_queue.size();
@@ -1657,6 +2060,7 @@ private:
   drain_session_queue(std::shared_ptr<session> target) {
     while (true) {
       std::shared_ptr<const std::string> payload;
+      bool log_hello_write = false;
       {
         std::scoped_lock lk(target->queue_mtx);
         if (target->closing || !target->conn || target->conn->has_closed()) {
@@ -1670,18 +2074,29 @@ private:
         }
 
         payload = std::move(target->send_queue.front().payload);
+        if (payload &&
+            payload->find("\"type\":\"hello\"") != std::string::npos) {
+          log_hello_write = true;
+        }
         if (payload) {
           target->queued_bytes -= payload->size();
         }
         target->send_queue.pop_front();
       }
 
-      if (!payload) continue;
+      if (!payload)
+        continue;
 
       const auto write_begin = chat_perf_stats::now_ns();
       auto ec = co_await target->conn->write_websocket(*payload);
-      chat_perf_stats::instance().record_ws_write(
-          chat_perf_stats::now_ns() - write_begin, !ec);
+      const auto write_ns = chat_perf_stats::now_ns() - write_begin;
+      chat_perf_stats::instance().record_ws_write(write_ns, !ec);
+      if (log_hello_write) {
+        CINATRA_LOG_INFO << "WS hello write user_id=" << target->user_id
+                         << " user_name=" << target->user_name
+                         << " cost_ms=" << (write_ns / 1000000.0)
+                         << " success=" << (!ec) << " ec=" << ec.message();
+      }
       if (ec) {
         {
           std::scoped_lock lk(target->queue_mtx);
@@ -1708,12 +2123,87 @@ private:
 
 // ==================== chat_handler_t ====================
 
+inline bool insert_chat_system_message(uint64_t channel_id,
+                                       const std::string &content,
+                                       chat_message_t *out_msg = nullptr) {
+  if (channel_id == 0 || content.empty())
+    return false;
+
+  auto channel_mtx = chat_channel_cache::instance().channel_mutex(channel_id);
+  std::scoped_lock channel_lock(*channel_mtx);
+
+  auto conn = get_db_pool().get();
+  if (!conn)
+    return false;
+  if (!conn->begin())
+    return false;
+
+  auto latest = conn->select(ormpp::all)
+                    .from<chat_channel_t>()
+                    .where(col(&chat_channel_t::id).param())
+                    .collect(channel_id);
+  if (latest.empty()) {
+    conn->rollback();
+    return false;
+  }
+
+  chat_message_t msg{};
+  msg.channel_id = channel_id;
+  msg.user_id = 0;
+  str_to_arr(msg.user_name, "PureCpp");
+  msg.content = content;
+  msg.created_at = get_timestamp_milliseconds();
+  msg.channel_seq = latest[0].message_count + 1;
+
+  auto msg_id = conn->get_insert_id_after_insert(msg);
+  if (msg_id == 0) {
+    conn->rollback();
+    return false;
+  }
+
+  if (conn->update<chat_channel_t>()
+          .set(col(&chat_channel_t::message_count), msg.channel_seq)
+          .where(col(&chat_channel_t::id) == channel_id)
+          .execute() != 1) {
+    conn->rollback();
+    return false;
+  }
+
+  if (!conn->commit()) {
+    conn->rollback();
+    return false;
+  }
+
+  msg.id = msg_id;
+  chat_channel_cache::instance().set_message_count(channel_id, msg.channel_seq);
+  if (out_msg)
+    *out_msg = msg;
+  return true;
+}
+
+inline void broadcast_chat_message_inserted(const chat_message_t &msg) {
+  std::ostringstream active_os;
+  active_os << R"({"type":"message","msg":)" << build_msg_json(msg) << "}";
+  async_simple::coro::syncAwait(chat_hub::instance().broadcast_active_channel(
+      msg.channel_id, active_os.str()));
+
+  std::ostringstream activity_os;
+  activity_os << R"({"type":"channel_activity","channel_id":)" << msg.channel_id
+              << R"(,"unread_delta":1})";
+  async_simple::coro::syncAwait(
+      chat_hub::instance().broadcast_inactive_subscribers(msg.channel_id,
+                                                          activity_os.str()));
+}
+
 class chat_handler_t {
 public:
   // GET /api/v1/chat/channels
   void get_channels(coro_http_request &req, coro_http_response &resp) {
     auto conn = get_db_pool().get();
-    if (!conn) { set_server_internel_error(resp); return; }
+    if (!conn) {
+      set_server_internel_error(resp);
+      return;
+    }
 
     uint64_t user_id = get_user_id_from_token(req);
 
@@ -1737,11 +2227,11 @@ public:
       for (auto &p : positions) {
         last_read_seq_map[p.channel_id] = p.last_read_channel_seq;
       }
-      auto memberships = conn->select(ormpp::all)
-                             .from<chat_channel_member_t>()
-                             .where(
-                                 col(&chat_channel_member_t::user_id).param())
-                             .collect(user_id);
+      auto memberships =
+          conn->select(ormpp::all)
+              .from<chat_channel_member_t>()
+              .where(col(&chat_channel_member_t::user_id).param())
+              .collect(user_id);
       for (auto &m : memberships) {
         joined_private_channels.insert(m.channel_id);
       }
@@ -1752,10 +2242,11 @@ public:
     visible.reserve(channels.size());
     for (auto &ch : channels) {
       if (ch.is_private) {
-        if (user_id == 0 ||
-            (joined_private_channels.find(ch.id) == joined_private_channels.end()
-             && ch.creator_id != user_id)) {
-          continue; // skip private channels for unauthenticated or non-member users
+        if (user_id == 0 || (joined_private_channels.find(ch.id) ==
+                                 joined_private_channels.end() &&
+                             ch.creator_id != user_id)) {
+          continue; // skip private channels for unauthenticated or non-member
+                    // users
         }
       }
       visible.push_back(ch);
@@ -1764,7 +2255,8 @@ public:
     std::unordered_map<uint64_t, std::vector<uint64_t>> channel_members;
     std::unordered_map<uint64_t, std::string> user_name_map;
     if (!visible.empty()) {
-      auto all_members = conn->select(ormpp::all).from<chat_channel_member_t>().collect();
+      auto all_members =
+          conn->select(ormpp::all).from<chat_channel_member_t>().collect();
       for (auto &member : all_members) {
         channel_members[member.channel_id].push_back(member.user_id);
       }
@@ -1775,7 +2267,8 @@ public:
           continue;
         }
         auto it = channel_members.find(ch.id);
-        if (it == channel_members.end()) continue;
+        if (it == channel_members.end())
+          continue;
         for (auto member_id : it->second) {
           member_user_ids.insert(member_id);
         }
@@ -1795,7 +2288,8 @@ public:
     os << R"({"success":true,"message":"获取频道列表成功","code":200,"data":[)";
     bool first = true;
     for (auto &ch : visible) {
-      if (!first) os << ",";
+      if (!first)
+        os << ",";
       first = false;
 
       uint64_t last_read_seq = 0;
@@ -1803,9 +2297,9 @@ public:
       if (read_it != last_read_seq_map.end()) {
         last_read_seq = read_it->second;
       }
-      uint64_t unread =
-          ch.message_count > last_read_seq ? ch.message_count - last_read_seq
-                                           : 0;
+      uint64_t unread = ch.message_count > last_read_seq
+                            ? ch.message_count - last_read_seq
+                            : 0;
 
       std::string display_name = arr_to_str(ch.name);
       std::string display_topic = arr_to_str(ch.topic);
@@ -1815,31 +2309,29 @@ public:
         auto member_it = channel_members.find(ch.id);
         if (member_it != channel_members.end()) {
           for (auto member_id : member_it->second) {
-            if (member_id == user_id) continue;
+            if (member_id == user_id)
+              continue;
             peer_user_id = member_id;
             break;
           }
         }
         if (peer_user_id != 0) {
           auto name_it = user_name_map.find(peer_user_id);
-          display_name =
-              name_it != user_name_map.end() ? name_it->second
-                                             : ("用户 " + std::to_string(peer_user_id));
+          display_name = name_it != user_name_map.end()
+                             ? name_it->second
+                             : ("用户 " + std::to_string(peer_user_id));
           display_topic = "与 " + display_name + " 的私聊";
         }
       }
 
-      os << R"({"id":)" << ch.id
-         << R"(,"name":")" << json_escape(display_name)
+      os << R"({"id":)" << ch.id << R"(,"name":")" << json_escape(display_name)
          << R"(","topic":")" << json_escape(display_topic)
-         << R"(","is_private":)" << ch.is_private
-         << R"(,"is_direct":)"
-         << (ch.is_private && is_direct_channel_name(arr_to_str(ch.name)) ? 1 : 0)
-         << R"(,"peer_user_id":)" << peer_user_id
-         << R"(,"creator_id":)" << ch.creator_id
-         << R"(,"created_at":)" << ch.created_at
-         << R"(,"unread":)" << unread
-         << R"(,"joined":true})";
+         << R"(","is_private":)" << ch.is_private << R"(,"is_direct":)"
+         << (ch.is_private && is_direct_channel_name(arr_to_str(ch.name)) ? 1
+                                                                          : 0)
+         << R"(,"peer_user_id":)" << peer_user_id << R"(,"creator_id":)"
+         << ch.creator_id << R"(,"created_at":)" << ch.created_at
+         << R"(,"unread":)" << unread << R"(,"joined":true})";
     }
     os << "]}";
     resp.set_content_type<resp_content_type::json>();
@@ -1866,7 +2358,10 @@ public:
     }
 
     auto conn = get_db_pool().get();
-    if (!conn) { set_server_internel_error(resp); return; }
+    if (!conn) {
+      set_server_internel_error(resp);
+      return;
+    }
     if (!user_can_access_channel(user_id, info.channel_id)) {
       resp.set_status_and_content(status_type::forbidden,
                                   make_error("无权访问该频道", 403));
@@ -1985,9 +2480,8 @@ public:
     std::string file_url = "/uploads/chat/" + unique_filename;
     std::ostringstream os;
     os << R"({"success":true,"message":"上传成功","code":200,"data":{)"
-       << R"("url":")" << json_escape(file_url)
-       << R"(","filename":")" << json_escape(unique_filename)
-       << R"("}})";
+       << R"("url":")" << json_escape(file_url) << R"(","filename":")"
+       << json_escape(unique_filename) << R"("}})";
     resp.set_content_type<resp_content_type::json>();
     resp.set_status_and_content(status_type::ok, os.str());
   }
@@ -2006,16 +2500,21 @@ public:
     int limit = 50;
     try {
       channel_id = std::stoull(ch_str);
-      if (!lim_str.empty()) limit = std::stoi(lim_str);
+      if (!lim_str.empty())
+        limit = std::stoi(lim_str);
     } catch (...) {
       resp.set_status_and_content(status_type::bad_request,
                                   make_error("参数格式错误"));
       return;
     }
-    if (limit <= 0 || limit > 200) limit = 50;
+    if (limit <= 0 || limit > 200)
+      limit = 50;
 
     auto conn = get_db_pool().get();
-    if (!conn) { set_server_internel_error(resp); return; }
+    if (!conn) {
+      set_server_internel_error(resp);
+      return;
+    }
     auto user_id = get_user_id_from_token(req);
     if (!user_can_access_channel(user_id, channel_id)) {
       resp.set_status_and_content(status_type::forbidden,
@@ -2028,7 +2527,10 @@ public:
                      .where(col(&chat_message_t::channel_id) == channel_id);
     if (!before_str.empty()) {
       uint64_t before_id = 0;
-      try { before_id = std::stoull(before_str); } catch (...) {}
+      try {
+        before_id = std::stoull(before_str);
+      } catch (...) {
+      }
       if (before_id > 0) {
         query = conn->select(ormpp::all)
                     .from<chat_message_t>()
@@ -2037,22 +2539,29 @@ public:
       }
     }
 
-    auto msgs = query.order_by(col(&chat_message_t::id).desc())
-                    .limit(limit)
-                    .collect();
+    auto msgs =
+        query.order_by(col(&chat_message_t::id).desc()).limit(limit).collect();
     std::reverse(msgs.begin(), msgs.end());
 
     bool has_more = (msgs.size() == static_cast<size_t>(limit));
 
-    // Batch load reactions for all messages (avoid N+1)
+    // Batch load reactions and reply previews for all messages (avoid N+1)
     auto reactions_map = batch_build_reactions(msgs);
+    auto reply_map = batch_build_reply_previews(msgs);
 
     std::ostringstream os;
     os << R"({"success":true,"message":"获取消息历史成功","code":200,"has_more":)"
        << (has_more ? "true" : "false") << R"(,"data":[)";
     for (size_t i = 0; i < msgs.size(); i++) {
-      if (i) os << ",";
-      os << build_msg_json(msgs[i], reactions_map[msgs[i].id]);
+      if (i)
+        os << ",";
+      auto reply_it = reply_map.find(msgs[i].id);
+      auto reply =
+          reply_it != reply_map.end()
+              ? std::optional<chat_reply_preview_view>(reply_it->second)
+              : std::nullopt;
+      os << build_msg_json(msgs[i], std::move(reply),
+                           reactions_map[msgs[i].id]);
     }
     os << "]}";
     resp.set_content_type<resp_content_type::json>();
@@ -2075,7 +2584,10 @@ public:
     }
 
     auto conn = get_db_pool().get();
-    if (!conn) { set_server_internel_error(resp); return; }
+    if (!conn) {
+      set_server_internel_error(resp);
+      return;
+    }
     auto user_id = get_user_id_from_token(req);
 
     uint64_t channel_id = 0;
@@ -2113,14 +2625,22 @@ public:
                  .collect(channel_id);
     }
 
-    // Batch load reactions (avoid N+1)
+    // Batch load reactions and reply previews (avoid N+1)
     auto reactions_map = batch_build_reactions(msgs);
+    auto reply_map = batch_build_reply_previews(msgs);
 
     std::ostringstream os;
     os << R"({"success":true,"message":"搜索成功","code":200,"data":[)";
     for (size_t i = 0; i < msgs.size(); i++) {
-      if (i) os << ",";
-      os << build_msg_json(msgs[i], reactions_map[msgs[i].id]);
+      if (i)
+        os << ",";
+      auto reply_it = reply_map.find(msgs[i].id);
+      auto reply =
+          reply_it != reply_map.end()
+              ? std::optional<chat_reply_preview_view>(reply_it->second)
+              : std::nullopt;
+      os << build_msg_json(msgs[i], std::move(reply),
+                           reactions_map[msgs[i].id]);
     }
     os << "]}";
     resp.set_content_type<resp_content_type::json>();
@@ -2176,6 +2696,12 @@ public:
     }
 
     const auto peer_name = arr_to_str(users[0].user_name);
+    if (is_ai_bot_user_name(peer_name)) {
+      resp.set_status_and_content(
+          status_type::forbidden,
+          make_error("ai-bot 不支持私聊，请在公开频道中 @ai-bot 提问", 403));
+      return;
+    }
     std::string self_name;
     {
       auto self_users = conn->select(ormpp::all)
@@ -2198,11 +2724,12 @@ public:
 
     auto calc_unread = [&](uint64_t viewer_user_id,
                            const chat_channel_t &channel) -> uint64_t {
-      auto read_positions = conn->select(ormpp::all)
-                                .from<chat_read_position_t>()
-                                .where(col(&chat_read_position_t::user_id).param() &&
-                                       col(&chat_read_position_t::channel_id).param())
-                                .collect(viewer_user_id, channel.id);
+      auto read_positions =
+          conn->select(ormpp::all)
+              .from<chat_read_position_t>()
+              .where(col(&chat_read_position_t::user_id).param() &&
+                     col(&chat_read_position_t::channel_id).param())
+              .collect(viewer_user_id, channel.id);
       uint64_t last_read_seq = 0;
       if (!read_positions.empty()) {
         last_read_seq = read_positions[0].last_read_channel_seq;
@@ -2214,8 +2741,8 @@ public:
 
     auto build_rest_ok = [&](const chat_channel_view &view) {
       resp.set_content_type<resp_content_type::json>();
-      resp.set_status_and_content(
-          status_type::ok, make_data(view, "打开私聊成功"));
+      resp.set_status_and_content(status_type::ok,
+                                  make_data(view, "打开私聊成功"));
     };
 
     auto notify_direct_channel_upsert = [&](const chat_channel_t &channel) {
@@ -2239,8 +2766,10 @@ public:
     auto try_return_existing_direct_channel = [&]() -> bool {
       auto channels = conn->select(ormpp::all).from<chat_channel_t>().collect();
       for (auto &channel : channels) {
-        if (!channel.is_private) continue;
-        if (arr_to_str(channel.name) != internal_name) continue;
+        if (!channel.is_private)
+          continue;
+        if (arr_to_str(channel.name) != internal_name)
+          continue;
         ensure_direct_membership(conn, channel.id, user_id);
         ensure_direct_membership(conn, channel.id, target_user_id);
         chat_channel_cache::instance().put(channel);
@@ -2269,8 +2798,8 @@ public:
       if (try_return_existing_direct_channel()) {
         return;
       }
-      resp.set_status_and_content(
-          status_type::internal_server_error, make_error("创建私聊失败"));
+      resp.set_status_and_content(status_type::internal_server_error,
+                                  make_error("创建私聊失败"));
       return;
     }
 
@@ -2330,7 +2859,10 @@ public:
     ch.message_count = 0;
 
     auto conn = get_db_pool().get();
-    if (!conn) { set_server_internel_error(resp); return; }
+    if (!conn) {
+      set_server_internel_error(resp);
+      return;
+    }
 
     auto id = conn->get_insert_id_after_insert(ch);
     if (id <= 0) {
@@ -2344,12 +2876,11 @@ public:
 
     std::ostringstream os;
     os << R"({"success":true,"message":"创建频道成功","code":200,"data":{)"
-       << R"("id":)" << id
-       << R"(,"name":")" << json_escape(ci.name)
-       << R"(","topic":")" << json_escape(ci.topic.empty() ? "新创建的频道" : ci.topic)
-       << R"(","is_private":)" << ch.is_private
-       << R"(,"creator_id":)" << ch.creator_id
-       << R"(,"created_at":)" << ch.created_at
+       << R"("id":)" << id << R"(,"name":")" << json_escape(ci.name)
+       << R"(","topic":")"
+       << json_escape(ci.topic.empty() ? "新创建的频道" : ci.topic)
+       << R"(","is_private":)" << ch.is_private << R"(,"creator_id":)"
+       << ch.creator_id << R"(,"created_at":)" << ch.created_at
        << R"(,"unread":0,"joined":true}})";
     resp.set_content_type<resp_content_type::json>();
     resp.set_status_and_content(status_type::ok, os.str());
@@ -2392,7 +2923,10 @@ public:
     }
 
     auto conn = get_db_pool().get();
-    if (!conn) { set_server_internel_error(resp); return; }
+    if (!conn) {
+      set_server_internel_error(resp);
+      return;
+    }
 
     auto channels = conn->select(ormpp::all)
                         .from<chat_channel_t>()
@@ -2441,7 +2975,8 @@ public:
     chat_channel_cache::instance().erase(info.channel_id);
 
     std::ostringstream ws_os;
-    ws_os << R"({"type":"channel_deleted","channel_id":)" << info.channel_id << "}";
+    ws_os << R"({"type":"channel_deleted","channel_id":)" << info.channel_id
+          << "}";
     async_simple::coro::syncAwait(chat_hub::instance().broadcast(
         ws_os.str(), chat_hub::priority::normal));
 
@@ -2453,7 +2988,8 @@ public:
   void mute_user(coro_http_request &req, coro_http_response &resp) {
     auto operator_id = get_user_id_from_token(req);
     if (operator_id == 0) {
-      resp.set_status_and_content(status_type::unauthorized, make_error("未授权"));
+      resp.set_status_and_content(status_type::unauthorized,
+                                  make_error("未授权"));
       return;
     }
     if (!is_chat_admin(operator_id)) {
@@ -2467,7 +3003,8 @@ public:
     std::error_code ec;
     iguana::from_json(info, body, ec);
     if (ec || info.user_id == 0) {
-      resp.set_status_and_content(status_type::bad_request, make_error("参数错误"));
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("参数错误"));
       return;
     }
     if (info.hours == 0 || info.hours > 720) {
@@ -2482,7 +3019,10 @@ public:
     }
 
     auto conn = get_db_pool().get();
-    if (!conn) { set_server_internel_error(resp); return; }
+    if (!conn) {
+      set_server_internel_error(resp);
+      return;
+    }
 
     // 先删除旧记录（同用户同频道），再插入新记录（UPSERT 语义）
     conn->remove<chat_mute_t>()
@@ -2502,13 +3042,14 @@ public:
     // 广播禁言通知
     std::ostringstream ws_os;
     ws_os << R"({"type":"user_muted","user_id":)" << info.user_id
-          << R"(,"channel_id":)" << info.channel_id
-          << R"(,"muted_until":)" << mute.muted_until << "}";
+          << R"(,"channel_id":)" << info.channel_id << R"(,"muted_until":)"
+          << mute.muted_until << "}";
     async_simple::coro::syncAwait(
         chat_hub::instance().broadcast(ws_os.str(), chat_hub::priority::low));
 
     CINATRA_LOG_INFO << "User " << info.user_id << " muted by " << operator_id
-                     << " for " << info.hours << "h (channel=" << info.channel_id << ")";
+                     << " for " << info.hours
+                     << "h (channel=" << info.channel_id << ")";
     resp.set_content_type<resp_content_type::json>();
     resp.set_status_and_content(status_type::ok, make_success("禁言成功"));
   }
@@ -2517,7 +3058,8 @@ public:
   void unmute_user(coro_http_request &req, coro_http_response &resp) {
     auto operator_id = get_user_id_from_token(req);
     if (operator_id == 0) {
-      resp.set_status_and_content(status_type::unauthorized, make_error("未授权"));
+      resp.set_status_and_content(status_type::unauthorized,
+                                  make_error("未授权"));
       return;
     }
     if (!is_chat_admin(operator_id)) {
@@ -2531,12 +3073,16 @@ public:
     std::error_code ec;
     iguana::from_json(info, body, ec);
     if (ec || info.user_id == 0) {
-      resp.set_status_and_content(status_type::bad_request, make_error("参数错误"));
+      resp.set_status_and_content(status_type::bad_request,
+                                  make_error("参数错误"));
       return;
     }
 
     auto conn = get_db_pool().get();
-    if (!conn) { set_server_internel_error(resp); return; }
+    if (!conn) {
+      set_server_internel_error(resp);
+      return;
+    }
 
     conn->remove<chat_mute_t>()
         .where(col(&chat_mute_t::user_id) == info.user_id &&
@@ -2559,6 +3105,7 @@ public:
   // GET /ws/chat?token=<jwt>
   async_simple::coro::Lazy<void> handle_ws(coro_http_request &req,
                                            coro_http_response &resp) {
+    const auto ws_begin_ns = chat_perf_stats::now_ns();
     auto token = req.get_decode_query_value("token");
     if (token.empty()) {
       resp.set_status_and_content(status_type::unauthorized,
@@ -2566,8 +3113,12 @@ public:
       co_return;
     }
 
+    const auto validate_begin_ns = chat_perf_stats::now_ns();
     auto [result, info] = validate_jwt_token(token);
+    const auto validate_ns = chat_perf_stats::now_ns() - validate_begin_ns;
     if (result != TokenValidationResult::Valid || !info) {
+      CINATRA_LOG_WARNING << "WS validate token failed cost_ms="
+                          << (validate_ns / 1000000.0);
       resp.set_status_and_content(status_type::unauthorized,
                                   make_error("无效的 token"));
       co_return;
@@ -2575,6 +3126,7 @@ public:
 
     uint64_t user_id = info->user_id;
     std::string user_name;
+    const auto load_user_begin_ns = chat_perf_stats::now_ns();
     {
       auto c = get_db_pool().get();
       if (c) {
@@ -2582,27 +3134,52 @@ public:
                       .from<users_t>()
                       .where(col(&users_t::id).param())
                       .collect(user_id);
-        if (!us.empty()) user_name = arr_to_str(us[0].user_name);
+        if (!us.empty())
+          user_name = arr_to_str(us[0].user_name);
       }
     }
-    if (user_name.empty()) user_name = "User_" + std::to_string(user_id);
+    const auto load_user_ns = chat_perf_stats::now_ns() - load_user_begin_ns;
+    if (user_name.empty())
+      user_name = "User_" + std::to_string(user_id);
 
     auto *conn_ptr = req.get_conn();
     auto conn = conn_ptr->shared_from_this();
     static std::atomic<uint64_t> s_conn_id_gen{0};
     uint64_t conn_key = s_conn_id_gen.fetch_add(1, std::memory_order_relaxed);
+    const auto add_session_begin_ns = chat_perf_stats::now_ns();
     auto add_result =
         chat_hub::instance().add(conn_key, user_id, user_name, conn);
+    const auto add_session_ns =
+        chat_perf_stats::now_ns() - add_session_begin_ns;
     auto session_state = add_result.state;
 
     // Send hello
     {
+      const auto online_begin_ns = chat_perf_stats::now_ns();
       auto online = chat_hub::instance().online_users();
+      const auto online_ns = chat_perf_stats::now_ns() - online_begin_ns;
+      const auto hello_build_begin_ns = chat_perf_stats::now_ns();
       std::ostringstream os;
-      os << R"({"type":"hello","user":{"id":)" << user_id
-         << R"(,"name":")" << json_escape(user_name)
-         << R"("},"online":)" << build_online_json(online) << "}";
+      os << R"({"type":"hello","user":{"id":)" << user_id << R"(,"name":")"
+         << json_escape(user_name) << R"("},"online":)"
+         << build_online_json(online) << "}";
+      const auto hello_build_ns =
+          chat_perf_stats::now_ns() - hello_build_begin_ns;
+      const auto hello_enqueue_begin_ns = chat_perf_stats::now_ns();
       co_await chat_hub::instance().send_to(session_state, os.str());
+      const auto hello_enqueue_ns =
+          chat_perf_stats::now_ns() - hello_enqueue_begin_ns;
+      CINATRA_LOG_INFO << "WS hello staged user_id=" << user_id
+                       << " user_name=" << user_name << " total_ms="
+                       << ((chat_perf_stats::now_ns() - ws_begin_ns) /
+                           1000000.0)
+                       << " validate_ms=" << (validate_ns / 1000000.0)
+                       << " load_user_ms=" << (load_user_ns / 1000000.0)
+                       << " add_session_ms=" << (add_session_ns / 1000000.0)
+                       << " online_ms=" << (online_ns / 1000000.0)
+                       << " hello_build_ms=" << (hello_build_ns / 1000000.0)
+                       << " hello_enqueue_ms=" << (hello_enqueue_ns / 1000000.0)
+                       << " online_count=" << online.size();
     }
 
     // Broadcast presence_join
@@ -2614,33 +3191,37 @@ public:
                                               chat_hub::priority::low);
     }
 
-    CINATRA_LOG_INFO << "WS connected: " << user_name << " (id=" << user_id << ")";
+    CINATRA_LOG_INFO << "WS connected: " << user_name << " (id=" << user_id
+                     << ")";
 
     // Message loop
     while (true) {
       auto ws_result = co_await conn_ptr->read_websocket();
-      if (ws_result.ec) break;
+      if (ws_result.ec)
+        break;
       if (ws_result.type == ws_frame_type::WS_CLOSE_FRAME) {
         // RFC 6455 §5.5.1: must echo a Close frame before closing
         co_await conn_ptr->write_websocket("", opcode::close);
         break;
       }
       if (ws_result.type == ws_frame_type::WS_PING_FRAME ||
-          ws_result.type == ws_frame_type::WS_PONG_FRAME) continue;
-      if (ws_result.type != ws_frame_type::WS_TEXT_FRAME) continue;
+          ws_result.type == ws_frame_type::WS_PONG_FRAME)
+        continue;
+      if (ws_result.type != ws_frame_type::WS_TEXT_FRAME)
+        continue;
 
       // Parse client msg — only need type, channel_id, text, message_id, emoji
       // Use iguana for this simple flat struct
       chat_ws_in cm{};
       std::error_code ec;
       iguana::from_json(cm, ws_result.data, ec);
-      if (ec) continue;
+      if (ec)
+        continue;
 
       if (cm.type == "message") {
         if (utf8_codepoint_count(cm.text) > 2000) {
           co_await chat_hub::instance().send_to(
-              session_state,
-              R"({"type":"error","msg":"消息不能超过2000字"})");
+              session_state, R"({"type":"error","msg":"消息不能超过2000字"})");
           continue;
         }
         if (!chat_hub::instance().check_msg_rate(conn_key)) {
@@ -2649,7 +3230,8 @@ public:
               R"({"type":"error","msg":"发送过于频繁，请稍后再试"})");
           continue;
         }
-        co_await handle_chat_message(user_id, user_name, cm.channel_id, cm.text, session_state);
+        co_await handle_chat_message(user_id, user_name, cm.channel_id, cm.text,
+                                     cm.reply_to_message_id, session_state);
       } else if (cm.type == "subscribe_channel") {
         if (user_can_access_channel(user_id, cm.channel_id)) {
           chat_hub::instance().subscribe_channel(conn_key, cm.channel_id);
@@ -2700,16 +3282,19 @@ public:
 
 private:
   template <typename ConnPtr>
-  void ensure_direct_membership(const ConnPtr &conn,
-                                uint64_t channel_id, uint64_t member_user_id) {
-    if (!conn || channel_id == 0 || member_user_id == 0) return;
+  void ensure_direct_membership(const ConnPtr &conn, uint64_t channel_id,
+                                uint64_t member_user_id) {
+    if (!conn || channel_id == 0 || member_user_id == 0)
+      return;
 
-    auto existing = conn->select(ormpp::all)
-                        .from<chat_channel_member_t>()
-                        .where(col(&chat_channel_member_t::channel_id).param() &&
-                               col(&chat_channel_member_t::user_id).param())
-                        .collect(channel_id, member_user_id);
-    if (!existing.empty()) return;
+    auto existing =
+        conn->select(ormpp::all)
+            .template from<chat_channel_member_t>()
+            .where(col(&chat_channel_member_t::channel_id).param() &&
+                   col(&chat_channel_member_t::user_id).param())
+            .collect(channel_id, member_user_id);
+    if (!existing.empty())
+      return;
 
     chat_channel_member_t member{};
     member.channel_id = channel_id;
@@ -2720,16 +3305,19 @@ private:
   }
 
   bool is_chat_admin(uint64_t user_id) {
-    if (user_id == 0) return false;
+    if (user_id == 0)
+      return false;
 
     auto conn = get_db_pool().get();
-    if (!conn) return false;
+    if (!conn)
+      return false;
 
     auto users = conn->select(ormpp::all)
                      .from<users_t>()
                      .where(col(&users_t::id).param())
                      .collect(user_id);
-    if (users.empty()) return false;
+    if (users.empty())
+      return false;
 
     auto role = users[0].role;
     return role == "admin" || role == "superadmin";
@@ -2737,7 +3325,8 @@ private:
 
   bool is_user_muted(uint64_t user_id, uint64_t channel_id) {
     auto conn = get_db_pool().get();
-    if (!conn) return false;
+    if (!conn)
+      return false;
     auto now = get_timestamp_milliseconds();
     auto mutes = conn->select(ormpp::all)
                      .from<chat_mute_t>()
@@ -2750,12 +3339,16 @@ private:
   }
 
   bool user_can_access_channel(uint64_t user_id, uint64_t channel_id) {
-    if (channel_id == 0) return false;
+    if (channel_id == 0)
+      return false;
 
     chat_channel_cache_entry channel{};
-    if (!chat_channel_cache::instance().get(channel_id, channel)) return false;
-    if (!channel.is_private) return true;
-    if (channel.creator_id == user_id) return true;
+    if (!chat_channel_cache::instance().get(channel_id, channel))
+      return false;
+    if (!channel.is_private)
+      return true;
+    if (channel.creator_id == user_id)
+      return true;
 
     bool allowed = false;
     if (chat_access_cache::instance().get(user_id, channel_id, allowed)) {
@@ -2763,7 +3356,8 @@ private:
     }
 
     auto conn = get_db_pool().get();
-    if (!conn) return false;
+    if (!conn)
+      return false;
 
     auto members = conn->select(ormpp::all)
                        .from<chat_channel_member_t>()
@@ -2778,6 +3372,7 @@ private:
   async_simple::coro::Lazy<void>
   handle_chat_message(uint64_t user_id, const std::string &user_name,
                       uint64_t channel_id, const std::string &text,
+                      uint64_t reply_to_message_id,
                       std::shared_ptr<chat_hub::session> session_state) {
     const auto total_begin = chat_perf_stats::now_ns();
     uint64_t db_ns = 0;
@@ -2785,12 +3380,15 @@ private:
     uint64_t active_broadcast_ns = 0;
     uint64_t inactive_broadcast_ns = 0;
 
-    if (text.empty() || channel_id == 0) co_return;
+    if (text.empty() || channel_id == 0)
+      co_return;
     // Input validation
-    if (utf8_codepoint_count(text) > 2000) co_return;
+    if (utf8_codepoint_count(text) > 2000)
+      co_return;
 
     // Permission check: verify user has access to the channel
-    if (!user_can_access_channel(user_id, channel_id)) co_return;
+    if (!user_can_access_channel(user_id, channel_id))
+      co_return;
 
     // Mute check
     {
@@ -2815,10 +3413,33 @@ private:
     }
 
     chat_channel_cache_entry channel{};
-    if (!chat_channel_cache::instance().get(channel_id, channel)) co_return;
+    if (!chat_channel_cache::instance().get(channel_id, channel))
+      co_return;
 
     const std::string filtered_text =
         sensitive_word_filter::instance().filter(text);
+
+    std::optional<chat_reply_preview_view> reply_preview;
+    if (reply_to_message_id > 0) {
+      auto reply_conn = get_db_pool().get();
+      if (!reply_conn)
+        co_return;
+      auto reply_msgs = reply_conn->select(ormpp::all)
+                            .from<chat_message_t>()
+                            .where(col(&chat_message_t::id).param())
+                            .collect(reply_to_message_id);
+      if (reply_msgs.empty() || reply_msgs[0].channel_id != channel_id) {
+        co_await chat_hub::instance().send_to(
+            session_state,
+            R"({"type":"error","msg":"引用的消息不存在或不在当前频道"})");
+        co_return;
+      }
+
+      reply_preview = chat_reply_preview_view{
+          reply_msgs[0].id, reply_msgs[0].user_id,
+          arr_to_str(reply_msgs[0].user_name),
+          trim_message_for_reply_preview(reply_msgs[0].content)};
+    }
 
     chat_message_t m{};
     m.channel_id = channel_id;
@@ -2831,12 +3452,15 @@ private:
     uint64_t msg_id = 0;
     {
       const auto db_begin = chat_perf_stats::now_ns();
-      auto channel_mtx = chat_channel_cache::instance().channel_mutex(channel_id);
+      auto channel_mtx =
+          chat_channel_cache::instance().channel_mutex(channel_id);
       std::scoped_lock channel_lock(*channel_mtx);
 
       auto conn = get_db_pool().get();
-      if (!conn) co_return;
-      if (!conn->begin()) co_return;
+      if (!conn)
+        co_return;
+      if (!conn->begin())
+        co_return;
 
       auto latest = conn->select(ormpp::all)
                         .from<chat_channel_t>()
@@ -2855,6 +3479,20 @@ private:
         co_return;
       }
 
+      if (reply_preview.has_value()) {
+        chat_message_reply_t reply_row{};
+        reply_row.message_id = msg_id;
+        reply_row.reply_to_message_id = reply_preview->message_id;
+        reply_row.reply_to_user_id = reply_preview->user_id;
+        str_to_arr(reply_row.reply_user_name, reply_preview->user_name);
+        reply_row.reply_content = reply_preview->text;
+        reply_row.created_at = m.created_at;
+        if (conn->insert(reply_row) <= 0) {
+          conn->rollback();
+          co_return;
+        }
+      }
+
       if (conn->update<chat_channel_t>()
               .set(col(&chat_channel_t::message_count), next_seq)
               .where(col(&chat_channel_t::id) == channel_id)
@@ -2871,13 +3509,14 @@ private:
       chat_channel_cache::instance().set_message_count(channel_id, next_seq);
       db_ns = chat_perf_stats::now_ns() - db_begin;
     }
-    if (msg_id == 0) co_return;
+    if (msg_id == 0)
+      co_return;
 
     m.id = msg_id;
     const auto json_begin = chat_perf_stats::now_ns();
     std::ostringstream active_os;
-    active_os << R"({"type":"message","msg":)" << build_msg_json(m)
-              << "}";
+    active_os << R"({"type":"message","msg":)"
+              << build_msg_json(m, reply_preview) << "}";
     json_build_ns = chat_perf_stats::now_ns() - json_begin;
     const auto active_begin = chat_perf_stats::now_ns();
     co_await chat_hub::instance().broadcast_active_channel(channel_id,
@@ -2896,23 +3535,28 @@ private:
         active_broadcast_ns, inactive_broadcast_ns);
   }
 
-  async_simple::coro::Lazy<void>
-  handle_reaction(uint64_t user_id, uint64_t message_id,
-                  const std::string &emoji) {
-    if (message_id == 0 || emoji.empty()) co_return;
-    if (emoji.size() > 14) co_return; // emoji field is char[16]
+  async_simple::coro::Lazy<void> handle_reaction(uint64_t user_id,
+                                                 uint64_t message_id,
+                                                 const std::string &emoji) {
+    if (message_id == 0 || emoji.empty())
+      co_return;
+    if (emoji.size() > 14)
+      co_return; // emoji field is char[16]
 
     uint64_t channel_id = 0;
     {
       auto conn = get_db_pool().get();
-      if (!conn) co_return;
+      if (!conn)
+        co_return;
       auto msgs = conn->select(ormpp::all)
                       .from<chat_message_t>()
                       .where(col(&chat_message_t::id).param())
                       .collect(message_id);
-      if (msgs.empty()) co_return;
+      if (msgs.empty())
+        co_return;
       channel_id = msgs[0].channel_id;
-      if (!user_can_access_channel(user_id, channel_id)) co_return;
+      if (!user_can_access_channel(user_id, channel_id))
+        co_return;
 
       auto existing = conn->select(ormpp::all)
                           .from<chat_reaction_t>()
@@ -2936,8 +3580,8 @@ private:
 
     std::ostringstream os;
     os << R"({"type":"reaction_update","message_id":)" << message_id
-       << R"(,"channel_id":)" << channel_id
-       << R"(,"reactions":)" << build_reactions_json(message_id) << "}";
+       << R"(,"channel_id":)" << channel_id << R"(,"reactions":)"
+       << build_reactions_json(message_id) << "}";
     co_await chat_hub::instance().broadcast_active_channel(channel_id,
                                                            os.str());
   }
@@ -2945,18 +3589,22 @@ private:
   async_simple::coro::Lazy<void>
   handle_edit_message(uint64_t user_id, uint64_t message_id,
                       const std::string &new_text) {
-    if (message_id == 0 || new_text.empty()) co_return;
-    if (utf8_codepoint_count(new_text) > 2000) co_return;
+    if (message_id == 0 || new_text.empty())
+      co_return;
+    if (utf8_codepoint_count(new_text) > 2000)
+      co_return;
 
     auto conn = get_db_pool().get();
-    if (!conn) co_return;
+    if (!conn)
+      co_return;
 
     // Verify ownership
     auto msgs = conn->select(ormpp::all)
                     .from<chat_message_t>()
                     .where(col(&chat_message_t::id).param())
                     .collect(message_id);
-    if (msgs.empty() || msgs[0].user_id != user_id) co_return;
+    if (msgs.empty() || msgs[0].user_id != user_id)
+      co_return;
     auto channel_id = msgs[0].channel_id;
 
     const std::string filtered_text =
@@ -2968,33 +3616,40 @@ private:
 
     std::ostringstream os;
     os << R"({"type":"message_edited","message_id":)" << message_id
-       << R"(,"channel_id":)" << channel_id
-       << R"(,"text":")" << json_escape(filtered_text)
-       << R"(","edited_at":)" << get_timestamp_milliseconds() << "}";
+       << R"(,"channel_id":)" << channel_id << R"(,"text":")"
+       << json_escape(filtered_text) << R"(","edited_at":)"
+       << get_timestamp_milliseconds() << "}";
     co_await chat_hub::instance().broadcast_active_channel(channel_id,
                                                            os.str());
   }
 
-  async_simple::coro::Lazy<void>
-  handle_delete_message(uint64_t user_id, uint64_t message_id) {
-    if (message_id == 0) co_return;
+  async_simple::coro::Lazy<void> handle_delete_message(uint64_t user_id,
+                                                       uint64_t message_id) {
+    if (message_id == 0)
+      co_return;
 
     auto conn = get_db_pool().get();
-    if (!conn) co_return;
+    if (!conn)
+      co_return;
 
     // Verify ownership or admin privilege
     auto msgs = conn->select(ormpp::all)
                     .from<chat_message_t>()
                     .where(col(&chat_message_t::id).param())
                     .collect(message_id);
-    if (msgs.empty()) co_return;
-    if (msgs[0].user_id != user_id && !is_chat_admin(user_id)) co_return;
+    if (msgs.empty())
+      co_return;
+    if (msgs[0].user_id != user_id && !is_chat_admin(user_id))
+      co_return;
 
     auto channel_id = msgs[0].channel_id;
 
     // Delete reactions first, then message
     conn->remove<chat_reaction_t>()
         .where(col(&chat_reaction_t::message_id) == message_id)
+        .execute();
+    conn->remove<chat_message_reply_t>()
+        .where(col(&chat_message_reply_t::message_id) == message_id)
         .execute();
     conn->remove<chat_message_t>()
         .where(col(&chat_message_t::id) == message_id)
@@ -3003,8 +3658,8 @@ private:
     // Decrement channel message_count
     conn->update<chat_channel_t>()
         .set(col(&chat_channel_t::message_count),
-             ormpp::raw_sql(
-                 "CASE WHEN message_count > 0 THEN message_count - 1 ELSE 0 END"))
+             ormpp::raw_sql("CASE WHEN message_count > 0 THEN message_count - "
+                            "1 ELSE 0 END"))
         .where(col(&chat_channel_t::id) == channel_id)
         .execute();
     chat_channel_cache::instance().decrement_message_count(channel_id);
@@ -3016,18 +3671,17 @@ private:
                                                            os.str());
   }
 
-  async_simple::coro::Lazy<void>
-  handle_typing(uint64_t user_id, const std::string &user_name,
-                uint64_t channel_id) {
-    if (channel_id == 0) co_return;
+  async_simple::coro::Lazy<void> handle_typing(uint64_t user_id,
+                                               const std::string &user_name,
+                                               uint64_t channel_id) {
+    if (channel_id == 0)
+      co_return;
 
     std::ostringstream os;
-    os << R"({"type":"typing","user_id":)" << user_id
-       << R"(,"user_name":")" << json_escape(user_name)
-       << R"(","channel_id":)" << channel_id << "}";
-    co_await chat_hub::instance().broadcast_active_channel(channel_id,
-                                                           os.str(),
-                                                           chat_hub::priority::low);
+    os << R"({"type":"typing","user_id":)" << user_id << R"(,"user_name":")"
+       << json_escape(user_name) << R"(","channel_id":)" << channel_id << "}";
+    co_await chat_hub::instance().broadcast_active_channel(
+        channel_id, os.str(), chat_hub::priority::low);
   }
 };
 

@@ -17,6 +17,8 @@
     <script src="script/highlight.min.js"></script>
     <script src="script/cpp.min.js"></script>
     <script src="script/marked.min.js"></script>
+    <script src="script/temml.min.js"></script>
+    <script src="script/markdown_math.js"></script>
     <script defer src="script/alpine.js"></script>
 
     <style>
@@ -692,8 +694,7 @@
             },
 
             renderMarkdown(content) {
-                const unescaped = content.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-                return marked.parse(unescaped || '');
+                return window.renderMarkdown(content);
             },
 
             formatDate(ts) {

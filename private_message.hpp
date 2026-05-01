@@ -95,7 +95,7 @@ inline bool parse_u64(std::string_view raw, uint64_t &value) {
 template <typename Conn>
 inline std::string get_user_name_by_id(Conn &conn, uint64_t user_id) {
   auto users = conn->select(ormpp::all)
-                   .from<users_t>()
+                   .template from<users_t>()
                    .where(col(&users_t::id).param())
                    .collect(user_id);
   return users.empty() ? "" : array_to_string(users[0].user_name);
@@ -172,6 +172,12 @@ public:
     }
     if (receivers.empty()) {
       resp.set_status_and_content(status_type::bad_request, make_error("接收者不存在"));
+      return;
+    }
+    const std::string receiver_name = array_to_string(receivers[0].user_name);
+    if (is_ai_bot_user_name(receiver_name)) {
+      resp.set_status_and_content(status_type::forbidden,
+                                  make_error("ai-bot 不支持私信，请在公开频道中 @ai-bot 提问", 403));
       return;
     }
     if (receiver_id == sender_id) {
